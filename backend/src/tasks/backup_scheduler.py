@@ -1,0 +1,263 @@
+import json
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+# 全局调度器实例
+scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
+
+# 存储运行中的任务
+running_tasks: Dict[int, bool] = {}
+
+async def run_backup_task(task_id: int, trigger: str = "scheduled"):
+    """执行一次备份任务
+    
+    Args:
+        task_id: 任务ID
+        trigger: 触发类型，scheduled(定时任务)/manual(手动触发)
+    """
+    from sqlalchemy import select
+    from ..models import BackupTask, Device, Credential, Backup, IPAddress
+    from ..services.backup_collector import collect_device_config, detect_config_change, \
+        calculate_hash, save_config_to_file
+    from ..utils.crypto import decrypt_password
+    from ..database import async_session
+    
+    running_tasks[task_id] = True
+    
+    try:
+        async with async_session() as db_session:
+            # 获取任务配置
+            task = await db_session.get(BackupTask, task_id)
+            if not task or not task.is_enabled:
+                return
+            
+            # 获取凭证
+            credential = await db_session.get(Credential, task.credential_id)
+            if not credential:
+                return
+            
+            # 解密凭证密码
+            credential_dict = {
+                "username": credential.username,
+                "password": decrypt_password(credential.password),
+                "port": credential.port,
+                "protocol": credential.protocol,
+                "enable_password": decrypt_password(credential.enable_password),
+                "auth_type": credential.auth_type,
+                "private_key": decrypt_password(credential.private_key),
+                "jump_host": credential.jump_host,
+                "jump_port": credential.jump_port,
+                "jump_username": credential.jump_username,
+                "jump_password": decrypt_password(credential.jump_password),
+            }
+            
+            # 获取设备列表（包含管理IP）
+            devices_with_ip = []
+            if task.device_ids:
+                device_id_list = json.loads(task.device_ids)
+                for did in device_id_list:
+                    device = await db_session.get(Device, did)
+                    if device:
+                        # 获取管理IP
+                        ip_address = None
+                        if device.mgmt_ip_id:
+                            ip = await db_session.get(IPAddress, device.mgmt_ip_id)
+                            if ip:
+                                ip_address = ip.address
+                        devices_with_ip.append((device, ip_address))
+            elif task.site_id:
+                devices = await db_session.execute(
+                    Device.__table__.select().where(Device.site_id == task.site_id)
+                )
+                for device in devices.scalars():
+                    ip_address = None
+                    if device.mgmt_ip_id:
+                        ip = await db_session.get(IPAddress, device.mgmt_ip_id)
+                        if ip:
+                            ip_address = ip.address
+                    devices_with_ip.append((device, ip_address))
+            else:
+                devices = await db_session.execute(Device.__table__.select())
+                for device in devices.scalars():
+                    ip_address = None
+                    if device.mgmt_ip_id:
+                        ip = await db_session.get(IPAddress, device.mgmt_ip_id)
+                        if ip:
+                            ip_address = ip.address
+                    devices_with_ip.append((device, ip_address))
+            
+            # 并发采集（最多10台并发）
+            import asyncio
+            semaphore = asyncio.Semaphore(10)
+            
+            async def collect_with_semaphore(device_info):
+                device, ip_address = device_info
+                async with semaphore:
+                    if not ip_address:
+                        # 如果没有管理IP，跳过该设备
+                        return device.id, None
+                    
+                    # 优先使用任务级别的vendor，如果任务没有设置则使用设备级别的vendor，如果都没有则使用默认值
+                    device_vendor = task.vendor or device.vendor or "huawei_vrp"
+                    device_dict = {
+                        "id": device.id,
+                        "ip_address": ip_address,
+                        "vendor": device_vendor,
+                    }
+                    return device.id, await collect_device_config(device_dict, credential_dict)
+            
+            tasks = [collect_with_semaphore(d) for d in devices_with_ip]
+            results = await asyncio.gather(*tasks)
+            
+            # 处理结果并写入备份记录
+            success_count = 0
+            failed_count = 0
+            
+            for device_id, result in results:
+                # 如果result为None，说明设备没有管理IP，跳过
+                if result is None:
+                    continue
+                
+                # 获取设备当前版本号
+                latest_backup = await db_session.execute(
+                    select(Backup)
+                    .where(Backup.device_id == device_id)
+                    .order_by(Backup.version.desc())
+                    .limit(1)
+                )
+                latest_backup = latest_backup.scalar_one_or_none()
+                new_version = (latest_backup.version if latest_backup else 0) + 1
+                
+                # 计算哈希
+                content_hash = calculate_hash(result.config_content) if result.success else ""
+                
+                # 检测变更
+                has_change = False
+                change_summary = ""
+                if result.success and latest_backup:
+                    old_content = latest_backup.content
+                    if latest_backup.file_path:
+                        from ..services.backup_collector import load_config_from_file
+                        old_content = load_config_from_file(latest_backup.file_path)
+                    
+                    if old_content:
+                        change_result = detect_config_change(old_content, result.config_content)
+                        has_change = change_result.has_change
+                        change_summary = change_result.change_summary
+            
+                # 决定存储方式（>100KB存文件）
+                content = result.config_content if result.success else ""
+                file_path = ""
+                if result.success and len(content) > 100 * 1024:
+                    file_path = save_config_to_file(device_id, 0, content)
+                    content = ""
+                
+                # 创建备份记录
+                backup = Backup(
+                    device_id=device_id,
+                    version=new_version,
+                    content=content,
+                    content_hash=content_hash,
+                    file_path=file_path,
+                    trigger=trigger,
+                    operator="system",
+                    status="success" if result.success else "failed",
+                    error_message=result.error_message,
+                    has_change=has_change,
+                    change_summary=change_summary,
+                    duration_ms=result.duration_ms,
+                    size=len(result.config_content) if result.success else 0,
+                )
+                db_session.add(backup)
+                
+                if result.success:
+                    success_count += 1
+                else:
+                    failed_count += 1
+            
+            await db_session.commit()
+            
+            # 更新任务状态
+            task.last_run_at = datetime.now(timezone.utc)
+            if failed_count == 0:
+                task.last_run_status = "success"
+            elif success_count == 0:
+                task.last_run_status = "failed"
+            else:
+                task.last_run_status = "partial_fail"
+            
+            await db_session.commit()
+    finally:
+        running_tasks[task_id] = False
+
+async def execute_retention_policy(device_id: int, retention_count: int, retention_days: int, db_session):
+    """执行保留策略，删除超出限制的旧备份"""
+    from ..models import Backup
+    
+    # 获取需要删除的备份（按版本号排序，保留最新的N个）
+    backups = await db_session.execute(
+        Backup.__table__.select()
+        .where(Backup.device_id == device_id)
+        .order_by(Backup.version.desc())
+    )
+    backups = [b for b in backups.scalars()]
+    
+    # 删除超出保留数量的备份
+    if len(backups) > retention_count:
+        to_delete = backups[retention_count:]
+        for backup in to_delete:
+            # 删除文件（如果存在）
+            if backup.file_path and backup.file_path:
+                import os
+                try:
+                    os.remove(backup.file_path)
+                except:
+                    pass
+            await db_session.delete(backup)
+    
+    await db_session.commit()
+
+def add_task_to_scheduler(task_id: int, cron_expr: str):
+    """添加任务到调度器"""
+    scheduler.add_job(
+        run_backup_task,
+        CronTrigger.from_crontab(cron_expr),
+        args=[task_id],
+        id=f"backup_task_{task_id}",
+        replace_existing=True
+    )
+
+def remove_task_from_scheduler(task_id: int):
+    """从调度器移除任务"""
+    try:
+        scheduler.remove_job(f"backup_task_{task_id}")
+    except Exception:
+        # 如果任务不在调度器中（如禁用状态），忽略错误
+        pass
+
+async def reload_tasks(db_session):
+    """重新从DB加载所有任务"""
+    from ..models import BackupTask
+    from sqlalchemy import select
+    
+    # 移除所有现有任务
+    for job in scheduler.get_jobs():
+        if job.id.startswith("backup_task_"):
+            scheduler.remove_job(job.id)
+    
+    # 加载并注册启用的任务
+    result = await db_session.execute(select(BackupTask).where(BackupTask.is_enabled))
+    tasks = result.scalars().all()
+    for task in tasks:
+        if task.cron_expr:
+            add_task_to_scheduler(task.id, task.cron_expr)
+
+def start_scheduler():
+    """启动调度器"""
+    scheduler.start()
+
+def stop_scheduler():
+    """停止调度器"""
+    scheduler.shutdown()

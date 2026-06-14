@@ -1,0 +1,72 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7fa;
+  --panel: #ffffff;
+  --panel-soft: #f7f8fa;
+  --text: #1f2329;
+  --muted: #646a73;
+  --subtle: #8f959e;
+  --line: #e5e6eb;
+  --line-strong: #d0d3d8;
+  --accent: #3370ff;
+  --accent-strong: #245bdb;
+  --accent-soft: #e8f3ff;
+  --warn: #d25f00;
+  --danger: #d83931;
+  --ok: #2ea121;
+  --blue: #3370ff;
+  --shadow: 0 8px 24px rgba(31, 35, 41, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c9cdd4 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c9cdd4;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family:
+    Inter, "Byte Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(51, 112, 255, 0.36);
+  outline-offset: 2px;
+}

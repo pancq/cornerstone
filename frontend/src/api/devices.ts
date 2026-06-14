@@ -1,0 +1,62 @@
+import api from './axios'
+
+export interface DeviceResponse {
+  id: number
+  name: string
+  type: string
+  vendor: string | null
+  model: string
+  sn: string
+  site_id: number | null
+  location: string | null
+  mgmt_ip_id: number | null
+  status: string
+  purchase_date: string | null
+  warranty_end: string | null
+  purchase_amount: number | null
+  owner: string | null
+  note: string | null
+  created_at: string
+  updated_at: string | null
+}
+
+export interface DeviceCreate {
+  name: string
+  type: string
+  vendor: string | null
+  model: string
+  sn: string
+  site_id: number | null
+  location: string | null
+  mgmt_ip_id: number | null
+  status: string
+  purchase_date: string | null
+  warranty_end: string | null
+  purchase_amount: number | null
+  owner: string | null
+  note: string | null
+}
+
+export async function getDevices(): Promise<DeviceResponse[]> {
+  const response = await api.get('/devices/')
+  return response.data
+}
+
+export async function getDevice(id: number): Promise<DeviceResponse> {
+  const response = await api.get(`/devices/${id}`)
+  return response.data
+}
+
+export async function createDevice(data: DeviceCreate): Promise<DeviceResponse> {
+  const response = await api.post('/devices/', data)
+  return response.data
+}
+
+export async function updateDevice(id: number, data: Partial<DeviceCreate>): Promise<DeviceResponse> {
+  const response = await api.put(`/devices/${id}`, data)
+  return response.data
+}
+
+export async function deleteDevice(id: number): Promise<void> {
+  await api.delete(`/devices/${id}`)
+}

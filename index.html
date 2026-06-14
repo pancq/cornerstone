@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>基石 Cornerstone</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="app" class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">C</div>
+          <div>
+            <strong>基石</strong>
+            <span>Cornerstone</span>
+          </div>
+        </div>
+        <nav id="nav" class="nav"></nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p id="eyebrow" class="eyebrow">Dashboard</p>
+            <h1 id="page-title">资源总览</h1>
+          </div>
+          <div class="topbar-actions">
+            <label class="search">
+              <span>⌕</span>
+              <input id="global-search" placeholder="搜索专线、设备、IP、配置" />
+            </label>
+            <button id="reset-data" class="ghost-button" type="button">重置演示数据</button>
+          </div>
+        </header>
+
+        <section id="content" class="content"></section>
+      </main>
+    </div>
+
+    <dialog id="record-dialog" class="dialog">
+      <form id="record-form" method="dialog">
+        <div class="dialog-head">
+          <div>
+            <p id="dialog-kicker" class="eyebrow">Record</p>
+            <h2 id="dialog-title">新增记录</h2>
+          </div>
+          <button class="icon-button" data-close-dialog="record-dialog" aria-label="关闭" type="button">×</button>
+        </div>
+        <div id="form-fields" class="form-grid"></div>
+        <menu class="dialog-actions">
+          <button class="ghost-button" data-close-dialog="record-dialog" type="button">取消</button>
+          <button id="save-record" class="primary-button" value="default" type="submit">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="diff-dialog" class="dialog wide-dialog">
+      <form method="dialog">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Config Diff</p>
+            <h2>配置版本对比</h2>
+          </div>
+          <button class="icon-button" data-close-dialog="diff-dialog" aria-label="关闭" type="button">×</button>
+        </div>
+        <div id="diff-summary" class="diff-summary"></div>
+        <div id="diff-view" class="diff-view"></div>
+      </form>
+    </dialog>
+
+    <input id="csv-file" class="hidden" type="file" accept=".csv,text/csv" />
+    <script src="./app.js"></script>
+  </body>
+</html>
