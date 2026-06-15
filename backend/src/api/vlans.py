@@ -32,7 +32,7 @@ async def create_vlan_group(
     current_user: dict = Depends(get_current_active_user)
 ):
     """创建VLAN组"""
-    stmt = insert(VlanGroup).values(**vlan_group.dict()).returning(VlanGroup)
+    stmt = insert(VlanGroup).values(**vlan_group.model_dump()).returning(VlanGroup)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -46,7 +46,7 @@ async def update_vlan_group(
     current_user: dict = Depends(get_current_active_user)
 ):
     """编辑VLAN组"""
-    stmt = update(VlanGroup).where(VlanGroup.id == group_id).values(**vlan_group.dict(exclude_unset=True)).returning(VlanGroup)
+    stmt = update(VlanGroup).where(VlanGroup.id == group_id).values(**vlan_group.model_dump(exclude_unset=True)).returning(VlanGroup)
     result = await db.execute(stmt)
     vlan_group = result.scalar_one_or_none()
     if vlan_group is None:
@@ -122,7 +122,7 @@ async def create_vlan(
     if existing_vlan:
         raise HTTPException(status_code=400, detail=f"VLAN ID {vlan.vid}已存在")
     
-    stmt = insert(Vlan).values(**vlan.dict()).returning(Vlan)
+    stmt = insert(Vlan).values(**vlan.model_dump()).returning(Vlan)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -156,7 +156,7 @@ async def update_vlan(
         if result.scalars().first():
             raise HTTPException(status_code=400, detail=f"VLAN ID {vlan.vid}已存在")
     
-    stmt = update(Vlan).where(Vlan.id == vlan_id).values(**vlan.dict(exclude_unset=True)).returning(Vlan)
+    stmt = update(Vlan).where(Vlan.id == vlan_id).values(**vlan.model_dump(exclude_unset=True)).returning(Vlan)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()

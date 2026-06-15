@@ -83,7 +83,7 @@ async def create_credential(
         raise HTTPException(status_code=400, detail="凭证名称已存在")
     
     # 加密密码字段
-    data = credential.dict()
+    data = credential.model_dump()
     if data.get("password"):
         data["password"] = encrypt_password(data["password"])
     if data.get("enable_password"):
@@ -124,7 +124,7 @@ async def update_credential(
     if not existing:
         raise HTTPException(status_code=404, detail="Credential not found")
     
-    data = credential.dict(exclude_unset=True)
+    data = credential.model_dump(exclude_unset=True)
     
     # 加密新密码（如果提供）
     if data.get("password"):

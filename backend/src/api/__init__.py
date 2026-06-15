@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from .auth import router as auth_router
+from .ldap import router as ldap_router
 from .sites import router as sites_router
 from .circuits import router as circuits_router
 from .ipam import router as ipam_router
@@ -19,10 +20,12 @@ from .dashboard import router as dashboard_router
 from .system import router as system_router
 from .import_export import router as import_export_router
 from .inspection import router as inspection_router
+from .ai import router as ai_router
 
 api_router = APIRouter()
 
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
+api_router.include_router(ldap_router, prefix="/auth", tags=["ldap"])
 api_router.include_router(sites_router, prefix="/sites", tags=["sites"])
 api_router.include_router(circuits_router, prefix="/circuits", tags=["circuits"])
 api_router.include_router(ipam_router, prefix="/ipam", tags=["ipam"])
@@ -41,3 +44,4 @@ api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboar
 api_router.include_router(system_router, prefix="/system", tags=["system"])
 api_router.include_router(import_export_router, prefix="/import-export", tags=["import-export"])
 api_router.include_router(inspection_router, tags=["inspection"])
+api_router.include_router(ai_router, prefix="/ai", tags=["ai"])

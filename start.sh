@@ -50,7 +50,7 @@ stop_services() {
         FRONTEND_PID=$(cat "$FRONTEND_PID_FILE")
         if kill -0 "$FRONTEND_PID" 2>/dev/null; then
             echo "停止前端服务 (PID: $FRONTEND_PID)..."
-            kill "$FRONTEND_PID" 2>/dev/null
+            kill "$FRONTEND_PID" 2>/dev/null || kill -9 "$FRONTEND_PID" 2>/dev/null
             sleep 2
             if kill -0 "$FRONTEND_PID" 2>/dev/null; then
                 kill -9 "$FRONTEND_PID" 2>/dev/null

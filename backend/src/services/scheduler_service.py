@@ -4,7 +4,7 @@ from typing import Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from src.database import get_db
+from src.database import async_session
 from src.services.monitor_service import run_monitoring_task
 
 scheduler = None
@@ -22,7 +22,7 @@ def get_scheduler() -> AsyncIOScheduler:
 async def scheduled_monitoring_task():
     """定时执行的监控任务"""
     print(f"[{datetime.now()}] Running scheduled monitoring task...")
-    async for db in get_db():
+    async with async_session() as db:
         await run_monitoring_task(db)
 
 

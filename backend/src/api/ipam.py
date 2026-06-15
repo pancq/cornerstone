@@ -147,7 +147,7 @@ async def create_aggregate(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(Aggregate).values(**aggregate.dict()).returning(Aggregate)
+    stmt = insert(Aggregate).values(**aggregate.model_dump()).returning(Aggregate)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -159,7 +159,7 @@ async def update_aggregate(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(Aggregate).where(Aggregate.id == aggregate_id).values(**aggregate.dict(exclude_unset=True)).returning(Aggregate)
+    stmt = update(Aggregate).where(Aggregate.id == aggregate_id).values(**aggregate.model_dump(exclude_unset=True)).returning(Aggregate)
     result = await db.execute(stmt)
     aggregate = result.scalar_one_or_none()
     if aggregate is None:
@@ -197,7 +197,7 @@ async def create_prefix(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(Prefix).values(**prefix.dict()).returning(Prefix)
+    stmt = insert(Prefix).values(**prefix.model_dump()).returning(Prefix)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -209,7 +209,7 @@ async def update_prefix(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(Prefix).where(Prefix.id == prefix_id).values(**prefix.dict(exclude_unset=True)).returning(Prefix)
+    stmt = update(Prefix).where(Prefix.id == prefix_id).values(**prefix.model_dump(exclude_unset=True)).returning(Prefix)
     result = await db.execute(stmt)
     prefix = result.scalar_one_or_none()
     if prefix is None:
@@ -247,7 +247,7 @@ async def create_address(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(IPAddress).values(**address.dict()).returning(IPAddress)
+    stmt = insert(IPAddress).values(**address.model_dump()).returning(IPAddress)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -259,7 +259,7 @@ async def update_address(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(IPAddress).where(IPAddress.id == address_id).values(**address.dict(exclude_unset=True)).returning(IPAddress)
+    stmt = update(IPAddress).where(IPAddress.id == address_id).values(**address.model_dump(exclude_unset=True)).returning(IPAddress)
     result = await db.execute(stmt)
     address = result.scalar_one_or_none()
     if address is None:

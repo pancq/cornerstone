@@ -187,7 +187,7 @@ const newService = reactive<Omit<AIServiceConfig, 'enabled'>>({
 const defaultServices = computed(() => ['DeepSeek', t('aiSettings.qwen'), t('aiSettings.zhipu'), 'Claude 3', 'GPT-4', t('aiSettings.localModel')]);
 
 function isDefaultService(name: string): boolean {
-  return defaultServices.includes(name);
+  return defaultServices.value.includes(name);
 }
 
 async function handleDeleteService(index: number) {

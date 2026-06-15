@@ -19,6 +19,10 @@ const error = ref('')
 const showPassword = ref(false)
 const captchaLoading = ref(false)
 const ssoConfigLoaded = ref(false)
+const ldapEnabled = ref(false)
+const ldapConfigLoaded = ref(false)
+
+const loginMode = ref<'local' | 'ldap'>('local')
 
 const isTypingUsername = ref(false)
 const isTypingPassword = ref(false)
@@ -27,6 +31,10 @@ const showPeek = computed(() => isTypingUsername.value || isTypingPassword.value
 
 const hasSSO = computed(() => {
   return authStore.ssoConfig?.enabled && authStore.ssoConfig?.has_oauth2
+})
+
+const showLdapTab = computed(() => {
+  return ldapEnabled.value && ldapConfigLoaded.value
 })
 
 async function refreshCaptcha() {
@@ -103,10 +111,64 @@ async function handleSSOLogin() {
     }
 }
 
+async function handleLDAPLogin() {
+    if (!username.value) {
+        error.value = t('login.usernameRequired')
+        return
+    }
+    if (!password.value) {
+        error.value = t('login.passwordRequired')
+        return
+    }
+
+    loading.value = true
+    error.value = ''
+
+    try {
+        const response = await fetch('/api/v1/auth/ldap/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username.value,
+                password: password.value
+            })
+        })
+        
+        const data = await response.json()
+        
+        if (response.ok) {
+            localStorage.setItem('access_token', data.access_token)
+            localStorage.setItem('refresh_token', data.refresh_token)
+            router.push('/')
+        } else {
+            error.value = data.detail || t('login.loginFailed')
+        }
+    } catch (err: any) {
+        error.value = t('login.loginFailed')
+    } finally {
+        loading.value = false
+    }
+}
+
+async function fetchLDAPConfig() {
+    try {
+        const response = await fetch('/api/v1/auth/ldap/enabled')
+        const data = await response.json()
+        ldapEnabled.value = data.enabled
+    } catch (err) {
+        console.error('获取LDAP配置失败:', err)
+    } finally {
+        ldapConfigLoaded.value = true
+    }
+}
+
 onMounted(async () => {
     refreshCaptcha()
     await authStore.fetchSSOConfig()
     ssoConfigLoaded.value = true
+    await fetchLDAPConfig()
     
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
@@ -264,6 +326,33 @@ onMounted(async () => {
                     <p>{{ t('login.rightSubtitle') }}</p>
                 </div>
 
+                <!-- 登录模式选项卡 -->
+                <div v-if="showLdapTab" class="login-tabs">
+                    <button 
+                        class="tab-btn" 
+                        :class="{ active: loginMode === 'local' }"
+                        @click="loginMode = 'local'; refreshCaptcha()"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm10-10V7a4 4 0 0 0-8 0v4h8z"/>
+                        </svg>
+                        {{ t('login.localLogin') }}
+                    </button>
+                    <button 
+                        class="tab-btn" 
+                        :class="{ active: loginMode === 'ldap' }"
+                        @click="loginMode = 'ldap'"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        {{ t('login.ldapLogin') }}
+                    </button>
+                </div>
+
                 <div class="login-form">
                     <Transition name="fade-slide">
                         <div v-if="error" class="error-message">
@@ -337,7 +426,8 @@ onMounted(async () => {
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <!-- 验证码 - 仅在本地登录模式显示 -->
+                    <div v-if="loginMode === 'local'" class="form-group">
                         <label class="form-label">
                             <span class="label-text">{{ t('login.captcha') }}</span>
                             <span class="label-required">*</span>
@@ -390,7 +480,7 @@ onMounted(async () => {
                         class="login-btn" 
                         :class="{ 'btn-loading': loading }"
                         :disabled="loading"
-                        @click="handleLogin"
+                        @click="loginMode === 'local' ? handleLogin() : handleLDAPLogin()"
                     >
                         <span v-if="loading" class="btn-loader">
                             <svg class="loading-spinner" viewBox="0 0 24 24">
@@ -401,7 +491,7 @@ onMounted(async () => {
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M11 16l-4-4m0 0L7 10m4 6l4-4m-4 6l4-4"/>
                             </svg>
-                            {{ t('login.loginButton') }}
+                            {{ loginMode === 'local' ? t('login.loginButton') : t('login.ldapLoginButton') }}
                         </span>
                     </button>
 
@@ -913,6 +1003,49 @@ onMounted(async () => {
 .login-header p {
   font-size: 13px;
   color: #64748b;
+}
+
+.login-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 6px;
+  background: #f8fafc;
+  border-radius: 12px;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.tab-btn.active {
+  background: white;
+  color: #3b82f6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.tab-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .login-form {

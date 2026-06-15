@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import delete
 import json
+import base64
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 from ..database import get_db
@@ -87,9 +88,9 @@ async def upload_logo(
     setting = result.scalars().first()
     
     if setting:
-        setting.value = content.decode('latin-1')
+        setting.value = base64.b64encode(content).decode('ascii')
     else:
-        setting = Setting(key="company_logo", value=content.decode('latin-1'))
+        setting = Setting(key="company_logo", value=base64.b64encode(content).decode('ascii'))
         db.add(setting)
     await db.commit()
     
@@ -341,11 +342,10 @@ async def cleanup_logs(
     
     # 记录清理操作到审计日志
     cleanup_log = AuditLog(
-        user_id=current_user.id,
+        user=current_user.username,
         action='log_cleanup',
-        resource_type='system',
-        resource_id=None,
-        details=f"清理了 {deleted_count} 条过期日志（审计日志保留{log_retention_days}天，登录日志保留{login_log_retention_days}天）"
+        resource='system',
+        detail=f"清理了 {deleted_count} 条过期日志（审计日志保留{log_retention_days}天，登录日志保留{login_log_retention_days}天）"
     )
     db.add(cleanup_log)
     await db.commit()

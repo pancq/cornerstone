@@ -37,7 +37,7 @@ async def create_site(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(Site).values(**site.dict()).returning(Site)
+    stmt = insert(Site).values(**site.model_dump()).returning(Site)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -54,7 +54,7 @@ async def update_site(
     if existing_site is None:
         raise HTTPException(status_code=404, detail="Site not found")
     
-    stmt = update(Site).where(Site.id == site_id).values(**site.dict(exclude_unset=True)).returning(Site)
+    stmt = update(Site).where(Site.id == site_id).values(**site.model_dump(exclude_unset=True)).returning(Site)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()

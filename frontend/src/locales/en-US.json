@@ -630,7 +630,7 @@
     "noUserPermission": "You do not have permission to view user management",
     "noSystemPermission": "You do not have permission to configure system settings",
     "noNotificationPermission": "You do not have permission to configure notification settings",
-    "logs": {
+    "logsConfig": {
       "retentionPolicy": "Retention Policy",
       "auditRetentionDays": "Audit Log Retention Days",
       "days": "days",
@@ -1135,5 +1135,15 @@
     "test": "Test",
     "alertAcknowledged": "Alert acknowledged",
     "alertResolved": "Alert resolved"
+  },
+  "aiSearch": {
+    "placeholder": "Search devices, IPs, circuits, or ask a question...",
+    "searchOrAsk": "Search or ask...",
+    "history": "Search History",
+    "aiThinking": "AI is analyzing your question...",
+    "followUp": "Follow up",
+    "noResult": "No results found",
+    "searchFailed": "Search failed, please try again later",
+    "loginRequired": "Please login to use AI search"
   }
 }

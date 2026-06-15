@@ -33,12 +33,12 @@ const levelSettings = ref({
 
 // Session超时选项
 const sessionTimeoutOptions = computed(() => [
-  { value: 30, label: `30 ${t('system.logs.minutes')}` },
-  { value: 60, label: `1 ${t('system.logs.hour')}` },
-  { value: 120, label: `2 ${t('system.logs.hours')}` },
-  { value: 240, label: `4 ${t('system.logs.hours')}` },
-  { value: 480, label: `8 ${t('system.logs.hours')}` },
-  { value: -1, label: t('system.logs.neverTimeout') }
+  { value: 30, label: `30 ${t('system.logsConfig.minutes')}` },
+  { value: 60, label: `1 ${t('system.logsConfig.hour')}` },
+  { value: 120, label: `2 ${t('system.logsConfig.hours')}` },
+  { value: 240, label: `4 ${t('system.logsConfig.hours')}` },
+  { value: 480, label: `8 ${t('system.logsConfig.hours')}` },
+  { value: -1, label: t('system.logsConfig.neverTimeout') }
 ])
 
 // 加载设置
@@ -111,8 +111,8 @@ const handleCleanup = async () => {
   const days = retentionSettings.value.log_retention_days
   try {
     await ElMessageBox.confirm(
-      t('system.logs.cleanupConfirm', { days }),
-      t('system.logs.confirmCleanup'),
+      t('system.logsConfig.cleanupConfirm', { days }),
+      t('system.logsConfig.confirmCleanup'),
       {
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
@@ -121,7 +121,7 @@ const handleCleanup = async () => {
     )
     
     const response = await api.post('/settings/logs/cleanup')
-    ElMessage.success(t('system.logs.cleanupSuccess', { count: response.data.deleted_count }))
+    ElMessage.success(t('system.logsConfig.cleanupSuccess', { count: response.data.deleted_count }))
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(t('common.error'))
@@ -141,41 +141,41 @@ onMounted(() => {
       <template #header>
         <div class="card-header">
           <el-icon class="header-icon"><Clock /></el-icon>
-          <span class="header-title">{{ t('system.logs.retentionPolicy') }}</span>
+          <span class="header-title">{{ t('system.logsConfig.retentionPolicy') }}</span>
         </div>
       </template>
       
       <el-form label-position="top" class="settings-form">
-        <el-form-item :label="t('system.logs.auditRetentionDays')">
+        <el-form-item :label="t('system.logsConfig.auditRetentionDays')">
           <el-input-number 
             v-model="retentionSettings.log_retention_days" 
             :min="30" 
             :max="3650" 
             :step="10"
           />
-          <span class="unit">{{ t('system.logs.days') }}</span>
-          <div class="form-desc">{{ t('system.logs.auditRetentionDesc') }}</div>
+          <span class="unit">{{ t('system.logsConfig.days') }}</span>
+          <div class="form-desc">{{ t('system.logsConfig.auditRetentionDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.loginRetentionDays')">
+        <el-form-item :label="t('system.logsConfig.loginRetentionDays')">
           <el-input-number 
             v-model="retentionSettings.login_log_retention_days" 
             :min="30" 
             :max="3650" 
             :step="10"
           />
-          <span class="unit">{{ t('system.logs.days') }}</span>
-          <div class="form-desc">{{ t('system.logs.loginRetentionDesc') }}</div>
+          <span class="unit">{{ t('system.logsConfig.days') }}</span>
+          <div class="form-desc">{{ t('system.logsConfig.loginRetentionDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.autoCleanup')">
+        <el-form-item :label="t('system.logsConfig.autoCleanup')">
           <el-switch v-model="retentionSettings.log_auto_cleanup" />
-          <div class="form-desc">{{ t('system.logs.autoCleanupDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.autoCleanupDesc') }}</div>
         </el-form-item>
         
         <el-form-item>
           <el-button type="warning" @click="handleCleanup">
-            {{ t('system.logs.cleanupNow') }}
+            {{ t('system.logsConfig.cleanupNow') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -192,23 +192,23 @@ onMounted(() => {
       <template #header>
         <div class="card-header">
           <el-icon class="header-icon"><Lock /></el-icon>
-          <span class="header-title">{{ t('system.logs.loginSecurity') }}</span>
+          <span class="header-title">{{ t('system.logsConfig.loginSecurity') }}</span>
         </div>
       </template>
       
       <el-form label-position="top" class="settings-form">
-        <el-form-item :label="t('system.logs.loginLockout')">
+        <el-form-item :label="t('system.logsConfig.loginLockout')">
           <el-input-number 
             v-model="securitySettings.login_max_attempts" 
             :min="3" 
             :max="10" 
             :step="1"
           />
-          <span class="unit">{{ t('system.logs.attempts') }}</span>
-          <div class="form-desc">{{ t('system.logs.loginLockoutDesc') }}</div>
+          <span class="unit">{{ t('system.logsConfig.attempts') }}</span>
+          <div class="form-desc">{{ t('system.logsConfig.loginLockoutDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.sessionTimeout')">
+        <el-form-item :label="t('system.logsConfig.sessionTimeout')">
           <el-select v-model="securitySettings.session_timeout_minutes" style="width: 200px">
             <el-option 
               v-for="opt in sessionTimeoutOptions" 
@@ -217,17 +217,17 @@ onMounted(() => {
               :value="opt.value"
             />
           </el-select>
-          <div class="form-desc">{{ t('system.logs.sessionTimeoutDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.sessionTimeoutDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.concurrentLogin')">
+        <el-form-item :label="t('system.logsConfig.concurrentLogin')">
           <el-switch v-model="securitySettings.allow_concurrent_login" />
-          <div class="form-desc">{{ t('system.logs.concurrentLoginDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.concurrentLoginDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.foreignLoginAlert')">
+        <el-form-item :label="t('system.logsConfig.foreignLoginAlert')">
           <el-switch v-model="securitySettings.alert_on_foreign_login" />
-          <div class="form-desc">{{ t('system.logs.foreignLoginAlertDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.foreignLoginAlertDesc') }}</div>
         </el-form-item>
       </el-form>
       
@@ -243,35 +243,35 @@ onMounted(() => {
       <template #header>
         <div class="card-header">
           <el-icon class="header-icon"><Document /></el-icon>
-          <span class="header-title">{{ t('system.logs.logLevel') }}</span>
+          <span class="header-title">{{ t('system.logsConfig.logLevel') }}</span>
         </div>
       </template>
       
       <el-form label-position="top" class="settings-form">
-        <el-form-item :label="t('system.logs.logQuery')">
+        <el-form-item :label="t('system.logsConfig.logQuery')">
           <el-switch v-model="levelSettings.log_query_operations" />
-          <div class="form-desc">{{ t('system.logs.logQueryDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.logQueryDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.logExport')">
+        <el-form-item :label="t('system.logsConfig.logExport')">
           <el-switch v-model="levelSettings.log_export_operations" />
-          <div class="form-desc">{{ t('system.logs.logExportDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.logExportDesc') }}</div>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.logLogin')">
+        <el-form-item :label="t('system.logsConfig.logLogin')">
           <el-switch 
             v-model="levelSettings.log_login_operations" 
             disabled
           />
-          <div class="form-desc">{{ t('system.logs.logLoginDesc') }}</div>
-          <el-tooltip :content="t('system.logs.loginLogDisabled')" placement="top">
+          <div class="form-desc">{{ t('system.logsConfig.logLoginDesc') }}</div>
+          <el-tooltip :content="t('system.logsConfig.loginLogDisabled')" placement="top">
             <el-icon class="disabled-tip"><Lock /></el-icon>
           </el-tooltip>
         </el-form-item>
         
-        <el-form-item :label="t('system.logs.dangerousConfirm')">
+        <el-form-item :label="t('system.logsConfig.dangerousConfirm')">
           <el-switch v-model="levelSettings.require_confirm_dangerous" />
-          <div class="form-desc">{{ t('system.logs.dangerousConfirmDesc') }}</div>
+          <div class="form-desc">{{ t('system.logsConfig.dangerousConfirmDesc') }}</div>
         </el-form-item>
       </el-form>
       

@@ -18,17 +18,22 @@ export const useLocaleStore = defineStore('locale', () => {
   async function initialize() {
     if (isInitialized.value) return
 
-    // 从 LocalStorage 获取已保存的语言设置
-    const stored = localStorage.getItem('locale') as LocaleType | null
-    if (stored && (stored === 'zh-CN' || stored === 'en-US')) {
-      locale.value = stored
-      setI18nLocale(stored)
+    // 从 localStorage 读取用户之前保存的语言偏好
+    const saved = localStorage.getItem('locale')
+    if (saved && (saved === 'zh-CN' || saved === 'en-US')) {
+      locale.value = saved as LocaleType
+      setI18nLocale(saved as LocaleType)
+    } else {
+      // 首次访问：根据浏览器语言自动判断
+      const browserLocale = navigator.language?.startsWith('zh') ? 'zh-CN' : 'en-US'
+      locale.value = browserLocale as LocaleType
+      setI18nLocale(browserLocale as LocaleType)
     }
 
-    // 如果已登录，同步服务器设置
+    // 如果已登录，同步服务器设置（仅同步到服务器，不从服务器读取）
     const token = localStorage.getItem('access_token')
     if (token) {
-      await syncFromServer()
+      await syncToServer()
     }
 
     isInitialized.value = true
@@ -40,6 +45,8 @@ export const useLocaleStore = defineStore('locale', () => {
 
     locale.value = newLocale
     setI18nLocale(newLocale)
+    // 将用户选择持久化到 localStorage
+    localStorage.setItem('locale', newLocale)
 
     // 同步到服务器
     const token = localStorage.getItem('access_token')
@@ -57,10 +64,11 @@ export const useLocaleStore = defineStore('locale', () => {
       const response = await api.get('/users/me/settings')
       if (response.data.locale) {
         const serverLocale = response.data.locale as LocaleType
-        // 如果服务器有设置，且本地没有手动设置过，优先使用服务器设置
-        if (!localStorage.getItem('locale_manual')) {
-          locale.value = serverLocale
-          setI18nLocale(serverLocale)
+        // 仅当用户从未手动选择过语言时，才用浏览器或服务器设置
+        if (!localStorage.getItem('locale')) {
+          const browserZh = navigator.language?.startsWith('zh')
+          locale.value = browserZh ? 'zh-CN' : (serverLocale || 'zh-CN')
+          setI18nLocale(locale.value)
         }
       }
     } catch (error) {
@@ -88,15 +96,15 @@ export const useLocaleStore = defineStore('locale', () => {
     }
   }
 
-  // 标记用户已手动选择语言
+  // 标记用户已手动选择语言（由 LanguageSwitcher 调用）
   function markAsManual() {
-    localStorage.setItem('locale_manual', 'true')
+    // locale 已经在 setLocale() 中持久化到 localStorage，此处仅需记录
+    localStorage.setItem('locale', locale.value)
   }
 
   // 重置为自动检测
   function resetToAuto() {
     localStorage.removeItem('locale')
-    localStorage.removeItem('locale_manual')
     
     // 重新检测浏览器语言
     const browserLocale = navigator.language?.startsWith('en') ? 'en-US' : 'zh-CN'

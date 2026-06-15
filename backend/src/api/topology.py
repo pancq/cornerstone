@@ -298,7 +298,7 @@ async def create_device_link(
         raise HTTPException(status_code=400, detail="Device link already exists")
     
     # 创建连接关系
-    db_link = DeviceLink(**link.dict())
+    db_link = DeviceLink(**link.model_dump())
     db_link.discovered_at = datetime.now()
     db.add(db_link)
     await db.commit()
@@ -320,7 +320,7 @@ async def update_device_link(
         raise HTTPException(status_code=404, detail="Device link not found")
     
     # 更新字段
-    update_data = link_update.dict(exclude_unset=True)
+    update_data = link_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_link, field, value)
     

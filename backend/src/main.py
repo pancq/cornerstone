@@ -57,6 +57,7 @@ async def startup_event():
     from .models.vlan import Vlan, VlanGroup
     from .models.audit_log import AuditLog
     from .models.system_config import SystemConfig
+    from .models.backup_analysis import BackupAnalysis
     from .models.inspection import InspectionTask, InspectionResult, InspectionDeviceResult, DeviceFingerprint
     
     # 创建所有表

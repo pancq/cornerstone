@@ -35,7 +35,7 @@ function getStoredLocale(): LocaleType | null {
 // 创建 i18n 实例
 export const i18n = createI18n({
   legacy: false, // 使用 Composition API 模式
-  locale: getStoredLocale() || detectBrowserLocale(),
+  locale: 'zh-CN', // 始终默认中文
   fallbackLocale: 'zh-CN',
   messages: {
     'zh-CN': zhCN,

@@ -42,7 +42,7 @@ async def create_device(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(Device).values(**device.dict()).returning(Device)
+    stmt = insert(Device).values(**device.model_dump()).returning(Device)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -54,7 +54,7 @@ async def update_device(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(Device).where(Device.id == device_id).values(**device.dict(exclude_unset=True)).returning(Device)
+    stmt = update(Device).where(Device.id == device_id).values(**device.model_dump(exclude_unset=True)).returning(Device)
     result = await db.execute(stmt)
     device = result.scalar_one_or_none()
     if device is None:
@@ -127,7 +127,7 @@ async def create_credential(
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
     
-    data = credential.dict()
+    data = credential.model_dump()
     data["device_id"] = device_id
     stmt = insert(Credential).values(**data).returning(Credential)
     result = await db.execute(stmt)
@@ -141,7 +141,7 @@ async def update_credential(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(Credential).where(Credential.id == credential_id).values(**credential.dict(exclude_unset=True)).returning(Credential)
+    stmt = update(Credential).where(Credential.id == credential_id).values(**credential.model_dump(exclude_unset=True)).returning(Credential)
     result = await db.execute(stmt)
     credential = result.scalar_one_or_none()
     if credential is None:

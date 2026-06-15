@@ -9,7 +9,7 @@ class PermissionResponse(BaseModel):
     description: Optional[str]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RoleResponse(BaseModel):
     id: int
@@ -17,7 +17,7 @@ class RoleResponse(BaseModel):
     description: Optional[str]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserRoleUpdate(BaseModel):
     role_id: int

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SSOSettings from './SSOSettings.vue'
+import LDAPSettings from './LDAPSettings.vue'
 
 const { t } = useI18n()
 const activeTab = ref('sso')
@@ -21,10 +22,8 @@ const activeTab = ref('sso')
         <el-tab-pane :label="t('system.ssoTab')" name="sso">
           <SSOSettings />
         </el-tab-pane>
-        <el-tab-pane label="LDAP" name="ldap">
-          <div class="coming-soon">
-            <el-empty :description="t('system.ldapComingSoon')" />
-          </div>
+        <el-tab-pane :label="t('system.ldapTab')" name="ldap">
+          <LDAPSettings />
         </el-tab-pane>
         <el-tab-pane :label="t('system.dingtalkTab')" name="dingtalk">
           <div class="coming-soon">

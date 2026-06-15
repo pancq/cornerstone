@@ -116,7 +116,7 @@ async def init_permissions(db: AsyncSession):
             Permission.action == perm_data["action"]
         )
         result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
+        existing = result.scalars().first()
         
         if not existing:
             permission = Permission(**perm_data)
@@ -172,7 +172,7 @@ async def init_roles(db: AsyncSession):
                 Permission.action == action
             )
             result = await db.execute(stmt)
-            permission = result.scalar_one_or_none()
+            permission = result.scalars().first()
             
             if permission:
                 rp = RolePermission(role_id=role.id, permission_id=permission.id)
@@ -223,6 +223,9 @@ async def get_user_permissions(db: AsyncSession, user_id: int) -> list[str]:
     role = result_role.scalar_one_or_none()
     
     # 查找 ROLES 配置中是否有 "all" 权限的定义
+    if role is None:
+        return []
+
     for role_config in ROLES:
         if role_config["name"] == role.name:
             if "all" in role_config["permissions"]:

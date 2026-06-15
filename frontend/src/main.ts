@@ -32,9 +32,6 @@ setupPermissionDirective(app)
 const localeStore = useLocaleStore()
 localeStore.initialize()
 
-// 监听语言变化，同步 Element Plus 语言
-i18n.global.locale.value = localeStore.locale
-
 // 跨标签页数据同步
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {

@@ -57,7 +57,7 @@ async def create_inspection_task(
     current_user: dict = Depends(get_current_active_user)
 ):
     """创建任务"""
-    new_task = InspectionTask(**task.dict())
+    new_task = InspectionTask(**task.model_dump())
     db.add(new_task)
     await db.commit()
     await db.refresh(new_task)
@@ -77,7 +77,7 @@ async def update_inspection_task(
     if not existing:
         raise HTTPException(status_code=404, detail="巡检任务不存在")
     
-    update_data = task.dict(exclude_unset=True)
+    update_data = task.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(existing, key, value)
     

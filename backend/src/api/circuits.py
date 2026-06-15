@@ -41,7 +41,7 @@ async def create_circuit(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(Circuit).values(**circuit.dict()).returning(Circuit)
+    stmt = insert(Circuit).values(**circuit.model_dump()).returning(Circuit)
     result = await db.execute(stmt)
     new_circuit = result.scalar_one()
     
@@ -51,7 +51,7 @@ async def create_circuit(
             change_type="create",
             field_name="",
             old_value="",
-            new_value=str(circuit.dict()),
+            new_value=str(circuit.model_dump()),
             operator=current_user.username,
             remark="创建专线"
         )
@@ -73,7 +73,7 @@ async def update_circuit(
     if existing_circuit is None:
         raise HTTPException(status_code=404, detail="Circuit not found")
     
-    update_data = circuit.dict(exclude_unset=True)
+    update_data = circuit.model_dump(exclude_unset=True)
     
     for field_name, new_value in update_data.items():
         old_value = getattr(existing_circuit, field_name, None)

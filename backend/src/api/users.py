@@ -188,7 +188,7 @@ async def create_user(
         if role:
             user.role_id = role.id
     
-    user_data = user.dict(exclude={"password"})
+    user_data = user.model_dump(exclude={"password"})
     user_data["hashed_password"] = get_password_hash(user.password)
     
     stmt = insert(User).values(**user_data).returning(User)
@@ -238,7 +238,7 @@ async def update_user(
         if role and role.name == "super_admin":
             raise HTTPException(status_code=403, detail="只有超级管理员可以分配超级管理员角色")
     
-    update_data = user.dict(exclude_unset=True)
+    update_data = user.model_dump(exclude_unset=True)
     
     stmt = update(User).where(User.id == user_id).values(**update_data).returning(User)
     result = await db.execute(stmt)

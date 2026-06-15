@@ -55,6 +55,11 @@ class User(Base):
     is_active = Column(Boolean, default=True)                        # 是否启用
     is_superuser = Column(Boolean, default=False)                    # 超级管理员标记
     is_sso_user = Column(Boolean, default=False)                     # 是否SSO用户
+    is_ldap_user = Column(Boolean, default=False)                    # 是否LDAP用户
+    ldap_dn = Column(String(500))                                    # LDAP DN
+    ldap_username = Column(String(100))                              # LDAP 用户名
+    department = Column(String(200))                                  # 部门
+    mobile = Column(String(50))                                       # 手机号码
     last_login_at = Column(DateTime(timezone=True))                  # 最后登录时间
     last_login_ip = Column(String(50))                               # 最后登录IP
     avatar = Column(String(255))                                     # 头像URL（可选）

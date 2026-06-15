@@ -201,7 +201,7 @@ async function handleDeleteRole(roleId: number) {
 }
 
 const displayRoles = computed(() => {
-  const availableRoles = roles.value.length > 0 ? roles.value : defaultRoles
+  const availableRoles = roles.value.length > 0 ? roles.value : defaultRoles.value
   return availableRoles.map(role => ({
     ...role,
     display_name: role.display_name || role.name || `${t('system.role')} ${role.id}`

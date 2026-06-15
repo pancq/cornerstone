@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './store/auth'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+import GlobalSearch from './components/GlobalSearch.vue'
+import { useGlobalShortcut } from './lib/shortcuts'
 import api from './api/axios'
 import { useI18n } from 'vue-i18n'
 import { 
@@ -18,7 +20,8 @@ import {
   Minus, 
   Plus,
   User,
-  TrendCharts
+  TrendCharts,
+  Search
 } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
@@ -32,7 +35,10 @@ const backupMenuOpen = ref(false)
 const topologyMenuOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const activeTooltip = ref('')
+const globalSearchRef = ref<InstanceType<typeof GlobalSearch> | null>(null)
 let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+useGlobalShortcut(() => globalSearchRef.value?.open())
 
 const toggleIpamMenu = () => {
   ipamMenuOpen.value = !ipamMenuOpen.value
@@ -75,13 +81,8 @@ const loadLogo = async () => {
       console.warn('Logo接口返回为空，使用默认Logo')
       return
     }
-    const binaryString = response.data.value
-    const byteArray = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      byteArray[i] = binaryString.charCodeAt(i)
-    }
-    const blob = new Blob([byteArray])
-    companyLogo.value = URL.createObjectURL(blob)
+    const base64 = response.data.value
+    companyLogo.value = `data:image/png;base64,${base64}`
   } catch (error) {
     console.warn('加载Logo失败，使用默认Logo:', error)
   }
@@ -384,17 +385,18 @@ async function handleLogout() {
           <h1 class="enterprise-page-title">{{ pageTitle }}</h1>
         </div>
         <div class="enterprise-topbar-right">
-          <div v-if="showTopSearch" class="enterprise-search-wrapper">
-            <el-input v-model="searchQuery" :placeholder="$t('common.search') + '...'" prefix-icon="Search" style="min-width: 200px; flex: 1; max-width: 320px" />
-            <el-button type="primary">{{ $t('common.search') }}</el-button>
-          </div>
+          <button class="global-search-btn" @click="globalSearchRef?.open()">
+            <el-icon><Search /></el-icon>
+            <span class="search-btn-text">{{ t('aiSearch.searchOrAsk') }}</span>
+            <kbd class="search-btn-kbd">⌘K</kbd>
+          </button>
           <LanguageSwitcher />
           <div class="enterprise-user-info">
               <RouterLink to="/profile" class="user-profile-link">
                 <el-icon><User /></el-icon>
                 <span class="username">{{ authStore.user?.display_name || authStore.user?.username || 'admin' }}</span>
               </RouterLink>
-              <el-button type="link" @click="handleLogout">
+              <el-button link @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon>
                 <span class="logout-text">{{ $t('login.logout') }}</span>
               </el-button>
@@ -406,6 +408,7 @@ async function handleLogout() {
       </section>
     </main>
   </div>
+  <GlobalSearch ref="globalSearchRef" />
 </template>
 
 <style scoped>
@@ -506,6 +509,46 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.global-search-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  background: #f8f8f8;
+  color: #8c8c8c;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 220px;
+}
+
+.global-search-btn:hover {
+  border-color: #d9d9d9;
+  background: #f0f0f0;
+  color: #595959;
+}
+
+.global-search-btn .el-icon {
+  font-size: 16px;
+}
+
+.search-btn-text {
+  flex: 1;
+  text-align: left;
+}
+
+.search-btn-kbd {
+  padding: 1px 6px;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #bbb;
+  background: #fff;
 }
 
 .enterprise-search-wrapper {
@@ -784,4 +827,3 @@ async function handleLogout() {
   gap: 6px;
 }
 </style>
-
