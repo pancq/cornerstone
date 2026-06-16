@@ -1450,6 +1450,7 @@
     "vlanSaveFailed": "保存 VLAN 失败",
     "vlanDeleteSuccess": "VLAN 删除成功",
     "vlanDeleteFailed": "VLAN 删除失败",
+    "confirmDeleteVlan": "确定要删除 VLAN {vid} 吗？此操作不可撤销。",
     "exampleName": "如：办公网",
     "exampleGroupName": "如：核心交换机"
   },
