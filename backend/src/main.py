@@ -22,6 +22,8 @@ logger = setup_logger()
 
 # CORS配置（从环境变量 CORS_ORIGINS 读取，逗号分隔）
 _cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+if settings.debug or not _cors_origins:
+    _cors_origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
