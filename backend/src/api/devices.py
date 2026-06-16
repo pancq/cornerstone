@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
 from ..database import get_db
-from ..models import Device, Credential, LinkMonitor, DeviceLink, Backup, AlertRecord, AlertRule, IPAddress, InspectionDeviceResult
+from ..models import Device, Credential, LinkMonitor, DeviceLink, Backup, AlertRecord, AlertRule, IPAddress, InspectionDeviceResult, DeviceFingerprint
 from ..schemas import (
     DeviceCreate, DeviceUpdate, DeviceResponse,
     CredentialCreate, CredentialUpdate, CredentialResponse
@@ -73,15 +73,18 @@ async def delete_device(
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
     
+    await db.execute(update(Device).where(Device.mgmt_ip_id == (select(IPAddress.id).where(IPAddress.device_id == device_id))).values(mgmt_ip_id=None))
+    
     await db.execute(delete(LinkMonitor).where(LinkMonitor.device_id == device_id))
     await db.execute(delete(DeviceLink).where(DeviceLink.source_device_id == device_id))
     await db.execute(delete(DeviceLink).where(DeviceLink.target_device_id == device_id))
     await db.execute(delete(Backup).where(Backup.device_id == device_id))
     await db.execute(delete(AlertRecord).where(AlertRecord.device_id == device_id))
     await db.execute(delete(AlertRule).where(AlertRule.device_id == device_id))
-    await db.execute(delete(IPAddress).where(IPAddress.device_id == device_id))
     await db.execute(delete(InspectionDeviceResult).where(InspectionDeviceResult.device_id == device_id))
+    await db.execute(delete(DeviceFingerprint).where(DeviceFingerprint.device_id == device_id))
     
+    await db.execute(delete(IPAddress).where(IPAddress.device_id == device_id))
     await db.execute(delete(Credential).where(Credential.device_id == device_id))
     await db.execute(delete(Device).where(Device.id == device_id))
     await db.commit()

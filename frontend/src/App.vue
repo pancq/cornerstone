@@ -29,7 +29,8 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const searchQuery = ref('')
-const companyLogo = ref<string>('')
+const companyLogo = ref<string>(localStorage.getItem('companyLogo') || '')
+const isLogoLoading = ref(!companyLogo.value)
 const ipamMenuOpen = ref(false)
 const backupMenuOpen = ref(false)
 const topologyMenuOpen = ref(false)
@@ -37,8 +38,15 @@ const sidebarCollapsed = ref(false)
 const activeTooltip = ref('')
 const globalSearchRef = ref<InstanceType<typeof GlobalSearch> | null>(null)
 let hideTimer: ReturnType<typeof setTimeout> | null = null
+const isRouteReady = ref(false)
 
 useGlobalShortcut(() => globalSearchRef.value?.open())
+
+router.isReady().then(() => {
+  setTimeout(() => {
+    isRouteReady.value = true
+  }, 300)
+})
 
 const toggleIpamMenu = () => {
   ipamMenuOpen.value = !ipamMenuOpen.value
@@ -75,44 +83,38 @@ onMounted(() => {
 })
 
 const loadLogo = async () => {
+  if (!authStore.isLoggedIn) return
+  
+  isLogoLoading.value = true
   try {
     const response = await api.get('/settings/logo')
     if (!response.data || !response.data.value) {
-      console.warn('Logo接口返回为空，使用默认Logo')
+      companyLogo.value = ''
+      localStorage.removeItem('companyLogo')
       return
     }
     const base64 = response.data.value
     companyLogo.value = `data:image/png;base64,${base64}`
+    localStorage.setItem('companyLogo', companyLogo.value)
   } catch (error) {
-    console.warn('加载Logo失败，使用默认Logo:', error)
+    console.warn('加载Logo失败:', error)
+  } finally {
+    isLogoLoading.value = false
   }
 }
 
 const pageTitle = computed(() => {
-  const titles: Record<string, string> = {
-    '/': t('dashboard.title'),
-    '/circuits': t('circuits.title'),
-    '/ipam': t('ipam.title'),
-    '/ipam/vlans': t('ipam.vlans'),
-    '/devices': t('devices.title'),
-    '/backups': t('backups.title'),
-    '/backups/credentials': t('backups.credentials'),
-    '/backups/tasks': t('backups.tasks'),
-    '/monitor': t('monitor.title'),
-    '/alerts': t('alerts.title'),
-    '/system': t('system.title'),
-    '/system/logs': t('system.logs'),
-    '/system/settings': t('system.settings'),
-    '/system/ai-settings': t('system.aiSettings'),
-    '/system/logs-settings': t('system.logsSettings'),
-    '/sites': t('sites.title'),
-    '/topology': t('topology.title'),
-    '/topology/sites': t('topology.siteTopology'),
-    '/topology/devices': t('topology.deviceTopology'),
-    '/profile': t('system.profile'),
-    '/inspection': t('inspection.title'),
+  if (!isRouteReady.value) return ''
+  
+  const matched = route.matched[route.matched.length - 1]
+  if (!matched) return ''
+  
+  const titleKey = matched.meta.titleKey as string
+  if (titleKey) {
+    return t(titleKey)
   }
-  return titles[route.path] || t('dashboard.title')
+  
+  return ''
 })
 
 const pageEyebrow = computed(() => {
@@ -135,7 +137,13 @@ const pageEyebrow = computed(() => {
     '/system/ai-settings': t('menuGroups.systemManagement'),
     '/profile': t('menuGroups.systemManagement'),
   }
-  return eyebrows[route.path] || t('menuGroups.overview')
+  
+  const matched = route.matched[route.matched.length - 1]
+  if (matched && matched.meta.eyebrow) {
+    return matched.meta.eyebrow as string
+  }
+  
+  return eyebrows[route.path] || ''
 })
 
 const showTopSearch = computed(() => {
@@ -279,7 +287,8 @@ async function handleLogout() {
         <div v-if="companyLogo" class="enterprise-brand-logo">
           <img :src="companyLogo" alt="Logo" class="brand-logo-image" />
         </div>
-        <div v-else class="enterprise-brand-mark">C</div>
+        <div v-else-if="!isLogoLoading" class="enterprise-brand-mark">C</div>
+        <div v-else class="enterprise-brand-mark loading"></div>
         <div class="enterprise-brand-text" v-show="!sidebarCollapsed">
           <strong>{{ t('common.name') === 'Name' ? 'Cornerstone' : '基石' }}</strong>
           <span>Cornerstone</span>
@@ -380,10 +389,13 @@ async function handleLogout() {
       </div>
     </aside>
 
-    <main class="enterprise-workspace">
+    <main class="enterprise-workspace" :class="{ 'route-loading': !isRouteReady }">
       <header class="enterprise-topbar">
         <div class="enterprise-topbar-left">
-          <h1 class="enterprise-page-title">{{ pageTitle }}</h1>
+          <h1 class="enterprise-page-title">
+            <span v-if="pageTitle">{{ pageTitle }}</span>
+            <span v-else class="page-title-loading"></span>
+          </h1>
         </div>
         <div class="enterprise-topbar-right">
           <button class="global-search-btn" @click="globalSearchRef?.open()">
@@ -504,6 +516,34 @@ async function handleLogout() {
   font-weight: 600;
   color: #262626;
   margin: 0;
+  min-height: 28px;
+}
+
+.enterprise-page-title.loading .page-title-loading {
+  display: inline-block;
+  width: 120px;
+  height: 24px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.enterprise-workspace.route-loading {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.enterprise-workspace:not(.route-loading) {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .enterprise-topbar-right {
@@ -637,6 +677,16 @@ async function handleLogout() {
   font-size: 18px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 16px rgba(24, 144, 255, 0.3);
+}
+
+.enterprise-brand-mark.loading {
+  background: rgba(24, 144, 255, 0.2);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
 .enterprise-brand-mark:hover {

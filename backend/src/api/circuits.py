@@ -110,16 +110,10 @@ async def delete_circuit(
     # 保存电路快照用于审计日志
     circuit_data = str(circuit.__dict__)
     
-    # 先删除关联的变更记录
-    await db.execute(delete(CircuitChange).where(CircuitChange.circuit_id == circuit_id))
-    
-    # 删除电路
-    await db.execute(delete(Circuit).where(Circuit.id == circuit_id))
-    
-    # 记录删除操作（放在最后，电路已删除不会违反外键）
+    # 先记录删除操作（在电路删除前）
     await db.execute(
         insert(CircuitChange).values(
-            circuit_id=0,  # 使用0表示已删除
+            circuit_id=circuit_id,
             change_type="delete",
             field_name="",
             old_value=circuit_data,
@@ -129,6 +123,8 @@ async def delete_circuit(
         )
     )
     
+    # 删除电路，数据库会自动级联删除关联的变更记录（ondelete="CASCADE"）
+    await db.execute(delete(Circuit).where(Circuit.id == circuit_id))
     await db.commit()
 
 

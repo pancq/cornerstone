@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
 from ..database import get_db
-from ..models import Site, Circuit, Device, Vlan, VlanGroup, Prefix, BackupTask, InspectionResult
+from ..models import Site, Circuit, Device, Vlan, VlanGroup, Prefix, BackupTask, InspectionResult, InspectionTask, InspectionDeviceResult, DeviceFingerprint, IPAddress, Backup, LinkMonitor, DeviceLink, AlertRecord, AlertRule
 from ..schemas import SiteCreate, SiteUpdate, SiteResponse
 from .dependencies import get_current_active_user
 
@@ -71,12 +71,29 @@ async def delete_site(
         raise HTTPException(status_code=404, detail="Site not found")
     
     await db.execute(delete(Circuit).where(Circuit.site_id == site_id))
-    await db.execute(delete(Device).where(Device.site_id == site_id))
     await db.execute(delete(Vlan).where(Vlan.site_id == site_id))
     await db.execute(delete(VlanGroup).where(VlanGroup.site_id == site_id))
-    await db.execute(delete(Prefix).where(Prefix.site_id == site_id))
     await db.execute(delete(BackupTask).where(BackupTask.site_id == site_id))
-    await db.execute(delete(InspectionResult).where(InspectionResult.site_id == site_id))
     
+    await db.execute(update(Device).where(Device.site_id == site_id).values(mgmt_ip_id=None))
+    
+    await db.execute(delete(LinkMonitor).where(LinkMonitor.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(DeviceLink).where(DeviceLink.source_device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(DeviceLink).where(DeviceLink.target_device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(Backup).where(Backup.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(AlertRecord).where(AlertRecord.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(AlertRule).where(AlertRule.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    
+    await db.execute(delete(IPAddress).where(IPAddress.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(IPAddress).where(IPAddress.prefix_id.in_(select(Prefix.id).where(Prefix.site_id == site_id))))
+    
+    await db.execute(delete(InspectionDeviceResult).where(InspectionDeviceResult.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(DeviceFingerprint).where(DeviceFingerprint.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
+    await db.execute(delete(Device).where(Device.site_id == site_id))
+    
+    await db.execute(delete(InspectionResult).where(InspectionResult.task_id.in_(select(InspectionTask.id).where(InspectionTask.site_id == site_id))))
+    await db.execute(delete(InspectionTask).where(InspectionTask.site_id == site_id))
+    
+    await db.execute(delete(Prefix).where(Prefix.site_id == site_id))
     await db.execute(delete(Site).where(Site.id == site_id))
     await db.commit()

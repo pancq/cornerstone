@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 import uuid
 
 from ..database import get_db
-from ..models import Aggregate, Prefix, IPAddress
+from ..models import Aggregate, Prefix, IPAddress, Device
 from ..schemas import (
     AggregateCreate, AggregateUpdate, AggregateResponse,
     PrefixCreate, PrefixUpdate, PrefixResponse,
@@ -177,6 +177,9 @@ async def delete_aggregate(
     aggregate = result.scalar_one_or_none()
     if aggregate is None:
         raise HTTPException(status_code=404, detail="Aggregate not found")
+    
+    await db.execute(delete(IPAddress).where(IPAddress.prefix_id.in_(select(Prefix.id).where(Prefix.aggregate_id == aggregate_id))))
+    await db.execute(delete(Prefix).where(Prefix.aggregate_id == aggregate_id))
     await db.execute(delete(Aggregate).where(Aggregate.id == aggregate_id))
     await db.commit()
 
@@ -227,6 +230,9 @@ async def delete_prefix(
     prefix = result.scalar_one_or_none()
     if prefix is None:
         raise HTTPException(status_code=404, detail="Prefix not found")
+    
+    await db.execute(update(Device).where(Device.mgmt_ip_id.in_(select(IPAddress.id).where(IPAddress.prefix_id == prefix_id))).values(mgmt_ip_id=None))
+    await db.execute(delete(IPAddress).where(IPAddress.prefix_id == prefix_id))
     await db.execute(delete(Prefix).where(Prefix.id == prefix_id))
     await db.commit()
 
@@ -277,6 +283,8 @@ async def delete_address(
     address = result.scalar_one_or_none()
     if address is None:
         raise HTTPException(status_code=404, detail="IP Address not found")
+    
+    await db.execute(update(Device).where(Device.mgmt_ip_id == address_id).values(mgmt_ip_id=None))
     await db.execute(delete(IPAddress).where(IPAddress.id == address_id))
     await db.commit()
 
