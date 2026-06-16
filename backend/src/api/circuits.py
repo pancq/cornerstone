@@ -107,19 +107,28 @@ async def delete_circuit(
     if circuit is None:
         raise HTTPException(status_code=404, detail="Circuit not found")
     
+    # 保存电路快照用于审计日志
+    circuit_data = str(circuit.__dict__)
+    
+    # 先删除关联的变更记录
     await db.execute(delete(CircuitChange).where(CircuitChange.circuit_id == circuit_id))
+    
+    # 删除电路
+    await db.execute(delete(Circuit).where(Circuit.id == circuit_id))
+    
+    # 记录删除操作（放在最后，电路已删除不会违反外键）
     await db.execute(
         insert(CircuitChange).values(
-            circuit_id=circuit_id,
+            circuit_id=0,  # 使用0表示已删除
             change_type="delete",
             field_name="",
-            old_value=str(circuit.__dict__),
+            old_value=circuit_data,
             new_value="",
             operator=current_user.username,
-            remark="删除专线"
+            remark=f"删除专线 #{circuit_id}"
         )
     )
-    await db.execute(delete(Circuit).where(Circuit.id == circuit_id))
+    
     await db.commit()
 
 
