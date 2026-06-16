@@ -19,7 +19,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def seed_demo_data(session: sqlalchemy.orm.Session):
     """写入脱敏演示数据，仅在空库中执行。"""
-    if session.query(Site).first():
+    if session.query(Site).first() or session.query(Aggregate).first():
         return
 
     sites = [

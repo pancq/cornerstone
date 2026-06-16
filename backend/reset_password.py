@@ -1,7 +1,7 @@
 import asyncio
 from src.database import async_engine
 from src.models import User
-from src.core.security import get_password_hash
+from src.utils.security import get_password_hash
 
 async def reset_password():
     async with async_engine.begin() as conn:
