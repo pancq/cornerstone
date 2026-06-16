@@ -22,7 +22,9 @@ logger = setup_logger()
 
 # CORS配置（从环境变量 CORS_ORIGINS 读取，逗号分隔）
 _cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
-if settings.debug or not _cors_origins:
+# 默认来源（localhost）未修改时，自动允许所有来源，避免部署后 CORS 问题
+_default_origins = {"http://localhost", "http://127.0.0.1", "http://localhost:5173", "http://127.0.0.1:5173"}
+if settings.debug or not _cors_origins or _default_origins.issuperset(_cors_origins):
     _cors_origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
