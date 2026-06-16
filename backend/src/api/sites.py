@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
 from ..database import get_db
-from ..models import Site, Circuit, Device, Vlan, VlanGroup, Prefix, BackupTask, InspectionResult, InspectionTask, InspectionDeviceResult, DeviceFingerprint, IPAddress, Backup, LinkMonitor, DeviceLink, AlertRecord, AlertRule
+from ..models import Site, Circuit, Device, Vlan, VlanGroup, Prefix, BackupTask, InspectionResult, InspectionTask, InspectionDeviceResult, DeviceFingerprint, IPAddress, Backup, LinkMonitor, DeviceLink, AlertRecord, AlertRule, Credential
 from ..schemas import SiteCreate, SiteUpdate, SiteResponse
 from .dependencies import get_current_active_user
 
@@ -87,6 +87,7 @@ async def delete_site(
     await db.execute(delete(IPAddress).where(IPAddress.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
     await db.execute(delete(IPAddress).where(IPAddress.prefix_id.in_(select(Prefix.id).where(Prefix.site_id == site_id))))
     
+    await db.execute(delete(Credential).where(Credential.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
     await db.execute(delete(InspectionDeviceResult).where(InspectionDeviceResult.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
     await db.execute(delete(DeviceFingerprint).where(DeviceFingerprint.device_id.in_(select(Device.id).where(Device.site_id == site_id))))
     await db.execute(delete(Device).where(Device.site_id == site_id))

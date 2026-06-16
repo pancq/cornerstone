@@ -7,7 +7,7 @@ import json
 import uuid
 
 from ..database import get_db
-from ..models import Backup, Device, Credential, IPAddress
+from ..models import Backup, Device, Credential, IPAddress, BackupAnalysis
 from ..schemas import BackupResponse, CredentialResponse, CredentialCreate, CredentialUpdate
 from ..services.backup_collector import collect_device_config, detect_config_change, \
     calculate_hash, save_config_to_file, load_config_from_file, apply_config_to_device, \
@@ -364,6 +364,7 @@ async def delete_backup(
         except:
             pass
     
+    await db.execute(delete(BackupAnalysis).where(BackupAnalysis.backup_id == backup_id))
     await db.execute(delete(Backup).where(Backup.id == backup_id))
     await db.commit()
     
