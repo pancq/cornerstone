@@ -651,6 +651,12 @@ onMounted(async () => {
   margin-bottom: 90px;
 }
 
+.logo-icon {
+  background: transparent;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .logo-icon svg {
   width: 58px;
   height: 58px;
@@ -659,8 +665,10 @@ onMounted(async () => {
 }
 
 .custom-logo-image {
-  width: 58px;
-  height: 58px;
+  max-width: 80px;
+  max-height: 58px;
+  width: auto;
+  height: auto;
   object-fit: contain;
   filter: drop-shadow(0 10px 28px rgba(59, 130, 246, 0.35));
   animation: logoFloat 6s ease-in-out infinite;
