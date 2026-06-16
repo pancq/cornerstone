@@ -222,6 +222,7 @@ const menuItems = computed((): Array<{ group: string; items: MenuItem[] }> => {
     {
       group: t('menuGroups.systemSettings'),
       items: [
+        { path: '/system/settings', name: t('system.settings'), icon: Setting, permission: 'system:read' },
         { path: '/system/notifications', name: t('system.notifications'), icon: Bell, permission: 'system:read' },
         { path: '/system/ai-settings', name: t('system.aiSettings'), icon: SwitchButton, permission: 'system:read' },
         { path: '/system/logs-settings', name: t('system.logsSettings'), icon: Files, permission: 'system:admin' }
