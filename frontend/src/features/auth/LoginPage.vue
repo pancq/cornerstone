@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../../store/auth'
 import { useRouter } from 'vue-router'
+import api from '../../api/axios'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -28,6 +29,18 @@ const isTypingUsername = ref(false)
 const isTypingPassword = ref(false)
 const showHideFace = computed(() => isTypingPassword.value && !showPassword.value)
 const showPeek = computed(() => isTypingUsername.value || isTypingPassword.value)
+const companyLogo = ref<string>('')
+
+const loadLogo = async () => {
+  try {
+    const response = await api.get('/settings/logo')
+    if (response.data && response.data.value) {
+      companyLogo.value = `data:image/png;base64,${response.data.value}`
+    }
+  } catch (error) {
+    console.warn('加载Logo失败，使用默认Logo:', error)
+  }
+}
 
 const hasSSO = computed(() => {
   return authStore.ssoConfig?.enabled && authStore.ssoConfig?.has_oauth2
@@ -169,6 +182,7 @@ onMounted(async () => {
     await authStore.fetchSSOConfig()
     ssoConfigLoaded.value = true
     await fetchLDAPConfig()
+    await loadLogo()
     
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
@@ -207,7 +221,10 @@ onMounted(async () => {
         <div class="login-illustration">
             <div class="illustration-content">
                 <div class="logo-area">
-                    <div class="logo-icon">
+                    <div v-if="companyLogo" class="logo-icon">
+                        <img :src="companyLogo" alt="Logo" class="custom-logo-image" />
+                    </div>
+                    <div v-else class="logo-icon">
                         <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M24 4L4 20v24l20 16 20-16V20L24 4z" fill="url(#logoGradient)"/>
                             <path d="M24 10L8 22v16l16 10 16-10V22L24 10z" fill="white" opacity="0.95"/>
@@ -637,6 +654,14 @@ onMounted(async () => {
 .logo-icon svg {
   width: 58px;
   height: 58px;
+  filter: drop-shadow(0 10px 28px rgba(59, 130, 246, 0.35));
+  animation: logoFloat 6s ease-in-out infinite;
+}
+
+.custom-logo-image {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
   filter: drop-shadow(0 10px 28px rgba(59, 130, 246, 0.35));
   animation: logoFloat 6s ease-in-out infinite;
 }
