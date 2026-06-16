@@ -112,7 +112,42 @@ npm run dev
 
 默认账号：`admin` / `INITIAL_ADMIN_PASSWORD` 中配置的密码。
 
-> 📚 完整部署流程（含生产环境、Docker、Nginx、Systemd）见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+### Docker Compose 部署（推荐）
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/pancq/cornerstone.git
+cd cornerstone
+
+# 2. 配置环境变量
+cp .env.docker.example .env
+# 至少修改：POSTGRES_PASSWORD、SECRET_KEY、INITIAL_ADMIN_PASSWORD、CORS_ORIGINS
+
+# 3. 构建并启动（首次约 3~5 分钟）
+docker compose up -d --build
+
+# 4. 查看状态
+docker compose ps
+```
+
+访问 `http://localhost`，使用 `admin` + `INITIAL_ADMIN_PASSWORD` 登录。
+
+常用命令：
+
+```bash
+# 查看日志
+docker compose logs -f backend
+
+# 升级
+git pull
+docker compose up -d --build
+
+# 停止 / 销毁（保留数据卷）
+docker compose stop
+docker compose down
+```
+
+> 📚 完整部署流程（含生产环境、Nginx、HTTPS、Systemd）见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 功能模块
 
