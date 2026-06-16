@@ -74,43 +74,29 @@ const handleFileChange = async (event: Event) => {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch('/api/v1/settings/logo', {
-        method: 'POST',
-        body: formData
+      await api.post('/settings/logo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-    if (response.ok) {
-      // 显示预览
       currentLogo.value = URL.createObjectURL(file)
       ElMessage.success(t('settings.logoUploadSuccess'))
-    } else {
-      const error = await response.json()
-      ElMessage.error(error.detail || t('settings.uploadFailed'))
+    } catch (error: any) {
+      console.error(t('settings.uploadFailed'), error)
+      ElMessage.error(error.response?.data?.detail || t('settings.uploadFailed'))
+    } finally {
+      isLoading.value = false
+      input.value = ''
     }
-  } catch (error) {
-    console.error(t('settings.uploadFailed'), error)
-    ElMessage.error(t('settings.uploadNetworkError'))
-  } finally {
-    isLoading.value = false
-    input.value = ''
-  }
 }
 
 const handleLogoRemove = async () => {
   try {
-    const response = await fetch('/api/v1/settings/logo', {
-      method: 'DELETE'
-    })
-
-    if (response.ok) {
-      currentLogo.value = ''
-      ElMessage.success(t('settings.logoRemoved'))
-    } else {
-      ElMessage.error(t('settings.deleteFailed'))
-    }
-  } catch (error) {
+    await api.delete('/settings/logo')
+    currentLogo.value = ''
+    ElMessage.success(t('settings.logoRemoved'))
+  } catch (error: any) {
     console.error(t('settings.deleteFailed'), error)
-    ElMessage.error(t('settings.deleteFailed'))
+    ElMessage.error(error.response?.data?.detail || t('settings.deleteFailed'))
   }
 }
 </script>
