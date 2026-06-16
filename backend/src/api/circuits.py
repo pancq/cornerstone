@@ -107,6 +107,7 @@ async def delete_circuit(
     if circuit is None:
         raise HTTPException(status_code=404, detail="Circuit not found")
     
+    await db.execute(delete(CircuitChange).where(CircuitChange.circuit_id == circuit_id))
     await db.execute(
         insert(CircuitChange).values(
             circuit_id=circuit_id,
@@ -118,7 +119,6 @@ async def delete_circuit(
             remark="删除专线"
         )
     )
-    
     await db.execute(delete(Circuit).where(Circuit.id == circuit_id))
     await db.commit()
 
