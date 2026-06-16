@@ -30,6 +30,7 @@ from ..utils.security import (
 from ..config import settings
 from ..services.permission_service import get_user_permissions
 from ..services.sso_service import sso_service, SSOException
+from .dependencies import get_current_active_user
 
 router = APIRouter()
 
@@ -98,11 +99,6 @@ def generate_random_code(length: int = 4):
     """生成随机验证码"""
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
-
-# 延迟导入以避免循环依赖
-def get_current_active_user():
-    from .dependencies import get_current_active_user as _get_current_active_user
-    return Depends(_get_current_active_user)
 
 async def log_login_attempt(db: AsyncSession, username: str, success: bool, ip_address: str = None):
     """记录登录尝试日志"""
@@ -226,7 +222,7 @@ async def login_for_access_token(
 async def logout(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = get_current_active_user()
+    current_user: User = Depends(get_current_active_user)
 ):
     """退出登录，将当前jti标记为revoked"""
     # 从请求头获取token
@@ -252,7 +248,7 @@ async def logout(
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(
     db: AsyncSession = Depends(get_db),
-    current_user: User = get_current_active_user()
+    current_user: User = Depends(get_current_active_user)
 ):
     """获取当前登录用户信息（通过 get_current_active_user 统一校验 session 撤销）"""
     stmt = select(Role).where(Role.id == current_user.role_id)

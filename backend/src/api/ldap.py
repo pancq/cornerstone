@@ -9,6 +9,7 @@ import json
 from ..database import get_db
 from ..models import User, Role, AuditLog, SystemConfig
 from ..services.ldap_service import ldap_service, LDAPException as LDAPAuthException
+from .dependencies import get_current_active_user
 
 
 router = APIRouter()
@@ -69,17 +70,11 @@ async def get_ldap_config(db: AsyncSession = Depends(get_db)):
     return config.to_dict()
 
 
-def get_current_active_user():
-    """延迟导入以避免循环依赖"""
-    from .dependencies import get_current_active_user as _get_current_active_user
-    return Depends(_get_current_active_user)
-
-
 @router.put("/ldap/config")
 async def update_ldap_config(
     request: LDAPConfigRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = get_current_active_user()
+    current_user: User = Depends(get_current_active_user)
 ):
     """更新LDAP配置"""
     # 检查是否有权限
@@ -130,7 +125,7 @@ async def update_ldap_config(
 async def test_ldap_connection(
     request: LDAPConfigRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = get_current_active_user()
+    current_user: User = Depends(get_current_active_user)
 ):
     """测试LDAP连接"""
     # 检查是否有权限
