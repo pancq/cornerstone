@@ -85,7 +85,7 @@ const scanTaskId = ref('')
 const scanNetwork = ref('')
 
 const prefixForm = ref<Partial<Prefix>>({
-  aggregateId: 10,
+  aggregateId: null,
   network: '',
   siteId: null,
   vlan: '',
@@ -249,7 +249,7 @@ function getStatusType(status: string): string {
 
 function resetPrefixForm() {
   prefixForm.value = {
-    aggregateId: 10,
+    aggregateId: null,
     network: '',
     siteId: null,
     vlan: '',
@@ -273,7 +273,7 @@ function resetIPForm() {
 function handleEditPrefix(prefix: Prefix) {
   editingPrefix.value = prefix
   prefixForm.value = {
-    aggregateId: prefix.aggregateId || 10,
+    aggregateId: prefix.aggregateId || null,
     network: prefix.network,
     siteId: prefix.siteId,
     vlan: prefix.vlan,
