@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
 from ..database import get_db
-from ..models import Site
+from ..models import Site, Circuit, Device, Vlan, VlanGroup, Prefix, BackupTask, InspectionResult
 from ..schemas import SiteCreate, SiteUpdate, SiteResponse
 from .dependencies import get_current_active_user
 
@@ -69,6 +69,14 @@ async def delete_site(
     site = result.scalar_one_or_none()
     if site is None:
         raise HTTPException(status_code=404, detail="Site not found")
+    
+    await db.execute(delete(Circuit).where(Circuit.site_id == site_id))
+    await db.execute(delete(Device).where(Device.site_id == site_id))
+    await db.execute(delete(Vlan).where(Vlan.site_id == site_id))
+    await db.execute(delete(VlanGroup).where(VlanGroup.site_id == site_id))
+    await db.execute(delete(Prefix).where(Prefix.site_id == site_id))
+    await db.execute(delete(BackupTask).where(BackupTask.site_id == site_id))
+    await db.execute(delete(InspectionResult).where(InspectionResult.site_id == site_id))
     
     await db.execute(delete(Site).where(Site.id == site_id))
     await db.commit()

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
 
 from ..database import get_db
-from ..models import Device, Credential
+from ..models import Device, Credential, LinkMonitor, DeviceLink, Backup, AlertRecord, AlertRule, IPAddress, InspectionTaskResult
 from ..schemas import (
     DeviceCreate, DeviceUpdate, DeviceResponse,
     CredentialCreate, CredentialUpdate, CredentialResponse
@@ -72,6 +72,16 @@ async def delete_device(
     device = result.scalar_one_or_none()
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
+    
+    await db.execute(delete(LinkMonitor).where(LinkMonitor.device_id == device_id))
+    await db.execute(delete(DeviceLink).where(DeviceLink.source_device_id == device_id))
+    await db.execute(delete(DeviceLink).where(DeviceLink.target_device_id == device_id))
+    await db.execute(delete(Backup).where(Backup.device_id == device_id))
+    await db.execute(delete(AlertRecord).where(AlertRecord.device_id == device_id))
+    await db.execute(delete(AlertRule).where(AlertRule.device_id == device_id))
+    await db.execute(delete(IPAddress).where(IPAddress.device_id == device_id))
+    
+    await db.execute(delete(Credential).where(Credential.device_id == device_id))
     await db.execute(delete(Device).where(Device.id == device_id))
     await db.commit()
 

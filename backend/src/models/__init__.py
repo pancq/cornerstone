@@ -16,11 +16,13 @@ from .link_monitor import LinkMonitor
 from .system_config import SystemConfig
 from .backup_analysis import BackupAnalysis
 from .inspection import InspectionTask, InspectionResult, InspectionDeviceResult, DeviceFingerprint
+from .alert import AlertRule, AlertRecord, AlertNotification
 
 __all__ = [
     'User', 'Role', 'Permission', 'RolePermission', 'UserSession',
     'Site', 'Circuit', 'CircuitChange', 'Aggregate', 'Prefix', 'IPAddress',
     'Device', 'DeviceLink', 'Credential', 'Backup', 'BackupTask', 'AuditLog',
     'VlanGroup', 'Vlan', 'LinkMonitor', 'SystemConfig', 'BackupAnalysis',
-    'InspectionTask', 'InspectionResult', 'InspectionDeviceResult', 'DeviceFingerprint'
+    'InspectionTask', 'InspectionResult', 'InspectionDeviceResult', 'DeviceFingerprint',
+    'AlertRule', 'AlertRecord', 'AlertNotification'
 ]
