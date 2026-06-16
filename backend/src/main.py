@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 
@@ -20,16 +20,15 @@ app = FastAPI(
 # 设置日志
 logger = setup_logger()
 
-# CORS配置（从环境变量 CORS_ORIGINS 读取，逗号分隔）
+# CORS配置：动态回显请求来源
 _cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
-# 默认来源（localhost）未修改时，自动允许所有来源，避免部署后 CORS 问题
 _default_origins = {"http://localhost", "http://127.0.0.1", "http://localhost:5173", "http://127.0.0.1:5173"}
-if settings.debug or not _cors_origins or _default_origins.issuperset(_cors_origins):
-    _cors_origins = ["*"]
+_allow_all = settings.debug or not _cors_origins or _default_origins.issuperset(_cors_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"] if _allow_all else _cors_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
