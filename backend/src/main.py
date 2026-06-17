@@ -14,7 +14,8 @@ from .database import async_session
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    debug=settings.debug
+    debug=settings.debug,
+    redirect_slashes=False
 )
 
 # 设置日志
