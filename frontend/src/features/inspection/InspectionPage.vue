@@ -475,13 +475,13 @@ onMounted(() => {
             <el-table :data="tasks" v-loading="loading" @selection-change="handleSelectionChange">
               <el-table-column type="selection" width="55" />
               <el-table-column prop="name" :label="t('inspection.taskName')" min-width="200" />
-              <el-table-column prop="scan_type" :label="t('inspection.scanType')" width="120">
+              <el-table-column prop="scan_type" :label="t('inspection.scanType')" min-width="100">
                 <template #default="{ row }">{{ getScanTypeName(row.scan_type) }}</template>
               </el-table-column>
-              <el-table-column prop="target_type" :label="t('inspection.scanScope')" width="120">
+              <el-table-column prop="target_type" :label="t('inspection.scanScope')" min-width="100">
                 <template #default="{ row }">{{ getTargetTypeName(row.target_type) }}</template>
               </el-table-column>
-              <el-table-column :label="t('inspection.targetRange')" width="150">
+              <el-table-column :label="t('inspection.targetRange')" min-width="120">
                 <template #default="{ row }">
                   <template v-if="row.target_type === 'site' && row.site_id">
                     {{ getSiteName(row.site_id) }}
@@ -497,8 +497,8 @@ onMounted(() => {
                   </template>
                 </template>
               </el-table-column>
-              <el-table-column prop="cron_expr" :label="t('inspection.cronExpression')" width="140" />
-              <el-table-column prop="is_enabled" :label="t('common.status')" width="100">
+              <el-table-column prop="cron_expr" :label="t('inspection.cronExpression')" min-width="120" />
+              <el-table-column prop="is_enabled" :label="t('common.status')" min-width="80">
                 <template #default="{ row }">
                   <el-switch 
                     v-model="row.is_enabled" 
@@ -507,7 +507,7 @@ onMounted(() => {
                   />
                 </template>
               </el-table-column>
-              <el-table-column prop="last_run_at" :label="t('inspection.lastExecution')" width="180">
+              <el-table-column prop="last_run_at" :label="t('inspection.lastExecution')" min-width="140">
                 <template #default="{ row }">
                   {{ row.last_run_at ? formatTime(row.last_run_at) : '-' }}
                 </template>
@@ -559,29 +559,29 @@ onMounted(() => {
         <el-tab-pane :label="t('inspection.records')" name="records">
           <div class="tab-content">
             <el-table :data="records" v-loading="loading">
-              <el-table-column prop="id" :label="t('inspection.recordId')" width="100" />
-              <el-table-column prop="scan_type" :label="t('inspection.scanType')" width="120">
+              <el-table-column prop="id" :label="t('inspection.recordId')" min-width="80" />
+              <el-table-column prop="scan_type" :label="t('inspection.scanType')" min-width="100">
                 <template #default="{ row }">{{ getScanTypeName(row.scan_type) }}</template>
               </el-table-column>
-              <el-table-column prop="trigger" :label="t('inspection.triggerMethod')" width="120">
+              <el-table-column prop="trigger" :label="t('inspection.triggerMethod')" min-width="100">
                 <template #default="{ row }">{{ getTriggerName(row.trigger) }}</template>
               </el-table-column>
-              <el-table-column prop="total_targets" :label="t('inspection.scanTargets')" width="120" />
-              <el-table-column prop="online_count" :label="t('inspection.onlineDevices')" width="120" />
-              <el-table-column prop="offline_count" :label="t('inspection.offlineDevices')" width="120" />
-              <el-table-column prop="new_device_count" :label="t('inspection.newDevices')" width="100" />
-              <el-table-column prop="change_count" :label="t('inspection.changeCount')" width="100" />
-              <el-table-column prop="duration_seconds" :label="t('inspection.duration')" width="120">
+              <el-table-column prop="total_targets" :label="t('inspection.scanTargets')" min-width="100" />
+              <el-table-column prop="online_count" :label="t('inspection.onlineDevices')" min-width="100" />
+              <el-table-column prop="offline_count" :label="t('inspection.offlineDevices')" min-width="100" />
+              <el-table-column prop="new_device_count" :label="t('inspection.newDevices')" min-width="80" />
+              <el-table-column prop="change_count" :label="t('inspection.changeCount')" min-width="80" />
+              <el-table-column prop="duration_seconds" :label="t('inspection.duration')" min-width="100">
                 <template #default="{ row }">{{ formatDuration(row.duration_seconds || 0) }}</template>
               </el-table-column>
-              <el-table-column prop="status" :label="t('common.status')" width="100">
+              <el-table-column prop="status" :label="t('common.status')" min-width="80">
                 <template #default="{ row }">
                   <el-tag :class="getStatusClass(row.status)" size="small">
                     {{ getStatusName(row.status) }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="started_at" :label="t('inspection.executeTime')" width="180">
+              <el-table-column prop="started_at" :label="t('inspection.executeTime')" min-width="140">
                 <template #default="{ row }">{{ formatTime(row.started_at) }}</template>
               </el-table-column>
             </el-table>
@@ -592,14 +592,14 @@ onMounted(() => {
         <el-tab-pane :label="t('inspection.fingerprints')" name="fingerprints">
           <div class="tab-content">
             <el-table :data="fingerprints" v-loading="loading">
-              <el-table-column prop="ip_address" :label="t('inspection.ipAddress')" width="140" />
-              <el-table-column prop="sys_name" :label="t('inspection.deviceName')" width="160" />
-              <el-table-column prop="vendor" :label="t('inspection.vendor')" width="120" />
-              <el-table-column prop="sys_descr" :label="t('inspection.deviceDescription')" width="300" />
-              <el-table-column prop="last_seen_online" :label="t('inspection.lastOnline')" width="180">
+              <el-table-column prop="ip_address" :label="t('inspection.ipAddress')" min-width="110" />
+              <el-table-column prop="sys_name" :label="t('inspection.deviceName')" min-width="120" />
+              <el-table-column prop="vendor" :label="t('inspection.vendor')" min-width="100" />
+              <el-table-column prop="sys_descr" :label="t('inspection.deviceDescription')" min-width="200" />
+              <el-table-column prop="last_seen_online" :label="t('inspection.lastOnline')" min-width="140">
                 <template #default="{ row }">{{ formatTime(row.last_seen_online) }}</template>
               </el-table-column>
-              <el-table-column prop="last_full_scan_at" :label="t('inspection.fullScan')" width="180">
+              <el-table-column prop="last_full_scan_at" :label="t('inspection.fullScan')" min-width="140">
                 <template #default="{ row }">{{ formatTime(row.last_full_scan_at) }}</template>
               </el-table-column>
             </el-table>
