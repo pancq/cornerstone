@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import Site, Circuit, Device, IPAddress, Prefix, Backup, InspectionDeviceResult, InspectionResult
+from ..models import Site, Circuit, Device, IPAddress, Prefix, Backup, InspectionDeviceResult, InspectionResult, Vlan, DeviceLink, AuditLog
 from .ai_client import call_ai, get_ai_config
 
 logger = logging.getLogger(__name__)
@@ -95,24 +95,34 @@ def _fallback_parse(question: str) -> dict:
     """降级解析：通过关键字匹配确定查询类型"""
     q = question.lower()
 
-    if any(k in q for k in ["站点", "办公室", "site"]):
-        data_type = "sites"
-    elif any(k in q for k in ["专线", "电路", "circuit", "带宽"]):
-        data_type = "circuits"
-    elif any(k in q for k in ["设备", "交换机", "路由器", "防火墙", "device", "保修"]):
-        data_type = "devices"
-    elif any(k in q for k in ["ip", "地址", "ip地址"]):
-        data_type = "ip_addresses"
-    elif any(k in q for k in ["子网", "网段", "prefix", "可用"]):
-        data_type = "prefixes"
-    elif any(k in q for k in ["备份", "backup"]):
+    # 优先级处理：长句优先（避免"电路备份"误匹配到 circuits）
+    if any(k in q for k in ["防疫", "灾备"]):
         data_type = "backups"
-    elif any(k in q for k in ["巡检", "离线", "在线"]):
+    elif any(k in q for k in ["拓扑", "连线"]):
+        data_type = "topology"
+    elif any(k in q for k in ["vlan", "vlan配置", "子接口"]):
+        data_type = "vlans"
+    elif any(k in q for k in ["日志", "审计", "操作记录"]):
+        data_type = "audit_logs"
+    elif any(k in q for k in ["站点", "办公室", "机房", "site", "场所"]):
+        data_type = "sites"
+    elif any(k in q for k in ["专线", "电路", "circuit", "带宽", "链路"]):
+        data_type = "circuits"
+    elif any(k in q for k in ["设备", "交换机", "路由器", "防火墙", "device", "保修",
+                              "机器", "硬件", "资产", "节点", "清单"]):
+        data_type = "devices"
+    elif any(k in q for k in ["ip", "地址", "ip地址", "分配"]):
+        data_type = "ip_addresses"
+    elif any(k in q for k in ["子网", "网段", "prefix", "可用的子网", "可用的网段"]):
+        data_type = "prefixes"
+    elif any(k in q for k in ["备份", "backup", "配置保存"]):
+        data_type = "backups"
+    elif any(k in q for k in ["巡检", "离线", "在线", "扫描"]):
         data_type = "inspection_results"
     else:
         data_type = "devices"
 
-    answer_format = "summary" if any(k in q for k in ["多少", "几个", "统计"]) else "list"
+    answer_format = "summary" if any(k in q for k in ["多少", "几个", "统计", "总数", "总共", "数一数", "计数"]) else "list"
 
     return {
         "intent": "query",
@@ -154,6 +164,12 @@ async def execute_query(intent: dict, db: AsyncSession) -> list:
         return await _query_backups(db, filters, time_range, sort, limit)
     elif data_type == "inspection_results":
         return await _query_inspection(db, filters, time_range, limit)
+    elif data_type == "topology":
+        return await _query_topology(db, filters, limit)
+    elif data_type == "vlans":
+        return await _query_vlans(db, filters, limit)
+    elif data_type == "audit_logs":
+        return await _query_audit_logs(db, filters, limit)
     return []
 
 
@@ -329,6 +345,44 @@ async def _query_inspection(db: AsyncSession, filters: dict, time_range: dict, l
     ]
 
 
+async def _query_topology(db: AsyncSession, filters: dict, limit: int) -> list:
+    stmt = select(DeviceLink).limit(limit)
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    return [
+        {"id": r.id, "source_device_id": r.source_device_id,
+         "source_interface": r.source_interface,
+         "target_device_id": r.target_device_id,
+         "target_interface": r.target_interface,
+         "link_type": r.link_type, "confidence": r.confidence}
+        for r in rows
+    ]
+
+
+async def _query_vlans(db: AsyncSession, filters: dict, limit: int) -> list:
+    stmt = select(Vlan).limit(limit)
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    return [
+        {"id": r.id, "vid": r.vid, "name": r.name,
+         "status": r.status, "description": r.description}
+        for r in rows
+    ]
+
+
+async def _query_audit_logs(db: AsyncSession, filters: dict, limit: int) -> list:
+    stmt = select(AuditLog).order_by(AuditLog.id.desc()).limit(limit)
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    return [
+        {"id": r.id, "user": r.user, "action": r.action,
+         "resource": r.resource, "detail": r.detail,
+         "success": r.success, "ip_address": r.ip_address,
+         "created_at": r.created_at.isoformat() if r.created_at else None}
+        for r in rows
+    ]
+
+
 # ──────────────────────────────────────────────
 # 格式化回答
 # ──────────────────────────────────────────────
@@ -389,6 +443,7 @@ def _generate_fallback_answer(data_type: str, raw_data: list, question: str) -> 
         "sites": "站点", "circuits": "专线", "devices": "设备",
         "ip_addresses": "IP地址", "prefixes": "子网", "backups": "备份记录",
         "inspection_results": "巡检结果",
+        "topology": "拓扑连接", "vlans": "VLAN", "audit_logs": "审计日志",
     }
     label = name_map.get(data_type, data_type)
 

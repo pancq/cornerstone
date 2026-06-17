@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { getLocale } from '../i18n'
+import api from '@/api/axios';
 // AI服务配置
 export interface AIServiceConfig {
  name: string;
@@ -26,92 +26,71 @@ function isGreeting(input: string): boolean {
  return greetings.some(greeting => input.toLowerCase().includes(greeting.toLowerCase()));
 }
 
-// 生成问候语回复
-function generateGreetingResponse(): AIPrediction {
- const greetings = [
- { content: '您好！我是智能运维助手，很高兴为您服务。请问有什么可以帮助您的？', suggestion: '您可以询问设备状态、预警信息或进行故障排查' },
- { content: '你好！欢迎使用智能预警系统。我可以帮您分析设备状态、预测趋势或解答运维相关问题。', suggestion: '试试问"设备状态如何？"或"帮我分析一下故障原因"' },
- { content: '您好！我是您的AI运维助手。请问需要查询什么信息？', suggestion: '您可以使用智能问答功能了解系统状态' }
- ];
- const response = greetings[Math.floor(Math.random() * greetings.length)];
- return {
- id: `gr-${Date.now()}`,
- type: 'query',
- title: '问候响应',
- content: response.content,
- confidence: 0.98,
- suggestion: response.suggestion,
- timestamp: new Date().toLocaleString(getLocale() || 'zh-CN')
- };
-}
-
-// 模拟AI预测响应（实际项目中调用后端API）
+// 调用后端真实 API 获取 AI 预测
 async function fetchAIPrediction(type: string, input: string): Promise<AIPrediction> {
- // 模拟延迟
- await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
- 
- // 如果是问答类型且输入是问候语，返回问候响应
+ // 如果是问答类型且输入是问候语，返回本地问候响应（无需调后端）
  if (type === 'query' && isGreeting(input)) {
- return generateGreetingResponse();
+   const greetings = [
+     { content: '您好！我是智能运维助手，很高兴为您服务。请问有什么可以帮助您的？', suggestion: '您可以询问设备状态、预警信息或进行故障排查' },
+     { content: '你好！欢迎使用智能运维系统。我可以帮您分析设备状态、预测趋势或解答运维相关问题。', suggestion: '试试点上面的功能卡片，或直接输入问题' },
+     { content: '您好！我是您的AI运维助手。请问需要查询什么信息？', suggestion: '可以使用智能问答功能了解系统状态' }
+   ];
+   const response = greetings[Math.floor(Math.random() * greetings.length)];
+   return {
+     id: `gr-${Date.now()}`,
+     type: 'query',
+     title: '问候响应',
+     content: response.content,
+     confidence: 0.98,
+     suggestion: response.suggestion,
+     timestamp: new Date().toLocaleString('zh-CN')
+   };
  }
- 
- // 模拟不同类型的AI预测结果
- const predictions: Record<string, () => AIPrediction> = {
- root_cause: () => ({
- id: `rc-${Date.now()}`,
- type: 'root_cause',
- title: '根因分析结果',
- content: '根据系统数据分析，设备离线可能由以下原因导致：\n\n1. **网络连接问题**（60%可能性）\n - 检查网线连接状态\n - 确认交换机端口是否正常\n\n2. **电源故障**（25%可能性）\n - 检查设备供电状态\n - 确认UPS是否正常工作\n\n3. **设备硬件故障**（15%可能性）\n - 联系供应商进行硬件检测',
- confidence: 0.87,
- suggestion: '建议优先检查网络连接和端口状态，这是最可能的原因',
- timestamp: new Date().toLocaleString(getLocale() || 'zh-CN')
- }),
- trend: () => ({
- id: `tr-${Date.now()}`,
- type: 'trend',
- title: '趋势预测结果',
- content: '基于历史数据分析，预测结果如下：\n\n**IP池耗尽预测**：\n- 当前使用率：78%\n- 预计耗尽时间：23天后\n- 建议提前规划新子网\n\n**备份成功率趋势**：\n- 近7天成功率：72%\n- 呈下降趋势\n- 建议检查备份任务配置',
- confidence: 0.92,
- suggestion: '建议在15天内完成新子网规划，避免IP耗尽影响业务',
- timestamp: new Date().toLocaleString(getLocale() || 'zh-CN')
- }),
- summary: () => ({
- id: `sm-${Date.now()}`,
- type: 'summary',
- title: '智能摘要',
- content: '当前系统预警摘要：\n\n🔴 **紧急问题**（需立即处理）\n- 1台演示设备离线（SW-DEMO-CORE-01）\n- 2条演示专线断开\n\n🟡 **待关注问题**（本周内处理）\n- 3台演示设备保修即将到期\n- 2个演示子网容量超过80%\n- 备份成功率下降至72%\n\n🟢 **正常状态**\n- 其他设备运行正常\n- IP地址充足',
- confidence: 0.95,
- suggestion: '优先处理设备离线和专线断开问题，这可能影响核心业务',
- timestamp: new Date().toLocaleString(getLocale() || 'zh-CN')
- }),
- query: () => {
- const responses = [
- {
- content: '根据当前数据，需要关注的设备有：\n\n1. **SW-DEMO-CORE-01** - 离线状态，需立即排查\n2. **FW-DEMO-EDGE-01** - 保修即将到期（7天后）\n3. **RT-DEMO-WAN-01** - 正在维修中\n\n建议先处理离线设备，确保核心网络正常运行。',
- suggestion: '点击"查看设备"可跳转到详情页面'
- },
- {
- content: '当前系统运行状态整体良好，但存在以下需要关注的问题：\n\n1. 备份成功率有所下降（72%）\n2. 部分子网IP使用率较高\n\n建议定期监控备份状态，及时规划IP资源。',
- suggestion: '可在预警中心设置定期提醒'
- },
- {
- content: '设备离线可能的原因包括：\n\n1. 网络连接中断\n2. 电源故障\n3. 设备硬件问题\n4. 配置错误\n\n建议按照以下顺序排查：\n1. 检查物理连接\n2. 确认电源状态\n3. 查看设备日志',
- suggestion: '如果问题持续，请联系供应商技术支持'
- }
- ];
- const response = responses[Math.floor(Math.random() * responses.length)];
- return {
- id: `qu-${Date.now()}`,
- type: 'query',
- title: '智能问答结果',
- content: response.content,
- confidence: 0.85 + Math.random() * 0.1,
- suggestion: response.suggestion,
- timestamp: new Date().toLocaleString(getLocale() || 'zh-CN')
+
+ // 映射类型到后端 API 路径
+ const endpointMap: Record<string, string> = {
+   root_cause: '/ai/root-cause',
+   trend: '/ai/trend',
+   summary: '/ai/summary',
+   query: '/ai/search',
  };
+
+ const endpoint = endpointMap[type] || '/ai/summary';
+
+ try {
+   const response = await api.post(endpoint, { question: input });
+
+   if (type === 'query') {
+     // /ai/search 返回格式不同
+     const result = response.data?.data || response.data;
+     const answerText = result?.answer_text || result?.data?.answer_text || '查询完成';
+     const suggestionList = result?.suggestions || [];
+     return {
+       id: `qu-${Date.now()}`,
+       type: 'query',
+       title: '智能问答结果',
+       content: answerText,
+       confidence: 0.9,
+       suggestion: suggestionList.length > 0 ? suggestionList.join('；') : '您可以继续提问',
+       timestamp: new Date().toLocaleString('zh-CN'),
+     };
+   }
+
+   // summary / trend / root_cause 统一返回 AIPredictionResponse 格式
+   const data = response.data;
+   return {
+     id: data.id || `${type}-${Date.now()}`,
+     type: data.type || type,
+     title: data.title || '',
+     content: data.content || '',
+     confidence: data.confidence ?? 0.85,
+     suggestion: data.suggestion || '',
+     timestamp: data.timestamp || new Date().toLocaleString('zh-CN'),
+   };
+ } catch (e: any) {
+   console.error(`AI ${type} API call failed:`, e);
+   throw new Error(e?.response?.data?.detail || `AI ${type} 请求失败，请稍后重试`);
  }
- };
- return predictions[type]?.() || predictions.summary();
 }
 // AI预测服务组合式函数
 export function useAIPrediction() {

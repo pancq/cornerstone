@@ -66,6 +66,9 @@ const renewForm = ref({
   expireAt: ''
 })
 
+const searchKeyword = ref('')
+const selectedLevel = ref('all')
+
 // 告警通知状态
 const notifications = ref<{id: string; type: string; title: string; message: string; time: string; read: boolean}[]>([])
 
@@ -148,6 +151,84 @@ const expiringIPs = computed((): ExpiringIP[] => {
     }
   })
   return result.sort((a, b) => a.remainingDays - b.remainingDays)
+})
+
+const filteredExpiringIPs = computed(() => {
+  let result = expiringIPs.value
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(ip => 
+      ip.address.toLowerCase().includes(keyword) ||
+      ip.usage.toLowerCase().includes(keyword) ||
+      ip.owner.toLowerCase().includes(keyword)
+    )
+  }
+  if (selectedLevel.value === 'danger') {
+    result = result.filter(ip => ip.remainingDays <= 7)
+  } else if (selectedLevel.value === 'warn') {
+    result = result.filter(ip => ip.remainingDays > 7)
+  }
+  return result
+})
+
+const filteredDeviceAlerts = computed(() => {
+  let result = deviceAlerts.value
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(alert => 
+      alert.title.toLowerCase().includes(keyword) ||
+      (alert.detail && alert.detail.toLowerCase().includes(keyword))
+    )
+  }
+  if (selectedLevel.value !== 'all') {
+    result = result.filter(alert => alert.level === selectedLevel.value)
+  }
+  return result
+})
+
+const filteredCircuitAlerts = computed(() => {
+  let result = circuitAlerts.value
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(alert => 
+      alert.title.toLowerCase().includes(keyword) ||
+      (alert.detail && alert.detail.toLowerCase().includes(keyword))
+    )
+  }
+  if (selectedLevel.value !== 'all') {
+    result = result.filter(alert => alert.level === selectedLevel.value)
+  }
+  return result
+})
+
+const filteredBackupAlerts = computed(() => {
+  let result = backupAlerts.value
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(alert => 
+      alert.title.toLowerCase().includes(keyword) ||
+      (alert.detail && alert.detail.toLowerCase().includes(keyword))
+    )
+  }
+  if (selectedLevel.value !== 'all') {
+    result = result.filter(alert => alert.level === selectedLevel.value)
+  }
+  return result
+})
+
+const filteredPrefixAlerts = computed(() => {
+  let result = prefixAlerts.value
+  if (searchKeyword.value) {
+    const keyword = searchKeyword.value.toLowerCase()
+    result = result.filter(alert => 
+      alert.title.toLowerCase().includes(keyword) ||
+      (alert.detail && alert.detail.toLowerCase().includes(keyword))
+    )
+  }
+  if (selectedLevel.value !== 'all') {
+    result = result.filter(alert => alert.level === selectedLevel.value)
+  }
+  return result
 })
 
 // 专线合同预警
@@ -600,6 +681,36 @@ function goToAISettings() {
       </div>
     </el-card>
 
+    <!-- 搜索和筛选栏 -->
+    <el-card class="table-card" shadow="never">
+      <div class="search-bar">
+        <el-input
+          v-model="searchKeyword"
+          :placeholder="t('alerts.searchPlaceholder')"
+          class="search-input"
+          clearable
+          prefix-icon="Search"
+        />
+        <el-select
+          v-model="selectedLevel"
+          :placeholder="t('alerts.filterByLevel')"
+          clearable
+          class="level-select"
+        >
+          <el-option label="全部" value="all" />
+          <el-option :label="t('alerts.critical')" value="danger" />
+          <el-option :label="t('alerts.warning')" value="warn" />
+        </el-select>
+        <el-button
+          v-if="searchKeyword || selectedLevel !== 'all'"
+          text
+          @click="searchKeyword = ''; selectedLevel = 'all'"
+        >
+          {{ t('alerts.resetFilter') }}
+        </el-button>
+      </div>
+    </el-card>
+
     <!-- Tab页签内容 -->
     <el-tabs v-model="activeTab" type="card" class="alerts-tabs">
       <!-- 概览 -->
@@ -734,29 +845,29 @@ function goToAISettings() {
             </div>
           </template>
 
-          <div v-if="expiringIPs.length === 0" class="empty-state">
-            <el-empty :description="t('alerts.noExpiringIPs')" />
+          <div v-if="filteredExpiringIPs.length === 0" class="empty-state">
+            <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noExpiringIPs')" />
           </div>
 
           <el-table
             v-else
-            :data="expiringIPs"
+            :data="filteredExpiringIPs"
             style="width: 100%"
             stripe
             border
           >
-            <el-table-column prop="address" :label="t('alerts.ipAddress')" width="160">
+            <el-table-column prop="address" :label="t('alerts.ipAddress')" min-width="120">
               <template #default="{ row }">
                 <code class="ip-address">{{ row.address }}</code>
               </template>
             </el-table-column>
-            <el-table-column prop="prefixId" :label="t('alerts.subnet')" width="180">
+            <el-table-column prop="prefixId" :label="t('alerts.subnet')" min-width="140">
               <template #default="{ row }">{{ prefixNetwork(row.prefixId) }}</template>
             </el-table-column>
-            <el-table-column prop="usage" :label="t('alerts.usage')" width="160" />
-            <el-table-column prop="owner" :label="t('alerts.owner')" width="120" />
-            <el-table-column prop="expireAt" :label="t('alerts.expireDate')" width="140" />
-            <el-table-column :label="t('alerts.daysRemaining')" width="100">
+            <el-table-column prop="usage" :label="t('alerts.usage')" min-width="100" />
+            <el-table-column prop="owner" :label="t('alerts.owner')" min-width="80" />
+            <el-table-column prop="expireAt" :label="t('alerts.expireDate')" min-width="110" />
+            <el-table-column :label="t('alerts.daysRemaining')" min-width="100" align="center">
               <template #default="{ row }">
                 <el-tag 
                   :type="row.remainingDays <= 7 ? 'danger' : 'warning'" 
@@ -767,7 +878,7 @@ function goToAISettings() {
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column :label="t('common.actions')" width="200" fixed="right" align="center">
+            <el-table-column :label="t('common.actions')" min-width="140" align="center">
               <template #default="{ row }">
                 <el-button 
                   link 
@@ -808,52 +919,41 @@ function goToAISettings() {
             </div>
           </template>
 
-          <div v-if="deviceAlerts.length === 0" class="empty-state">
-            <el-empty :description="t('alerts.noDeviceWarrantyAlerts')" />
+          <div v-if="filteredDeviceAlerts.length === 0" class="empty-state">
+            <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noDeviceWarrantyAlerts')" />
           </div>
 
-          <div v-else class="alert-list">
-            <div 
-              v-for="(alert, index) in deviceAlerts" 
-              :key="index" 
-              class="alert-item" 
-              :class="`alert-${alert.level}`"
-            >
-              <div class="alert-icon">
-                <el-icon><Monitor /></el-icon>
-              </div>
-              <div class="alert-content">
-                <div class="alert-header">
-                  <span class="alert-type">
-                    <el-tag :type="getLevelType(alert.level)" effect="dark" size="small">{{ alert.type }}</el-tag>
-                  </span>
-                  <span class="alert-title">{{ alert.title }}</span>
-                  <span v-if="alert.detail" class="alert-detail">· {{ alert.detail }}</span>
-                </div>
-                <div class="alert-footer">
-                  <span class="alert-due">
-                    <el-icon><Clock /></el-icon>
-                    {{ t('alerts.warrantyExpire') }}：{{ alert.due }}
-                  </span>
-                  <el-tag :type="getLevelType(alert.level)" effect="light" size="small">
-                    {{ alert.days > 0 ? `${alert.days} ${t('alerts.daysLater')}` : t('alerts.expired') }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="alert-action">
-                <el-button 
-                  v-if="alert.deviceId"
-                  type="primary" 
-                  link 
-                  size="small"
-                  @click="handleViewDevice(alert.deviceId)"
-                >
+          <el-table v-else :data="filteredDeviceAlerts" style="width: 100%" stripe border>
+            <el-table-column :label="t('alerts.alertType')" min-width="100">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.device')" min-width="150">
+              <template #default="{ row }">{{ row.title }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.serialNumber')" min-width="100">
+              <template #default="{ row }">{{ row.detail || '-' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.warrantyExpire')" min-width="110">
+              <template #default="{ row }">{{ row.due }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.daysRemaining')" min-width="100" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="light" size="small">
+                  {{ row.days > 0 ? `${row.days} ${t('alerts.days')}` : t('alerts.expired') }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('common.actions')" min-width="100" align="center">
+              <template #default="{ row }">
+                <el-button v-if="row.deviceId" type="primary" link size="small" @click="handleViewDevice(row.deviceId)">
                   <el-icon><View /></el-icon>
-                  {{ t('alerts.viewDevice') }}
+                  {{ t('common.viewDetail') }}
                 </el-button>
-              </div>
-            </div>
-          </div>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-tab-pane>
 
@@ -872,52 +972,41 @@ function goToAISettings() {
             </div>
           </template>
 
-          <div v-if="circuitAlerts.length === 0" class="empty-state">
-            <el-empty :description="t('alerts.noCircuitContractAlerts')" />
+          <div v-if="filteredCircuitAlerts.length === 0" class="empty-state">
+            <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noCircuitContractAlerts')" />
           </div>
 
-          <div v-else class="alert-list">
-            <div 
-              v-for="(alert, index) in circuitAlerts" 
-              :key="index" 
-              class="alert-item" 
-              :class="`alert-${alert.level}`"
-            >
-              <div class="alert-icon">
-                <el-icon><Connection /></el-icon>
-              </div>
-              <div class="alert-content">
-                <div class="alert-header">
-                  <span class="alert-type">
-                    <el-tag :type="getLevelType(alert.level)" effect="dark" size="small">{{ alert.type }}</el-tag>
-                  </span>
-                  <span class="alert-title">{{ alert.title }}</span>
-                  <span v-if="alert.detail" class="alert-detail">· {{ alert.detail }}</span>
-                </div>
-                <div class="alert-footer">
-                  <span class="alert-due">
-                    <el-icon><Clock /></el-icon>
-                    {{ t('alerts.contractExpire') }}：{{ alert.due }}
-                  </span>
-                  <el-tag :type="getLevelType(alert.level)" effect="light" size="small">
-                    {{ alert.days > 0 ? `${alert.days} ${t('alerts.daysLater')}` : t('alerts.expired') }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="alert-action">
-                <el-button 
-                  v-if="alert.circuitId"
-                  type="primary" 
-                  link 
-                  size="small"
-                  @click="handleViewCircuit(alert.circuitId)"
-                >
+          <el-table v-else :data="filteredCircuitAlerts" style="width: 100%" stripe border>
+            <el-table-column :label="t('alerts.alertType')" min-width="100">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.circuit')" min-width="150">
+              <template #default="{ row }">{{ row.title }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.circuitNo')" min-width="100">
+              <template #default="{ row }">{{ row.detail || '-' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.contractExpire')" min-width="110">
+              <template #default="{ row }">{{ row.due }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.daysRemaining')" min-width="100" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="light" size="small">
+                  {{ row.days > 0 ? `${row.days} ${t('alerts.days')}` : t('alerts.expired') }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('common.actions')" min-width="100" align="center">
+              <template #default="{ row }">
+                <el-button v-if="row.circuitId" type="primary" link size="small" @click="handleViewCircuit(row.circuitId)">
                   <el-icon><View /></el-icon>
-                  {{ t('alerts.viewCircuit') }}
+                  {{ t('common.viewDetail') }}
                 </el-button>
-              </div>
-            </div>
-          </div>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-tab-pane>
 
@@ -936,49 +1025,41 @@ function goToAISettings() {
             </div>
           </template>
 
-          <div v-if="backupAlerts.length === 0" class="empty-state">
-            <el-empty :description="t('alerts.noBackupFailures')" />
+          <div v-if="filteredBackupAlerts.length === 0" class="empty-state">
+            <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noBackupFailures')" />
           </div>
 
-          <div v-else class="alert-list">
-            <div 
-              v-for="(alert, index) in backupAlerts" 
-              :key="index" 
-              class="alert-item" 
-              :class="`alert-${alert.level}`"
-            >
-              <div class="alert-icon">
-                <el-icon><DocumentCopy /></el-icon>
-              </div>
-              <div class="alert-content">
-                <div class="alert-header">
-                  <span class="alert-type">
-                    <el-tag :type="getLevelType(alert.level)" effect="dark" size="small">{{ alert.type }}</el-tag>
-                  </span>
-                  <span class="alert-title">{{ alert.title }}</span>
-                  <span v-if="alert.detail" class="alert-detail">· {{ alert.detail }}</span>
-                </div>
-                <div class="alert-footer">
-                  <span class="alert-due">
-                    <el-icon><Clock /></el-icon>
-                    {{ t('alerts.failureTime') }}：{{ alert.due }}
-                  </span>
-                </div>
-              </div>
-              <div class="alert-action">
-                <el-button 
-                  v-if="alert.deviceId"
-                  type="primary" 
-                  link 
-                  size="small"
-                  @click="handleViewDevice(alert.deviceId)"
-                >
+          <el-table v-else :data="filteredBackupAlerts" style="width: 100%" stripe border>
+            <el-table-column :label="t('alerts.alertType')" min-width="100">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.device')" min-width="150">
+              <template #default="{ row }">{{ row.title }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.backupSize')" min-width="100">
+              <template #default="{ row }">{{ row.detail || '-' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.failureTime')" min-width="130">
+              <template #default="{ row }">{{ row.due }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.severity')" min-width="80" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="light" size="small">
+                  {{ row.level === 'danger' ? t('alerts.critical') : t('alerts.warning') }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('common.actions')" min-width="100" align="center">
+              <template #default="{ row }">
+                <el-button v-if="row.deviceId" type="primary" link size="small" @click="handleViewDevice(row.deviceId)">
                   <el-icon><View /></el-icon>
-                  {{ t('alerts.viewDevice') }}
+                  {{ t('common.viewDetail') }}
                 </el-button>
-              </div>
-            </div>
-          </div>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-tab-pane>
 
@@ -997,43 +1078,41 @@ function goToAISettings() {
             </div>
           </template>
 
-          <div v-if="prefixAlerts.length === 0" class="empty-state">
-            <el-empty :description="t('alerts.noSubnetCapacityAlerts')" />
+          <div v-if="filteredPrefixAlerts.length === 0" class="empty-state">
+            <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noSubnetCapacityAlerts')" />
           </div>
 
-          <div v-else class="alert-list">
-            <div 
-              v-for="(alert, index) in prefixAlerts" 
-              :key="index" 
-              class="alert-item" 
-              :class="`alert-${alert.level}`"
-            >
-              <div class="alert-icon">
-                <el-icon><SetUp /></el-icon>
-              </div>
-              <div class="alert-content">
-                <div class="alert-header">
-                  <span class="alert-type">
-                    <el-tag :type="getLevelType(alert.level)" effect="dark" size="small">{{ alert.type }}</el-tag>
-                  </span>
-                  <span class="alert-title">{{ alert.title }}</span>
-                  <span v-if="alert.detail" class="alert-detail">· {{ alert.detail }}</span>
-                </div>
-                <div class="alert-footer">
-                  <span class="alert-due">
-                    <el-icon><Clock /></el-icon>
-                    {{ t('alerts.currentUsage') }}：{{ alert.due }}
-                  </span>
-                </div>
-              </div>
-              <div class="alert-action">
+          <el-table v-else :data="filteredPrefixAlerts" style="width: 100%" stripe border>
+            <el-table-column :label="t('alerts.alertType')" min-width="100">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.subnet')" min-width="150">
+              <template #default="{ row }">{{ row.title }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.ipUsage')" min-width="100">
+              <template #default="{ row }">{{ row.detail || '-' }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.currentUsage')" min-width="100">
+              <template #default="{ row }">{{ row.due }}</template>
+            </el-table-column>
+            <el-table-column :label="t('alerts.severity')" min-width="80" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getLevelType(row.level)" effect="light" size="small">
+                  {{ row.level === 'danger' ? t('alerts.critical') : t('alerts.warning') }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('common.actions')" min-width="100" align="center">
+              <template #default="{ row }">
                 <el-button type="primary" link size="small" @click="router.push('/ipam?tab=prefixes')">
                   <el-icon><View /></el-icon>
                   {{ t('alerts.manageSubnet') }}
                 </el-button>
-              </div>
-            </div>
-          </div>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -1107,29 +1186,54 @@ function goToAISettings() {
 .overview-card {
   background: #fff;
   border-radius: 12px;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
   border: 1px solid #e8e8e8;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.overview-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #d9d9d9, transparent);
 }
 
 .overview-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .overview-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: linear-gradient(135deg, #e6f7ff, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 28px;
   color: #1890ff;
+  transition: transform 0.3s ease;
+}
+
+.overview-card:hover .overview-card-icon {
+  transform: scale(1.1);
+}
+
+.overview-card-danger {
+  border-color: #ffccc7;
+}
+
+.overview-card-danger::before {
+  background: linear-gradient(90deg, #ff4d4f, #ff7875);
 }
 
 .overview-card-danger .overview-card-icon {
@@ -1137,13 +1241,41 @@ function goToAISettings() {
   color: #ff4d4f;
 }
 
+.overview-card-danger .overview-card-value {
+  color: #ff4d4f;
+}
+
+.overview-card-warning {
+  border-color: #ffe58f;
+}
+
+.overview-card-warning::before {
+  background: linear-gradient(90deg, #faad14, #ffc53d);
+}
+
 .overview-card-warning .overview-card-icon {
   background: linear-gradient(135deg, #fffbe6, #fff);
   color: #faad14;
 }
 
+.overview-card-warning .overview-card-value {
+  color: #faad14;
+}
+
+.overview-card-success {
+  border-color: #b7eb8f;
+}
+
+.overview-card-success::before {
+  background: linear-gradient(90deg, #52c41a, #73d13d);
+}
+
 .overview-card-success .overview-card-icon {
   background: linear-gradient(135deg, #f6ffed, #fff);
+  color: #52c41a;
+}
+
+.overview-card-success .overview-card-value {
   color: #52c41a;
 }
 
@@ -1154,17 +1286,32 @@ function goToAISettings() {
 .overview-card-label {
   font-size: 13px;
   color: #8c8c8c;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .overview-card-value {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: #262626;
+  line-height: 1.2;
 }
 
 .table-card {
   border-radius: 8px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.search-input {
+  width: 300px;
+}
+
+.level-select {
+  width: 160px;
 }
 
 .table-header {

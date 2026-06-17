@@ -616,7 +616,15 @@
     "aiPredictionCenter": "AI 预测中心",
     "aiAnomalyDetection": "AI 异常检测",
     "alertNotifications": "告警通知",
-    "llmPowered": "由大模型驱动"
+    "llmPowered": "由大模型驱动",
+    "searchPlaceholder": "搜索 IP 地址、设备名称、用途...",
+    "filterByLevel": "按级别筛选",
+    "resetFilter": "重置筛选",
+    "noMatchingResults": "暂无匹配结果",
+    "serialNumber": "序列号",
+    "circuitNo": "专线编号",
+    "backupSize": "备份大小",
+    "severity": "严重级别"
   },
   "ipam": {
     "title": "IP 管理",
