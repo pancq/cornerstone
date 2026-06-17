@@ -14,6 +14,7 @@ export interface VlanResponse {
   vid: number
   name: string | null
   group_id: number | null
+  site_id: number | null
   status: string
   description: string | null
   created_at: string
@@ -30,6 +31,7 @@ export interface VlanCreate {
   vid: number
   name: string | null
   group_id: number | null
+  site_id: number | null
   status: string
   description: string | null
 }

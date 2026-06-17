@@ -262,7 +262,7 @@ const convertToVlan = (response: VlanResponse): Vlan => ({
   vid: response.vid,
   name: response.name || '',
   groupId: response.group_id || undefined,
-  siteId: undefined,
+  siteId: response.site_id || undefined,
   status: response.status,
   description: response.description || ''
 });

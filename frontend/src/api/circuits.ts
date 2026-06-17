@@ -21,18 +21,17 @@ export interface CircuitResponse {
 
 export interface CircuitCreate {
   name: string
-  type: string
-  provider: string
-  bandwidth: string
-  a_site_id: number | null
-  z_site_id: number | null
-  a_end_ip: string | null
-  z_end_ip: string | null
-  status: string
-  contract_no: string | null
-  contract_begin: string | null
+  type: string | null
+  provider: string | null
+  bandwidth: number | null
+  site_id: number | null
+  monthly_cost: number | null
+  contract_start: string | null
   contract_end: string | null
-  cost: number | null
+  circuit_no: string | null
+  support_phone: string | null
+  public_ip: string | null
+  status: string
   note: string | null
 }
 

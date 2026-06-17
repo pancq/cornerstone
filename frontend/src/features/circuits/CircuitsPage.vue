@@ -171,17 +171,16 @@ async function handleSave() {
       name: form.value.name,
       type: form.value.type,
       provider: form.value.provider,
-      bandwidth: String(form.value.bandwidth),
-      a_site_id: form.value.siteId || null,
-      z_site_id: null,
-      a_end_ip: form.value.publicIp || null,
-      z_end_ip: null,
-      status: form.value.status,
-      contract_no: form.value.circuitNo || null,
-      contract_begin: form.value.contractStart || null,
+      bandwidth: form.value.bandwidth || null,
+      site_id: form.value.siteId || null,
+      monthly_cost: form.value.monthlyCost || null,
+      contract_start: form.value.contractStart || null,
       contract_end: form.value.contractEnd || null,
-      cost: form.value.monthlyCost || null,
-      note: form.value.note || null,
+      circuit_no: form.value.circuitNo || null,
+      support_phone: form.value.supportPhone || null,
+      public_ip: form.value.publicIp || null,
+      status: form.value.status,
+      note: form.value.note || null
     }
 
     if (editingCircuit.value) {
@@ -316,9 +315,9 @@ const convertToCircuit = (response: CircuitResponse): Circuit => ({
   contractStart: response.contract_start || '',
   contractEnd: response.contract_end || '',
   circuitNo: response.circuit_no || '',
-  supportPhone: '',
+  supportPhone: response.support_phone || '',
   note: response.note || '',
-  updatedBy: '',
+  updatedBy: response.updated_by || '',
   updatedAt: response.updated_at || '',
 })
 
