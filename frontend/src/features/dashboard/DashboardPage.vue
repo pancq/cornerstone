@@ -181,6 +181,32 @@ onMounted(() => {
       </div>
     </div>
 
+    <div class="circuit-types-card">
+      <div class="card-title">
+        <el-icon><Connection /></el-icon>
+        {{ t('circuits.type') }}{{ t('common.distribution') }}
+      </div>
+      <div class="circuit-types-section">
+        <div v-for="circuitType in circuitTypes" :key="circuitType.type" class="circuit-type-card" :style="{ borderColor: circuitType.color }">
+          <div class="circuit-type-header">
+            <span class="circuit-type-dot" :style="{ backgroundColor: circuitType.color }"></span>
+            <span class="circuit-type-name">{{ circuitType.name }}</span>
+          </div>
+          <div class="circuit-type-stats">
+            <div class="circuit-stat">
+              <span class="circuit-stat-label">{{ t('common.total') }}</span>
+              <span class="circuit-stat-value">{{ circuitType.value }} {{ t('circuits.title') }}</span>
+            </div>
+            <div class="circuit-stat">
+              <span class="circuit-stat-label">{{ t('circuits.bandwidth') }}</span>
+              <span class="circuit-stat-value">{{ formatBandwidth(circuitType.bandwidth) }}</span>
+            </div>
+          </div>
+        </div>
+        <el-empty v-if="circuitTypes.length === 0" :description="t('common.noData')" />
+      </div>
+    </div>
+
     <div class="grid-layout">
       <el-card class="table-card" shadow="never">
         <template #header>
@@ -226,25 +252,6 @@ onMounted(() => {
             <div class="device-type-count">{{ deviceType.value }}</div>
           </div>
           <el-empty v-if="deviceTypes.length === 0" :description="t('common.noData')" />
-        </div>
-      </el-card>
-
-      <el-card class="table-card" shadow="never">
-        <template #header>
-          <div class="card-title">
-            <el-icon><Connection /></el-icon>
-            {{ t('circuits.type') }}{{ t('common.distribution') }}
-          </div>
-        </template>
-        <div class="device-types-section">
-          <div v-for="circuitType in circuitTypes" :key="circuitType.type" class="device-type-row">
-            <div class="device-type-info">
-              <span class="device-type-dot" :style="{ backgroundColor: circuitType.color }"></span>
-              <span class="device-type-name">{{ circuitType.name }}</span>
-            </div>
-            <div class="device-type-count">{{ circuitType.value }}</div>
-          </div>
-          <el-empty v-if="circuitTypes.length === 0" :description="t('common.noData')" />
         </div>
       </el-card>
 
@@ -339,6 +346,77 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
+}
+
+.circuit-types-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.circuit-types-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.circuit-type-card {
+  flex: 1;
+  min-width: 180px;
+  border-radius: 8px;
+  padding: 16px;
+  border: 2px solid #e8e8e8;
+  background: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.circuit-type-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.circuit-type-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.circuit-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.circuit-type-name {
+  font-weight: 600;
+  color: #262626;
+  font-size: 14px;
+}
+
+.circuit-type-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.circuit-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.circuit-stat-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.circuit-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
 }
 
 .table-card {

@@ -57,6 +57,7 @@ export interface DeviceTypeItem {
 export interface CircuitTypeItem {
   name: string
   value: number
+  bandwidth: number
   type: string
   color: string
 }

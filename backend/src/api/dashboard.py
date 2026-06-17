@@ -237,19 +237,25 @@ async def get_recent_logs(
 
 @router.get("/circuit-types")
 async def get_circuit_types(db: AsyncSession = Depends(get_db)):
-    """获取专线类型分布统计"""
+    """获取专线类型分布统计（含带宽）"""
     
-    # 获取所有专线类型
-    circuits_result = await db.execute(select(Circuit.type, func.count(Circuit.id).label("count")).group_by(Circuit.type))
+    # 获取所有专线类型的数量和总带宽
+    circuits_result = await db.execute(
+        select(Circuit.type, func.count(Circuit.id).label("count"), func.coalesce(func.sum(Circuit.bandwidth), 0).label("bandwidth"))
+        .group_by(Circuit.type)
+    )
     circuits = circuits_result.all()
     
-    # 统计各类型数量
-    type_counts = {}
-    for circuit_type, count in circuits:
+    # 统计各类型数量和带宽
+    type_stats = {}
+    for circuit_type, count, bandwidth in circuits:
         if circuit_type:
-            type_counts[circuit_type] = count
+            type_stats[circuit_type] = {'count': count, 'bandwidth': bandwidth}
         else:
-            type_counts['未分类'] = type_counts.get('未分类', 0) + count
+            type_stats['未分类'] = {
+                'count': type_stats.get('未分类', {}).get('count', 0) + count,
+                'bandwidth': type_stats.get('未分类', {}).get('bandwidth', 0) + bandwidth
+            }
     
     # 专线类型中文名映射
     type_labels = {
@@ -274,11 +280,12 @@ async def get_circuit_types(db: AsyncSession = Depends(get_db)):
     return [
         {
             "name": type_labels.get(name, name),
-            "value": count,
+            "value": stats['count'],
+            "bandwidth": stats['bandwidth'],
             "type": name,
             "color": type_colors.get(name, '#909399')
         }
-        for name, count in type_counts.items()
+        for name, stats in type_stats.items()
     ]
 
 
