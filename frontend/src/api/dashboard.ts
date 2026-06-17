@@ -54,6 +54,13 @@ export interface DeviceTypeItem {
   type: string
 }
 
+export interface CircuitTypeItem {
+  name: string
+  value: number
+  type: string
+  color: string
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const response = await request.get('/dashboard/stats')
   return response.data
@@ -71,5 +78,10 @@ export async function getRecentLogs(limit = 8): Promise<AuditLogItem[]> {
 
 export async function getDeviceTypes(): Promise<DeviceTypeItem[]> {
   const response = await request.get('/dashboard/device-types')
+  return response.data
+}
+
+export async function getCircuitTypes(): Promise<CircuitTypeItem[]> {
+  const response = await request.get('/dashboard/circuit-types')
   return response.data
 }

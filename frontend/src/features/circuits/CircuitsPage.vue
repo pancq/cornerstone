@@ -553,6 +553,7 @@ onMounted(async () => {
                 <el-option label="MPLS" value="MPLS" />
                 <el-option label="SD-WAN" value="SD-WAN" />
                 <el-option :label="t('circuits.typeFiber')" :value="t('circuits.typeFiber')" />
+                <el-option label="云专线" value="云专线" />
               </el-select>
             </el-form-item>
           </el-col>

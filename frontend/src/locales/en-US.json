@@ -72,7 +72,8 @@
     "batch": "Batch",
     "more": "More",
     "note": "Note",
-    "notePlaceholder": "Enter notes"
+    "notePlaceholder": "Enter notes",
+    "distribution": "Distribution"
   },
   "login": {
     "title": "Login",

@@ -235,6 +235,53 @@ async def get_recent_logs(
     ]
 
 
+@router.get("/circuit-types")
+async def get_circuit_types(db: AsyncSession = Depends(get_db)):
+    """获取专线类型分布统计"""
+    
+    # 获取所有专线类型
+    circuits_result = await db.execute(select(Circuit.type, func.count(Circuit.id).label("count")).group_by(Circuit.type))
+    circuits = circuits_result.all()
+    
+    # 统计各类型数量
+    type_counts = {}
+    for circuit_type, count in circuits:
+        if circuit_type:
+            type_counts[circuit_type] = count
+        else:
+            type_counts['未分类'] = type_counts.get('未分类', 0) + count
+    
+    # 专线类型中文名映射
+    type_labels = {
+        '互联网专线': '互联网专线',
+        'MPLS': 'MPLS',
+        'SD-WAN': 'SD-WAN',
+        '光纤专线': '光纤专线',
+        '云专线': '云专线',
+        '未分类': '未分类'
+    }
+    
+    # 专线类型颜色映射
+    type_colors = {
+        '互联网专线': '#409EFF',
+        'MPLS': '#67C23A',
+        'SD-WAN': '#E6A23C',
+        '光纤专线': '#9C27B0',
+        '云专线': '#00BCD4',
+        '未分类': '#909399'
+    }
+    
+    return [
+        {
+            "name": type_labels.get(name, name),
+            "value": count,
+            "type": name,
+            "color": type_colors.get(name, '#909399')
+        }
+        for name, count in type_counts.items()
+    ]
+
+
 @router.get("/device-types")
 async def get_device_types(db: AsyncSession = Depends(get_db)):
     """获取设备类型分布统计"""

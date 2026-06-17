@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { getDashboardStats, getPrefixesUsage, getRecentLogs, getDeviceTypes, type DashboardStats, type PrefixUsage, type AuditLogItem, type DeviceTypeItem } from '@/api/dashboard'
+import { getDashboardStats, getPrefixesUsage, getRecentLogs, getDeviceTypes, getCircuitTypes, type DashboardStats, type PrefixUsage, type AuditLogItem, type DeviceTypeItem, type CircuitTypeItem } from '@/api/dashboard'
 
 const { t, locale } = useI18n()
 
@@ -11,6 +11,7 @@ const dashboardStats = ref<DashboardStats | null>(null)
 const prefixesUsage = ref<PrefixUsage[]>([])
 const recentLogs = ref<AuditLogItem[]>([])
 const deviceTypes = ref<DeviceTypeItem[]>([])
+const circuitTypes = ref<CircuitTypeItem[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 
@@ -22,6 +23,16 @@ const deviceTypeColors: Record<string, string> = {
   'server': '#909399',
   'other': '#F56C6C',
   'unknown': '#909399'
+}
+
+// 专线类型颜色映射
+const circuitTypeColors: Record<string, string> = {
+  '互联网专线': '#409EFF',
+  'MPLS': '#67C23A',
+  'SD-WAN': '#E6A23C',
+  '光纤专线': '#9C27B0',
+  '云专线': '#00BCD4',
+  '未分类': '#909399'
 }
 
 const filteredLogs = computed(() => {
@@ -109,16 +120,18 @@ function formatBandwidth(mbps: number): string {
 async function loadDashboardData() {
   loading.value = true
   try {
-    const [stats, prefixes, logs, types] = await Promise.all([
+    const [stats, prefixes, logs, deviceTypesData, circuitTypesData] = await Promise.all([
       getDashboardStats(),
       getPrefixesUsage(),
       getRecentLogs(8),
-      getDeviceTypes()
+      getDeviceTypes(),
+      getCircuitTypes()
     ])
     dashboardStats.value = stats
     prefixesUsage.value = prefixes
     recentLogs.value = logs
-    deviceTypes.value = types
+    deviceTypes.value = deviceTypesData
+    circuitTypes.value = circuitTypesData
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
   } finally {
@@ -213,6 +226,25 @@ onMounted(() => {
             <div class="device-type-count">{{ deviceType.value }}</div>
           </div>
           <el-empty v-if="deviceTypes.length === 0" :description="t('common.noData')" />
+        </div>
+      </el-card>
+
+      <el-card class="table-card" shadow="never">
+        <template #header>
+          <div class="card-title">
+            <el-icon><Connection /></el-icon>
+            {{ t('circuits.type') }}{{ t('common.distribution') }}
+          </div>
+        </template>
+        <div class="device-types-section">
+          <div v-for="circuitType in circuitTypes" :key="circuitType.type" class="device-type-row">
+            <div class="device-type-info">
+              <span class="device-type-dot" :style="{ backgroundColor: circuitType.color }"></span>
+              <span class="device-type-name">{{ circuitType.name }}</span>
+            </div>
+            <div class="device-type-count">{{ circuitType.value }}</div>
+          </div>
+          <el-empty v-if="circuitTypes.length === 0" :description="t('common.noData')" />
         </div>
       </el-card>
 

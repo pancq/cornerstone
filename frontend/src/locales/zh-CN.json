@@ -83,7 +83,8 @@
     "auth": "认证",
     "userLogin": "用户登录",
     "loginSuccess": "登录成功",
-    "loginFailed": "登录失败"
+    "loginFailed": "登录失败",
+    "distribution": "分布"
   },
   "login": {
     "title": "登录",
