@@ -133,9 +133,9 @@ const formatDateTime = (dateString: string) => {
         style="width: 100%"
         stripe
         border
-        height="calc(100vh - 400px)"
+        max-height="calc(100vh - 400px)"
       >
-        <el-table-column :label="t('logs.operationTime')" width="180">
+        <el-table-column :label="t('logs.operationTime')" min-width="160">
           <template #default="{ row }">
             <div class="time-cell">
               <el-icon class="time-icon"><Clock /></el-icon>
@@ -143,24 +143,24 @@ const formatDateTime = (dateString: string) => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operationType')" width="120" align="center">
+        <el-table-column :label="t('logs.operationType')" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="getActionType(row.action).type">
               {{ getActionType(row.action).label }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operationDescription')" width="250">
+        <el-table-column :label="t('logs.operationDescription')" min-width="150">
           <template #default="{ row }">
             {{ row.action }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operationTarget')" width="200">
+        <el-table-column :label="t('logs.operationTarget')" min-width="120">
           <template #default="{ row }">
             <span class="target-text">{{ row.resource }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operator')" width="150">
+        <el-table-column :label="t('logs.operator')" min-width="100">
           <template #default="{ row }">
             <div class="user-cell">
               <el-icon class="user-icon"><User /></el-icon>
@@ -168,17 +168,17 @@ const formatDateTime = (dateString: string) => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.sourceIP')" width="150">
+        <el-table-column :label="t('logs.sourceIP')" min-width="110">
           <template #default="{ row }">
             <span class="ip-text">{{ row.ipAddress || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.detailInfo')" width="250">
+        <el-table-column :label="t('logs.detailInfo')" min-width="150">
           <template #default="{ row }">
             <span class="detail-text">{{ row.detail }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.result')" width="100" align="center">
+        <el-table-column :label="t('common.result')" min-width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusText(row).type">
               {{ getStatusText(row).text }}

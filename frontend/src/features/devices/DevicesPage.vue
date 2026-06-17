@@ -585,9 +585,9 @@ onMounted(async () => {
         style="width: 100%"
         stripe
         border
-        height="calc(100vh - 420px)"
+        max-height="calc(100vh - 420px)"
       >
-        <el-table-column prop="name" :label="t('devices.device')" width="260">
+        <el-table-column prop="name" :label="t('devices.device')" min-width="200">
           <template #default="{ row }">
             <div class="device-cell">
               <div class="device-icon" :class="getDeviceTypeClass(row.type)">
@@ -602,8 +602,8 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="type" :label="t('common.type')" width="120" />
-        <el-table-column prop="vendor" :label="t('devices.vendor')" width="140">
+        <el-table-column prop="type" :label="t('common.type')" min-width="100" />
+        <el-table-column prop="vendor" :label="t('devices.vendor')" min-width="100">
           <template #default="{ row }">
             <el-tag v-if="row.vendor" type="info" size="small">
               {{ vendorOptions.find(v => v.value === row.vendor)?.label || row.vendor }}
@@ -611,33 +611,33 @@ onMounted(async () => {
             <span v-else class="muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="sn" :label="t('devices.serial')" width="160">
+        <el-table-column prop="sn" :label="t('devices.serial')" min-width="140">
           <template #default="{ row }">
             <code class="serial-number">{{ row.sn || '-' }}</code>
           </template>
         </el-table-column>
-        <el-table-column prop="siteId" :label="t('sites.title')" width="160">
+        <el-table-column prop="siteId" :label="t('sites.title')" min-width="120">
           <template #default="{ row }">
             <span class="site-badge">{{ siteName(row.siteId) || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="location" :label="t('devices.location')" width="160">
+        <el-table-column prop="location" :label="t('devices.location')" min-width="120">
           <template #default="{ row }">{{ row.location || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="mgmtIpId" :label="t('devices.mgmtIp')" width="150">
+        <el-table-column prop="mgmtIpId" :label="t('devices.mgmtIp')" min-width="120">
           <template #default="{ row }">
             <code v-if="getIpAddress(row.mgmtIpId)" class="mgmt-ip">{{ getIpAddress(row.mgmtIpId) }}</code>
             <span v-else class="muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="status" :label="t('common.status')" width="100">
+        <el-table-column prop="status" :label="t('common.status')" min-width="80">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="light" size="small">
               {{ row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="warrantyEnd" :label="t('devices.warranty')" width="140">
+        <el-table-column prop="warrantyEnd" :label="t('devices.warranty')" min-width="120">
           <template #default="{ row }">
             <div class="warranty-cell">
               <div class="warranty-date">{{ row.warrantyEnd || '-' }}</div>

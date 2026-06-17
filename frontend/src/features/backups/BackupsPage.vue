@@ -506,16 +506,16 @@ onMounted(() => {
         stripe
         border
         v-loading="loading"
-        height="calc(100vh - 420px)"
+        max-height="calc(100vh - 420px)"
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" />
-        <el-table-column prop="version" label="版本" width="80" align="center">
+        <el-table-column prop="version" label="版本" min-width="80" align="center">
           <template #default="{ row }">
             <el-tag size="small">v{{ row.version }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deviceId" label="设备" width="300">
+        <el-table-column prop="deviceId" label="设备" min-width="200">
           <template #default="{ row }">
             <div class="device-info">
               <el-icon class="device-icon">
@@ -531,7 +531,7 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="siteId" label="站点" width="120">
+        <el-table-column prop="siteId" label="站点" min-width="100">
           <template #default="{ row }">
             <div class="site-info">
               <el-icon class="site-icon" size="14"><MapLocation /></el-icon>
@@ -539,24 +539,24 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="deviceIp" label="管理IP" width="120">
+        <el-table-column prop="deviceIp" label="管理IP" min-width="110">
           <template #default="{ row }">
             {{ getIpAddress(getDeviceInfo(row.deviceId)?.mgmt_ip_id) }}
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="备份时间" width="160">
+        <el-table-column prop="createdAt" label="备份时间" min-width="140">
           <template #default="{ row }">
             {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column prop="trigger" label="触发" width="80" align="center">
+        <el-table-column prop="trigger" label="触发" min-width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="getTriggerType(row.trigger)" effect="light" size="small">
               {{ getTriggerLabel(row.trigger) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="hasChange" label="变更" width="100" align="center">
+        <el-table-column prop="hasChange" label="变更" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.hasChange" type="warning" size="small">
               {{ row.changeSummary || '有变更' }}
@@ -564,16 +564,16 @@ onMounted(() => {
             <el-tag v-else type="info" size="small">无变更</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="tag" label="标签" width="150">
+        <el-table-column prop="tag" label="标签" min-width="100">
           <template #default="{ row }">
             <span v-if="row.tag" class="tag-text">{{ row.tag }}</span>
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="durationMs" label="耗时" width="80" align="center">
+        <el-table-column prop="durationMs" label="耗时" min-width="80" align="center">
           <template #default="{ row }">{{ formatDuration(row.durationMs) }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="80" align="center">
+        <el-table-column prop="status" label="状态" min-width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="light" size="small">
               {{ row.status === 'success' ? '成功' : row.status === 'failed' ? '失败' : '等待' }}
