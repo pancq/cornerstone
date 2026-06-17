@@ -47,7 +47,7 @@ export async function getCircuit(id: number): Promise<CircuitResponse> {
 }
 
 export async function createCircuit(data: CircuitCreate): Promise<CircuitResponse> {
-  const response = await api.post('/circuits', data)
+  const response = await api.post('/circuits/', data)
   return response.data
 }
 

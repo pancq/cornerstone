@@ -13,8 +13,8 @@ class Circuit(Base):
     site_id = Column(Integer, ForeignKey("sites.id"))
     bandwidth = Column(Integer)  # Mbps
     monthly_cost = Column(Float)
-    contract_start = Column(DateTime)
-    contract_end = Column(DateTime)
+    contract_start = Column(DateTime(timezone=True))
+    contract_end = Column(DateTime(timezone=True))
     circuit_no = Column(String(50))
     support_phone = Column(String(20))
     public_ip = Column(String(50))
