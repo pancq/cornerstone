@@ -46,12 +46,12 @@ export async function createVlanGroup(data: VlanGroupCreate): Promise<VlanGroupR
 }
 
 export async function updateVlanGroup(id: number, data: Partial<VlanGroupCreate>): Promise<VlanGroupResponse> {
-  const response = await api.put(`/ipam/vlans/groups/${id}/`, data)
+  const response = await api.put(`/ipam/vlans/groups/${id}`, data)
   return response.data
 }
 
 export async function deleteVlanGroup(id: number): Promise<void> {
-  await api.delete(`/ipam/vlans/groups/${id}/`)
+  await api.delete(`/ipam/vlans/groups/${id}`)
 }
 
 // VLAN API
@@ -66,10 +66,10 @@ export async function createVlan(data: VlanCreate): Promise<VlanResponse> {
 }
 
 export async function updateVlan(id: number, data: Partial<VlanCreate>): Promise<VlanResponse> {
-  const response = await api.put(`/ipam/vlans/${id}/`, data)
+  const response = await api.put(`/ipam/vlans/${id}`, data)
   return response.data
 }
 
 export async function deleteVlan(id: number): Promise<void> {
-  await api.delete(`/ipam/vlans/${id}/`)
+  await api.delete(`/ipam/vlans/${id}`)
 }
