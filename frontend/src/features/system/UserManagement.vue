@@ -2,7 +2,7 @@
 import { useAuthStore } from '../../store/auth';
 import { useAppStore } from '../../store';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { User, Plus, Edit, Delete, Lock, Key, Refresh, InfoFilled, CopyDocument } from '@element-plus/icons-vue';
+import { User, Plus, Edit, Delete, Lock, Key, Refresh, InfoFilled, CopyDocument, More } from '@element-plus/icons-vue';
 import api from '../../api/axios';
 import { useI18n } from 'vue-i18n';
 
@@ -526,7 +526,7 @@ onMounted(() => {
             :type="getRoleType(scope.row.role)"
             size="small"
           >
-            {{ getRoleDisplayName(scope.row.role) }}
+            {{ scope.row.role_display_name || getRoleDisplayName(scope.row.role) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -554,46 +554,47 @@ onMounted(() => {
           <span v-else class="text-gray">{{ t('system.neverLoggedIn') }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('common.actions')" min-width="200" fixed="right">
+      <el-table-column :label="t('common.actions')" min-width="100" fixed="right">
         <template #default="scope">
-          <el-button 
-            size="small" 
-            @click="openEditModal(scope.row)"
-            v-permission="'system:write'"
-            class="action-btn"
-          >
-            <Edit class="el-icon" />
-            {{ t('common.edit') }}
-          </el-button>
-          <el-button 
-            size="small" 
-            @click="openResetPwdModal(scope.row.id)"
-            v-permission="'system:write'"
-            class="action-btn"
-          >
-            <Key class="el-icon" />
-            {{ t('system.resetPassword') }}
-          </el-button>
-          <el-button 
-            size="small" 
-            @click="openSessionsModal(scope.row)"
-            v-permission="'system:write'"
-            class="action-btn"
-          >
-            <Refresh class="el-icon" />
-            {{ t('system.sessions') }}
-          </el-button>
-          <el-button 
-            size="small" 
-            type="danger"
-            @click="handleDeleteUser(scope.row.id)"
-            v-permission="'system:write'"
-            :disabled="scope.row.id === authStore.user?.id || scope.row.is_superuser"
-            class="action-btn"
-          >
-            <Delete class="el-icon" />
-            {{ t('common.delete') }}
-          </el-button>
+          <el-dropdown trigger="click">
+            <el-button size="small">
+              <More class="el-icon" />
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item 
+                  @click="openEditModal(scope.row)"
+                  v-permission="'system:write'"
+                >
+                  <Edit class="el-icon" />
+                  {{ t('common.edit') }}
+                </el-dropdown-item>
+                <el-dropdown-item 
+                  @click="openResetPwdModal(scope.row.id)"
+                  v-permission="'system:write'"
+                >
+                  <Key class="el-icon" />
+                  {{ t('system.resetPassword') }}
+                </el-dropdown-item>
+                <el-dropdown-item 
+                  @click="openSessionsModal(scope.row)"
+                  v-permission="'system:write'"
+                >
+                  <Refresh class="el-icon" />
+                  {{ t('system.sessions') }}
+                </el-dropdown-item>
+                <el-dropdown-item 
+                  @click="handleDeleteUser(scope.row.id)"
+                  v-permission="'system:write'"
+                  :disabled="scope.row.id === authStore.user?.id || scope.row.is_superuser"
+                  divided
+                >
+                  <Delete class="el-icon" />
+                  {{ t('common.delete') }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
