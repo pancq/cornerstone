@@ -756,7 +756,19 @@
     "tooltipCity": "城市",
     "tooltipDevices": "设备数",
     "tooltipCircuits": "专线数",
-    "tooltipStatus": "状态"
+    "tooltipStatus": "状态",
+    "legendStatus": "状态",
+    "legendDeviceType": "设备类型",
+    "deviceCoreSwitch": "核心交换机",
+    "deviceAccessSwitch": "接入交换机",
+    "viewDetail": "查看详情",
+    "export": "导出",
+    "exportPNG": "导出为PNG",
+    "exportJPG": "导出为JPG",
+    "exportPDF": "导出为PDF",
+    "exporting": "正在导出...",
+    "exportSuccess": "导出成功",
+    "exportError": "导出失败"
   },
   "sites": {
     "title": "站点管理",

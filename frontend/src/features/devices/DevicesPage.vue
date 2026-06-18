@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Connection, Lock, Monitor, Box, Plus, Download, Upload } from '@element-plus/icons-vue'
+import { Plus, Download, Upload, Edit, Delete } from '@element-plus/icons-vue'
 import type { Device, IPAddress, Site } from '../../types/domain'
 import { getIPAddresses, createIPAddress } from '../../api/ipam'
 import { getDevices, createDevice, updateDevice, deleteDevice, type DeviceResponse } from '../../api/devices'
@@ -10,6 +10,7 @@ import { getSites, type SiteResponse } from '../../api/sites'
 import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/auth'
 import api from '../../api/axios'
+import { DEVICE_TYPE_CONFIG } from '../../constants/deviceIcons'
 
 const { t } = useI18n()
 const store = useAppStore()
@@ -129,37 +130,47 @@ function getWarrantyStatus(endDate: string) {
   return { type: 'success', text: t('warrantyStatus.daysRemaining', { days }) }
 }
 
-function getDeviceTypeClass(type: string | undefined) {
+function getDeviceTypeConfigKey(type: string | undefined): string {
   const typeMap: Record<string, string> = {
-    '交换机': 'switch',
+    '交换机': 'core-switch',
     '路由器': 'router',
     '防火墙': 'firewall',
     '服务器': 'server',
-    '其他': 'other'
+    'AP': 'ap',
+    '其他': 'unknown'
   }
-  return `type-${typeMap[type || ''] || 'unknown'}`
+  return typeMap[type || ''] || 'unknown'
 }
 
-function getStatusType(status: string) {
-  const map: Record<string, any> = {
-    [t('devices.statusOnline')]: 'success',
-    [t('devices.statusOffline')]: 'danger',
-    [t('devices.statusMaintenance')]: 'warning',
-    [t('devices.statusScrapped')]: 'info'
-  }
-  return map[status] || 'info'
+function getDeviceIconClass(type: string | undefined): string {
+  const configKey = getDeviceTypeConfigKey(type)
+  return DEVICE_TYPE_CONFIG[configKey]?.iconClass || DEVICE_TYPE_CONFIG['unknown'].iconClass
 }
 
-function getDeviceIcon(type: string) {
-  const map: Record<string, any> = {
-    [t('devices.typeSwitch')]: Connection,
-    [t('devices.typeRouter')]: Connection,
-    [t('devices.typeFirewall')]: Lock,
-    [t('devices.typeServer')]: Monitor,
-    [t('devices.typeAP')]: Connection,
-    [t('devices.typeOther')]: Box
+function getDeviceIconStyle(type: string | undefined) {
+  const configKey = getDeviceTypeConfigKey(type)
+  const config = DEVICE_TYPE_CONFIG[configKey]
+  return {
+    background: config.bgColor,
+    color: config.color,
+    border: `1px solid ${config.borderColor}`
   }
-  return map[type] || Box
+}
+
+function getStatusType(status: string): string {
+  switch (status) {
+    case 'normal':
+    case 'online':
+      return 'success'
+    case 'warning':
+      return 'warning'
+    case 'offline':
+    case 'critical':
+    case 'error':
+      return 'danger'
+    default:
+      return 'info'
+  }
 }
 
 function resetForm() {
@@ -590,10 +601,8 @@ onMounted(async () => {
         <el-table-column prop="name" :label="t('devices.device')" min-width="200">
           <template #default="{ row }">
             <div class="device-cell">
-              <div class="device-icon" :class="getDeviceTypeClass(row.type)">
-                <el-icon :size="20">
-                  <component :is="getDeviceIcon(row.type)" />
-                </el-icon>
+              <div class="device-icon" :style="getDeviceIconStyle(row.type)">
+                <i :class="getDeviceIconClass(row.type)" :style="{ fontSize: '18px' }" aria-hidden="true" />
               </div>
               <div class="device-info">
                 <div class="device-name">{{ row.name }}</div>
@@ -1037,29 +1046,6 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f0f0;
-}
-
-.device-icon.type-switch,
-.device-icon.type-router,
-.device-icon.type-ap {
-  background: #e6f7ff;
-  color: #1890ff;
-}
-
-.device-icon.type-firewall {
-  background: #fff1f0;
-  color: #ff4d4f;
-}
-
-.device-icon.type-server {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.device-icon.type-other {
-  background: #fafafa;
-  color: #8c8c8c;
 }
 
 .device-info {

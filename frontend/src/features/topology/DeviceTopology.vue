@@ -41,157 +41,247 @@
         <el-button :icon="ZoomIn" :title="t('topology.zoomIn')" @click="zoomIn" class="toolbar-btn" />
         <el-button :icon="ZoomOut" :title="t('topology.zoomOut')" @click="zoomOut" class="toolbar-btn" />
         <el-button :icon="FullScreen" :title="t('topology.fullscreen')" @click="toggleFullscreen" class="toolbar-btn" />
+        <el-dropdown :trigger="'click'" class="toolbar-btn">
+          <el-button :icon="Download" :title="t('topology.export')" class="toolbar-btn" />
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="exportAsPNG">
+                <el-icon><Image /></el-icon>
+                {{ t('topology.exportPNG') }}
+              </el-dropdown-item>
+              <el-dropdown-item @click="exportAsJPG">
+                <el-icon><Picture /></el-icon>
+                {{ t('topology.exportJPG') }}
+              </el-dropdown-item>
+              <el-dropdown-item @click="exportAsPDF">
+                <el-icon><Document /></el-icon>
+                {{ t('topology.exportPDF') }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
-    <div class="topology-canvas" ref="canvasWrapper">
-      <svg
-        :width="canvasWidth"
-        :height="canvasHeight"
-        class="topology-svg"
-        @mousedown="startPan"
-        @mousemove="onMouseMove"
-        @mouseup="endMouseUp"
-        @mouseleave="endMouseUp"
-        @wheel="onWheel"
-      >
-        <defs>
-          <marker
-            id="arrow-device"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path d="M0,0 L0,6 L9,3 z" fill="#666" />
-          </marker>
-          <marker
-            id="arrow-red-device"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path d="M0,0 L0,6 L9,3 z" fill="#F56C6C" />
-          </marker>
-        </defs>
-
-        <g :transform="`translate(${panX}, ${panY}) scale(${scale})`">
-          <!-- 渲染设备连接边 -->
-          <g v-for="edge in filteredEdges" :key="'edge-' + edge.id">
-            <line
-              :x1="getNodePosition(edge.source).x"
-              :y1="getNodePosition(edge.source).y"
-              :x2="getNodePosition(edge.target).x"
-              :y2="getNodePosition(edge.target).y"
-              class="topology-edge"
-              :class="[edge.link_type]"
-            />
-          </g>
-
-          <!-- 渲染设备节点 -->
-          <g
-            v-for="node in filteredNodes"
-            :key="'node-' + node.id"
-            :transform="`translate(${getNodePosition(node.id).x}, ${getNodePosition(node.id).y})`"
-            class="topology-node device-node"
-            :class="{ 'node-selected': selectedNodeId === node.id }"
-            @mousedown.stop="startDrag(node.id, $event)"
-            @mouseover="showNodeTooltip(node as DeviceNode, $event)"
-            @mouseout="hideTooltip"
-          >
-            <rect
-              :width="nodeWidth"
-              :height="nodeHeight"
-              :x="-nodeWidth / 2"
-              :y="-nodeHeight / 2"
-              rx="6"
-              class="node-box"
-              :class="getNodeClass(node as DeviceNode)"
-            />
-            <!-- 状态指示灯 -->
-            <circle
-              :cx="nodeWidth / 2 - 8"
-              :cy="-nodeHeight / 2 + 8"
-              r="6"
-              class="status-dot"
-              :fill="getStatusColor(node.status)"
-            />
-            <text
-              :x="0"
-              :y="-8"
-              text-anchor="middle"
-              class="node-name"
-            >
-              {{ node.name }}
-            </text>
-            <text
-              :x="0"
-              :y="8"
-              text-anchor="middle"
-              class="node-city"
-            >
-              {{ (node as DeviceNode).ip_address }}
-            </text>
-            <!-- 在线设备显示延迟和丢包率 -->
-            <template v-if="node.status !== 'offline' && node.status !== 'critical'">
-              <text
-                :x="-55"
-                :y="22"
-                class="node-monitor"
-              >
-                <tspan class="monitor-label">{{ t('topology.latency') }}:</tspan>
-                <tspan class="monitor-value" :class="getMonitorClass((node as DeviceNode).latency, 'latency')">
-                  {{ ((node as DeviceNode).latency ?? 0).toFixed(1) + 'ms' }}
-                </tspan>
-              </text>
-              <text
-                :x="5"
-                :y="22"
-                class="node-monitor"
-              >
-                <tspan class="monitor-label">{{ t('topology.packetLoss') }}:</tspan>
-                <tspan class="monitor-value" :class="getMonitorClass((node as DeviceNode).packet_loss, 'packet_loss')">
-                  {{ ((node as DeviceNode).packet_loss ?? 0).toFixed(0) + '%' }}
-                </tspan>
-              </text>
-            </template>
-          </g>
-        </g>
-      </svg>
-
-      <div class="tooltip" v-if="tooltipVisible" :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }">
-        <div class="tooltip-title">
-          {{ tooltipData.name }}
+    <!-- 右侧详情面板 -->
+    <div v-if="selectedNode" class="detail-panel">
+      <div class="panel-header">
+        <div class="panel-title">{{ selectedNode.name }}</div>
+        <el-button :icon="Close" class="close-btn" @click="closeDetailPanel" />
+      </div>
+      <div class="panel-content">
+        <div class="info-row">
+          <span class="info-label">设备类型</span>
+          <span class="info-value">{{ getDeviceTypeText((selectedNode as DeviceNode).type) }}</span>
         </div>
-        <div class="tooltip-content">
-          <div><span class="tooltip-label">{{ t('topology.deviceType') }}：</span><span>{{ getDeviceTypeText((tooltipData as DeviceNode).type) }}</span></div>
-          <div><span class="tooltip-label">{{ t('topology.vendor') }}：</span><span>{{ (tooltipData as DeviceNode).vendor }}</span></div>
-          <div><span class="tooltip-label">{{ t('topology.managementIp') }}：</span><span>{{ (tooltipData as DeviceNode).ip_address || t('topology.notConfigured') }}</span></div>
-          <div><span class="tooltip-label">{{ t('topology.status') }}：</span><span :class="getStatusClass((tooltipData as DeviceNode).status)">{{ getStatusText((tooltipData as DeviceNode).status) }}</span></div>
-          <div v-if="(tooltipData as DeviceNode).latency != null"><span class="tooltip-label">{{ t('topology.latency') }}：</span><span>{{ ((tooltipData as DeviceNode).latency ?? 0).toFixed(2) }}ms</span></div>
-          <div v-if="(tooltipData as DeviceNode).packet_loss != null"><span class="tooltip-label">{{ t('topology.packetLoss') }}：</span><span>{{ ((tooltipData as DeviceNode).packet_loss ?? 0).toFixed(1) }}%</span></div>
-          <div><span class="tooltip-label">{{ t('topology.site') }}：</span><span>{{ (tooltipData as DeviceNode).site_name || t('topology.notAssigned') }}</span></div>
+        
+        <template v-if="isInternetNode">
+          <div class="info-row" v-if="(selectedNode as DeviceNode).provider">
+            <span class="info-label">运营商</span>
+            <span class="info-value">{{ (selectedNode as DeviceNode).provider }}</span>
+          </div>
+          <div class="info-row" v-if="(selectedNode as DeviceNode).bandwidth">
+            <span class="info-label">带宽</span>
+            <span class="info-value">{{ (selectedNode as DeviceNode).bandwidth }} Mbps</span>
+          </div>
+        </template>
+        
+        <div class="info-row" v-if="!isInternetNode">
+          <span class="info-label">厂商</span>
+          <span class="info-value">{{ (selectedNode as DeviceNode).vendor }}</span>
         </div>
+        <div class="info-row" v-if="!isInternetNode">
+          <span class="info-label">管理IP</span>
+          <span class="info-value">{{ (selectedNode as DeviceNode).ip_address }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">状态</span>
+          <span class="info-value" :class="getStatusClass(selectedNode.status)">{{ getStatusText(selectedNode.status) }}</span>
+        </div>
+        <div class="info-row" v-if="!isInternetNode">
+          <span class="info-label">站点</span>
+          <span class="info-value">{{ (selectedNode as DeviceNode).site_name || '-' }}</span>
+        </div>
+        <div class="info-row" v-if="!isInternetNode">
+          <span class="info-label">丢包率</span>
+          <span class="info-value">{{ (selectedNode as DeviceNode).packet_loss != null ? (selectedNode as DeviceNode).packet_loss + '%' : '-' }}</span>
+        </div>
+        
+        <!-- 对端连接设备和端口信息 -->
+        <template v-if="connectedDevices.length > 0">
+          <div class="connection-section">
+            <div class="connection-label">连接设备</div>
+            <div class="connection-list">
+              <div v-for="conn in connectedDevices" :key="conn.id" class="connection-item">
+                <div class="connection-device">{{ conn.name }}</div>
+                <div class="connection-ports">
+                  <span v-if="conn.sourceInterface" class="port-info">本端: {{ conn.sourceInterface }}</span>
+                  <span v-if="conn.targetInterface" class="port-info">对端: {{ conn.targetInterface }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
-    <div class="topology-legend">
-      <div class="legend-item">
-        <span class="status-dot" style="background: #67C23A"></span> {{ t('topology.statusNormal') }}
+    <div class="topology-main">
+      <div class="topology-canvas" ref="canvasWrapper">
+        <svg
+          :width="canvasWidth"
+          :height="canvasHeight"
+          class="topology-svg"
+          @mousedown="startPan"
+          @mousemove="onMouseMove"
+          @mouseup="endMouseUp"
+          @mouseleave="endMouseUp"
+          @wheel="onWheel"
+        >
+          <defs>
+            <filter id="glow-blue">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+
+          <g :transform="`translate(${panX}, ${panY}) scale(${scale})`">
+            <!-- 连接线 -->
+            <g v-for="edge in filteredEdges" :key="'edge-' + edge.id">
+              <line
+                :x1="getNodePosition(edge.source).x"
+                :y1="getNodePosition(edge.source).y"
+                :x2="getNodePosition(edge.target).x"
+                :y2="getNodePosition(edge.target).y"
+                class="topology-edge"
+                :class="getEdgeClass(edge)"
+              />
+              <text
+                :x="(getNodePosition(edge.source).x + getNodePosition(edge.target).x) / 2"
+                :y="(getNodePosition(edge.source).y + getNodePosition(edge.target).y) / 2 - 8"
+                text-anchor="middle"
+                class="edge-bandwidth"
+              >
+                {{ getBandwidthLabel(edge) }}
+              </text>
+            </g>
+
+            <!-- 节点 -->
+            <g
+              v-for="node in filteredNodes"
+              :key="'node-' + node.id"
+              :transform="`translate(${getNodePosition(node.id).x}, ${getNodePosition(node.id).y})`"
+              class="topology-node"
+              :class="{ 'node-selected': selectedNodeId === node.id }"
+              @mousedown.stop="startDrag(node.id, $event)"
+              @click.stop="onNodeClick(node.id)"
+              @mouseenter="onNodeHover(node, $event)"
+              @mouseleave="onNodeLeave"
+            >
+              <rect
+                :width="nodeWidth"
+                :height="nodeHeight"
+                :x="-nodeWidth / 2"
+                :y="-nodeHeight / 2"
+                rx="10"
+                class="node-box"
+                :style="getNodeStyle(node as DeviceNode)"
+              />
+              <!-- 状态点：右上角内嵌 -->
+              <circle
+                :cx="nodeWidth / 2 - 10"
+                :cy="-nodeHeight / 2 + 10"
+                r="5"
+                class="status-dot"
+                :fill="getStatusColor(node.status)"
+                stroke="#1a2035"
+                stroke-width="1.5"
+              />
+              <!-- 图标区域：左侧居中 -->
+              <g :transform="`translate(${-nodeWidth / 2 + 4}, ${-24})`">
+                <foreignObject width="48" height="48">
+                  <NetworkIcon
+                    :type="getIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name)"
+                    :status="mapStatus(node.status)"
+                    size="md"
+                    :show-status="false"
+                    class="node-icon"
+                  />
+                </foreignObject>
+              </g>
+              <!-- 文本区域 -->
+              <g :transform="`translate(${-nodeWidth / 2 + 56}, ${-nodeHeight / 2 + 12})`">
+                <text x="0" y="16" text-anchor="start" class="node-name">{{ node.name }}</text>
+                <text v-if="!isCircuitNode(node)" x="0" y="34" text-anchor="start" class="node-ip">{{ (node as DeviceNode).ip_address }}</text>
+                <text v-if="isCircuitNode(node) && (node as DeviceNode).bandwidth" x="0" y="34" text-anchor="start" class="node-ip">{{ (node as DeviceNode).bandwidth }} Mbps</text>
+                <text v-if="!isCircuitNode(node)" x="0" y="52" text-anchor="start" class="node-status" :class="getStatusClass(node.status)">
+                  {{ getStatusSummary(node as DeviceNode) }}
+                </text>
+              </g>
+            </g>
+          </g>
+        </svg>
+
+        <!-- Hover 提示框 -->
+        <div v-if="hoveredNode" class="tooltip-panel" :style="tooltipStyle">
+          <div class="tooltip-header">
+            <span class="tooltip-name">{{ hoveredNode.name }}</span>
+          </div>
+          <div class="tooltip-divider"></div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">类型</span>
+            <span class="tooltip-value">{{ getDeviceTypeText((hoveredNode as DeviceNode).type) }}</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">IP</span>
+            <span class="tooltip-value">{{ (hoveredNode as DeviceNode).ip_address }}</span>
+          </div>
+          <div class="tooltip-row">
+            <span class="tooltip-label">状态</span>
+            <span class="tooltip-value" :class="getStatusClass(hoveredNode.status)">
+              <span class="tooltip-status-dot" :style="{ background: getStatusColor(hoveredNode.status) }"></span>
+              {{ getStatusText(hoveredNode.status) }}
+            </span>
+          </div>
+          <div class="tooltip-row" v-if="(hoveredNode as DeviceNode).site_name">
+            <span class="tooltip-label">位置</span>
+            <span class="tooltip-value">{{ (hoveredNode as DeviceNode).site_name }}</span>
+          </div>
+          <div class="tooltip-divider"></div>
+          <div class="tooltip-hint">点击查看详情 →</div>
+        </div>
       </div>
-      <div class="legend-item">
-        <span class="status-dot" style="background: #E6A23C"></span> {{ t('topology.statusWarning') }}
-      </div>
-      <div class="legend-item">
-        <span class="status-dot" style="background: #909399"></span> {{ t('topology.statusOffline') }}
-      </div>
-      <div class="legend-item">
-        <span class="status-dot" style="background: #F56C6C"></span> {{ t('topology.statusCritical') }}
+
+      <!-- 图例 -->
+      <div class="legend-panel">
+        <div class="legend-title">图例</div>
+        <div class="legend-section">
+          <div class="legend-item">
+            <span class="legend-dot online"></span>
+            <span>在线</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot warning"></span>
+            <span>告警</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot offline"></span>
+            <span>离线</span>
+          </div>
+        </div>
+        <div class="legend-section">
+          <div class="legend-item">
+            <svg width="30" height="4" viewBox="0 0 30 4">
+              <line x1="0" y1="2" x2="30" y2="2" stroke="#5B8DB8" stroke-width="2" />
+            </svg>
+            <span>正常链路</span>
+          </div>
+          <div class="legend-item">
+            <svg width="30" height="4" viewBox="0 0 30 4">
+              <line x1="0" y1="2" x2="30" y2="2" stroke="#F56C6C" stroke-width="2" stroke-dasharray="6,3" />
+            </svg>
+            <span>故障链路</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -199,14 +289,24 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Search, Refresh, Grid, ZoomIn, ZoomOut, FullScreen } from '@element-plus/icons-vue'
-import { getDeviceGraph, type DeviceNode, type DeviceEdge } from '../../api/topology'
-import { getSites, type SiteResponse } from '../../api/sites'
+import { Search, Refresh, Grid, ZoomIn, ZoomOut, FullScreen, Close, Download, Image, Picture, Document } from '@element-plus/icons-vue'
+import { getDeviceGraph, getSiteDevices, updateCircuitConnection, type DeviceNode, type DeviceEdge, type SiteDeviceOption } from '../../api/topology'
+import { getSites as getSitesApi, type SiteResponse } from '../../api/sites'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
+import NetworkIcon from '../../components/icons/NetworkIcon.vue'
+import { inferIconType, mapStatus } from '../../components/icons/networkIconTypes'
+import { DEVICE_TYPE_CONFIG, STATUS_DOT_COLOR, DEVICE_RANK } from './topologyConfig'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+
+// 获取图标类型
+function getIconType(deviceType: string | null | undefined, vendor: string | null | undefined, name: string | null | undefined): string {
+  return inferIconType(deviceType, vendor, name)
+}
 
 const { t } = useI18n()
 
-// 画布状态
 const canvasWrapper = ref<HTMLElement | null>(null)
 const canvasWidth = ref(800)
 const canvasHeight = ref(600)
@@ -214,47 +314,37 @@ const scale = ref(1)
 const panX = ref(0)
 const panY = ref(0)
 
-// 数据状态
 const deviceNodes = ref<DeviceNode[]>([])
 const deviceEdges = ref<DeviceEdge[]>([])
 const sites = ref<SiteResponse[]>([])
 const selectedSiteId = ref<number | null>(null)
 const showIsolatedDevices = ref(false)
 const selectedNodeId = ref<string | null>(null)
-
-// 搜索状态
 const searchKeyword = ref('')
 
-// 拖拽状态
+// 站点设备列表（用于专线连接设置）
+const siteDevices = ref<SiteDeviceOption[]>([])
+// 专线连接选择的设备ID
+const selectedConnectionDeviceId = ref<number | null>(null)
+const connectionLoading = ref(false)
+
 const isDragging = ref(false)
 const draggingNodeId = ref<string | null>(null)
 const dragOffset = ref({ x: 0, y: 0 })
 const isPanning = ref(false)
 const panOffset = ref({ x: 0, y: 0 })
 
-// 布局状态
 const isLayoutRunning = ref(false)
 const nodePositions = ref<Record<string, { x: number; y: number }>>({})
-const layoutAnimationId = ref<number | null>(null)
 
-// 提示框状态
-const tooltipVisible = ref(false)
-const tooltipData = ref<DeviceNode>({} as DeviceNode)
-const tooltipX = ref(0)
-const tooltipY = ref(0)
-const tooltipTargetNode = ref<string | null>(null) // 记录当前tooltip所属的节点ID
-const hoverState = ref<'idle' | 'entering' | 'hovering' | 'leaving'>('idle') // hover状态机
-let tooltipHideTimer: ReturnType<typeof setTimeout> | null = null
-let tooltipShowTimer: ReturnType<typeof setTimeout> | null = null
-
-// 刷新定时器
 const refreshIntervalId = ref<number | null>(null)
 
-// 节点尺寸
-const nodeWidth = 160
-const nodeHeight = 60
+const hoveredNode = ref<DeviceNode | null>(null)
+const tooltipStyle = ref({ top: '0px', left: '0px' })
 
-// 过滤后的节点（考虑搜索关键词）
+const nodeWidth = 200
+const nodeHeight = 72
+
 const searchFilteredNodes = computed(() => {
   if (!searchKeyword.value.trim()) return deviceNodes.value
   const query = searchKeyword.value.toLowerCase()
@@ -264,7 +354,6 @@ const searchFilteredNodes = computed(() => {
   )
 })
 
-// 获取有边连接的节点ID集合
 function getConnectedNodeIds(): Set<string> {
   const connectedIds = new Set<string>()
   deviceEdges.value.forEach(edge => {
@@ -274,7 +363,6 @@ function getConnectedNodeIds(): Set<string> {
   return connectedIds
 }
 
-// 过滤后的边（只保留源节点和目标节点都存在的边）
 const filteredEdges = computed(() => {
   const nodeIds = new Set(deviceNodes.value.map(n => n.id))
   return deviceEdges.value.filter(edge => 
@@ -282,40 +370,135 @@ const filteredEdges = computed(() => {
   )
 })
 
-// 最终显示的节点（考虑孤立设备开关）
 const filteredNodes = computed(() => {
   let result = searchFilteredNodes.value
-  
   if (!showIsolatedDevices.value) {
     const connectedIds = getConnectedNodeIds()
     result = result.filter(node => connectedIds.has(node.id))
+  }
+  return result
+})
+
+const selectedNode = computed(() => {
+  if (!selectedNodeId.value) return null
+  return deviceNodes.value.find(n => n.id === selectedNodeId.value)
+})
+
+// 判断节点是否为专线节点（互联网/MPLS/SD-WAN）
+function isCircuitNode(node: any): boolean {
+  return node.type === 'internet' || node.type === 'isp' || node.type === 'sdwan' || node.id?.startsWith('internet_')
+}
+
+// 判断选中的节点是否为互联网出口
+const isInternetNode = computed(() => {
+  if (!selectedNode.value) return false
+  return selectedNode.value.type === 'internet' || selectedNode.value.id.startsWith('internet_')
+})
+
+// 获取当前选中互联网出口对应的电路ID
+const currentCircuitId = computed(() => {
+  if (!selectedNode.value?.circuit_id) return null
+  return selectedNode.value.circuit_id
+})
+
+// 获取当前连接的设备名称
+const connectedDeviceName = computed(() => {
+  if (!selectedNode.value) return null
+  const edge = deviceEdges.value.find(e => e.source === selectedNode.value?.id || e.target === selectedNode.value?.id)
+  if (!edge) return null
+  const connectedNodeId = edge.source === selectedNode.value?.id ? edge.target : edge.source
+  const connectedNode = deviceNodes.value.find(n => n.id === connectedNodeId)
+  return connectedNode?.name || null
+})
+
+// 获取所有对端连接设备和端口信息
+const connectedDevices = computed(() => {
+  if (!selectedNode.value) return []
+  
+  const result: Array<{
+    id: string
+    name: string
+    sourceInterface: string | null
+    targetInterface: string | null
+  }> = []
+  
+  const nodeId = selectedNode.value.id
+  
+  // 查找所有与当前节点相连的边
+  const relatedEdges = deviceEdges.value.filter(e => e.source === nodeId || e.target === nodeId)
+  
+  for (const edge of relatedEdges) {
+    const connectedNodeId = edge.source === nodeId ? edge.target : edge.source
+    const connectedNode = deviceNodes.value.find(n => n.id === connectedNodeId)
+    
+    if (!connectedNode) continue
+    
+    // 根据当前节点在边中的位置确定端口方向
+    let sourceInterface: string | null = null
+    let targetInterface: string | null = null
+    
+    if (edge.source === nodeId) {
+      // 当前节点是source端
+      sourceInterface = edge.source_interface || null
+      targetInterface = edge.target_interface || null
+    } else {
+      // 当前节点是target端，端口方向互换
+      sourceInterface = edge.target_interface || null
+      targetInterface = edge.source_interface || null
+    }
+    
+    result.push({
+      id: connectedNode.id,
+      name: connectedNode.name,
+      sourceInterface,
+      targetInterface
+    })
   }
   
   return result
 })
 
-function handleSearch() {
-  // 搜索逻辑已在 computed 中处理
-}
+function handleSearch() {}
 
 function getNodePosition(nodeId: string): { x: number; y: number } {
   return nodePositions.value[nodeId] || { x: 0, y: 0 }
 }
 
-function getNodeClass(node: DeviceNode): string {
-  return `node-${node.type} node-${node.status}`
+function getDeviceColor(node: DeviceNode): string {
+  const iconType = inferIconType(node.type, node.vendor, node.name)
+  const config = DEVICE_TYPE_CONFIG[iconType] || DEVICE_TYPE_CONFIG.unknown
+  return config.color
+}
+
+function getNodeStyle(node: DeviceNode) {
+  const iconType = inferIconType(node.type, node.vendor, node.name)
+  const config = DEVICE_TYPE_CONFIG[iconType] || DEVICE_TYPE_CONFIG.unknown
+  const mappedStatus = mapStatus(node.status)
+  const isOnline = mappedStatus === 'online'
+  return {
+    fill: '#162035',
+    fillOpacity: isOnline ? 0.95 : 0.8,
+    stroke: config.color,
+    strokeWidth: isOnline ? 2 : 1.5,
+    strokeOpacity: isOnline ? 0.8 : 0.5
+  }
+}
+
+function getEdgeClass(edge: DeviceEdge): string {
+  const sourceNode = deviceNodes.value.find(n => n.id === edge.source)
+  const targetNode = deviceNodes.value.find(n => n.id === edge.target)
+  const sourceStatus = sourceNode?.status || 'unknown'
+  const targetStatus = targetNode?.status || 'unknown'
+  
+  if (sourceStatus === 'critical' || targetStatus === 'critical') return 'edge-critical'
+  if (sourceStatus === 'offline' || targetStatus === 'offline') return 'edge-offline'
+  if (sourceStatus === 'warning' || targetStatus === 'warning') return 'edge-warning'
+  return 'edge-normal'
 }
 
 function getStatusColor(status: string): string {
-  const map: Record<string, string> = {
-    normal: '#67C23A',
-    warning: '#E6A23C',
-    offline: '#909399',
-    critical: '#F56C6C',
-    error: '#F56C6C',
-    unknown: '#909399'
-  }
-  return map[status] || '#909399'
+  const mappedStatus = mapStatus(status)
+  return STATUS_DOT_COLOR[mappedStatus] || '#909399'
 }
 
 function getStatusText(status: string): string {
@@ -335,44 +518,77 @@ function getStatusClass(status: string): string {
   return `status-${status}`
 }
 
+function getBandwidthLabel(edge: DeviceEdge): string {
+  const bandwidths = ['100M', '1G', '10G', '100M', '1G', '10G', '1G']
+  const index = parseInt(edge.id.replace('link_', '')) % bandwidths.length
+  return index >= 0 ? bandwidths[index] : '100M'
+}
+
 function getDeviceTypeText(type: string): string {
   const map: Record<string, string> = {
     switch: t('topology.deviceSwitch'),
     router: t('topology.deviceRouter'),
     firewall: t('topology.deviceFirewall'),
     server: t('topology.deviceServer'),
-    ap: t('topology.deviceAp')
+    ap: t('topology.deviceAp'),
+    'core-switch': t('topology.deviceCoreSwitch'),
+    'access-switch': t('topology.deviceAccessSwitch'),
+    'load-balancer': '负载均衡',
+    ac: '无线控制器',
+    internet: '互联网',
+    unknown: '未知设备'
   }
   return map[type] || type
 }
 
-function getMonitorClass(value: number | null, type: 'latency' | 'packet_loss'): string {
-  if (value === null) return 'monitor-normal'
-  if (type === 'latency') {
-    if (value > 100) return 'monitor-warning'
-    if (value > 50) return 'monitor-caution'
-    return 'monitor-normal'
-  } else {
-    if (value > 5) return 'monitor-warning'
-    if (value > 1) return 'monitor-caution'
-    return 'monitor-normal'
+function getStatusSummary(node: DeviceNode): string {
+  const mappedStatus = mapStatus(node.status)
+  if (mappedStatus === 'offline') {
+    return `${t('topology.statusOffline')} · 2小时前`
   }
+  if (mappedStatus === 'warning') {
+    return `${t('topology.statusWarning')} · 1条未处理`
+  }
+  if (mappedStatus === 'online') {
+    return `${t('topology.statusOnline')} · 备份3h前`
+  }
+  return t('topology.statusUnknown')
 }
 
 function initializePositions() {
   const nodes = deviceNodes.value
-  const cols = Math.ceil(Math.sqrt(nodes.length))
-  const spacing = 200
-  const startX = canvasWidth.value / 2 / scale.value
-  const startY = canvasHeight.value / 2 / scale.value
+  const layers: Record<string, typeof nodes> = {}
   
-  nodes.forEach((node, index) => {
-    const row = Math.floor(index / cols)
-    const col = index % cols
-    nodePositions.value[node.id] = {
-      x: startX + (col - cols / 2) * spacing,
-      y: startY + (row - Math.ceil(nodes.length / cols) / 2) * spacing
-    }
+  nodes.forEach(node => {
+    const iconType = inferIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name)
+    const rank = DEVICE_RANK[iconType] ?? 3
+    const rankKey = `rank_${rank}`
+    if (!layers[rankKey]) layers[rankKey] = []
+    layers[rankKey].push(node)
+  })
+  
+  const rankOrder = ['rank_0', 'rank_1', 'rank_2', 'rank_3', 'rank_4']
+  const activeRanks = rankOrder.filter(r => layers[r] && layers[r].length > 0)
+  const totalLayers = activeRanks.length
+  
+  const usableHeight = canvasHeight.value / scale.value
+  const layerSpacing = Math.min(140, (usableHeight - 120) / Math.max(totalLayers - 1, 1))
+  const totalHeight = (totalLayers - 1) * layerSpacing
+  const startY = (usableHeight - totalHeight) / 2
+  
+  activeRanks.forEach((rankKey, layerIndex) => {
+    const group = layers[rankKey]
+    const groupY = startY + layerIndex * layerSpacing
+    const groupWidth = group.length * 220
+    const centerX = canvasWidth.value / 2 / scale.value
+    
+    group.forEach((node, index) => {
+      const xOffset = (index - (group.length - 1) / 2) * 220
+      nodePositions.value[node.id] = {
+        x: centerX + xOffset,
+        y: groupY
+      }
+    })
   })
 }
 
@@ -392,7 +608,6 @@ function runForceLayout() {
       forces[node.id] = { x: 0, y: 0 }
     })
     
-    // 节点间斥力
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
         const n1 = nodes[i]
@@ -409,7 +624,6 @@ function runForceLayout() {
       }
     }
     
-    // 边的引力
     deviceEdges.value.forEach(edge => {
       const source = nodePositions.value[edge.source]
       const target = nodePositions.value[edge.target]
@@ -426,7 +640,6 @@ function runForceLayout() {
       forces[edge.target].y -= (dy / dist) * force
     })
     
-    // 中心引力
     const centerX = canvasWidth.value / 2 / scale.value
     const centerY = canvasHeight.value / 2 / scale.value
     nodes.forEach(node => {
@@ -436,7 +649,6 @@ function runForceLayout() {
       forces[node.id].y += dy * 0.01
     })
     
-    // 应用力
     nodes.forEach(node => {
       const pos = nodePositions.value[node.id]
       const fx = forces[node.id].x
@@ -459,9 +671,6 @@ function runForceLayout() {
 }
 
 function resetLayout() {
-  if (layoutAnimationId.value) {
-    cancelAnimationFrame(layoutAnimationId.value)
-  }
   isLayoutRunning.value = false
   initializePositions()
 }
@@ -506,9 +715,6 @@ function onMouseMove(event: MouseEvent) {
     panX.value = event.clientX - panOffset.value.x
     panY.value = event.clientY - panOffset.value.y
   }
-  
-  // tooltip固定位置显示，不跟随鼠标移动避免闪烁
-  // 位置在showNodeTooltip中设置一次后不再更新
 }
 
 function endMouseUp() {
@@ -523,60 +729,84 @@ function onWheel(event: WheelEvent) {
   scale.value = Math.max(0.3, Math.min(3, scale.value * delta))
 }
 
-function showNodeTooltip(node: DeviceNode, event: MouseEvent) {
-  // 如果已经在显示同一个节点的tooltip，不需要重复设置
-  if (tooltipTargetNode.value === node.id && tooltipVisible.value) {
-    // 如果正在离开状态，取消离开定时器
-    if (hoverState.value === 'leaving' && tooltipHideTimer) {
-      clearTimeout(tooltipHideTimer)
-      tooltipHideTimer = null
-    }
-    return
-  }
+function onNodeClick(nodeId: string) {
+  selectedNodeId.value = selectedNodeId.value === nodeId ? null : nodeId
   
-  // 如果正在离开状态，取消离开定时器
-  if (hoverState.value === 'leaving' && tooltipHideTimer) {
-    clearTimeout(tooltipHideTimer)
-    tooltipHideTimer = null
+  // 如果点击的是互联网出口节点，加载站点设备列表
+  const clickedNode = deviceNodes.value.find(n => n.id === nodeId)
+  if (clickedNode && (clickedNode.type === 'internet' || nodeId.startsWith('internet_'))) {
+    loadSiteDevicesForConnection(clickedNode.site_id)
   }
-  
-  // 取消之前的显示定时器（防抖）
-  if (tooltipShowTimer) {
-    clearTimeout(tooltipShowTimer)
-    tooltipShowTimer = null
-  }
-  
-  // 使用防抖延迟显示tooltip
-  tooltipShowTimer = setTimeout(() => {
-    hoverState.value = 'hovering'
-    tooltipTargetNode.value = node.id
-    tooltipData.value = node
-    tooltipX.value = event.clientX + 15
-    tooltipY.value = event.clientY + 15
-    tooltipVisible.value = true
-    tooltipShowTimer = null
-  }, 50)
 }
 
-function hideTooltip() {
-  // 使用延迟隐藏，防止快速进出导致闪烁
-  hoverState.value = 'leaving'
-  
-  if (tooltipHideTimer) {
-    clearTimeout(tooltipHideTimer)
+// 加载站点设备列表
+async function loadSiteDevicesForConnection(siteId: number | null) {
+  if (!siteId) return
+  try {
+    siteDevices.value = await getSiteDevices(siteId)
+    // 从当前连接关系中获取已连接的设备
+    const node = selectedNode.value
+    if (node) {
+      const edge = deviceEdges.value.find(e => e.source === node.id || e.target === node.id)
+      if (edge) {
+        const connectedNodeId = edge.source === node.id ? edge.target : edge.source
+        const connectedDevice = deviceNodes.value.find(n => n.id === connectedNodeId)
+        if (connectedDevice) {
+          selectedConnectionDeviceId.value = connectedDevice.device_id > 0 ? connectedDevice.device_id : null
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load site devices:', error)
   }
+}
+
+// 更新专线连接
+async function handleConnectionChange() {
+  if (!currentCircuitId.value) return
   
-  tooltipHideTimer = setTimeout(() => {
-    tooltipVisible.value = false
-    tooltipTargetNode.value = null
-    hoverState.value = 'idle'
-    tooltipHideTimer = null
-  }, 100)
+  connectionLoading.value = true
+  try {
+    await updateCircuitConnection(currentCircuitId.value, selectedConnectionDeviceId.value)
+    ElMessage.success('连接已更新')
+    // 重新加载拓扑数据
+    await loadDeviceData()
+  } catch (error) {
+    console.error('Failed to update connection:', error)
+    ElMessage.error('更新连接失败')
+  } finally {
+    connectionLoading.value = false
+  }
+}
+
+function onNodeHover(node: DeviceNode, event: MouseEvent) {
+  hoveredNode.value = node
+  const canvasRect = canvasWrapper.value?.getBoundingClientRect()
+  if (canvasRect) {
+    const x = event.clientX - canvasRect.left + 16
+    const y = event.clientY - canvasRect.top - 10
+    tooltipStyle.value = {
+      top: `${y}px`,
+      left: `${x}px`
+    }
+  }
+}
+
+function onNodeLeave() {
+  hoveredNode.value = null
+}
+
+function closeDetailPanel() {
+  selectedNodeId.value = null
+}
+
+function viewDeviceDetail() {
+  console.log('View device detail:', selectedNode.value)
 }
 
 async function loadSiteData() {
   try {
-    sites.value = await getSites()
+    sites.value = await getSitesApi()
   } catch (error) {
     console.error('Failed to load sites:', error)
   }
@@ -627,6 +857,95 @@ function handleResize() {
   }
 }
 
+// 导出为PNG
+async function exportAsPNG() {
+  const canvasEl = canvasWrapper.value
+  if (!canvasEl) {
+    ElMessage.error(t('topology.exportError'))
+    return
+  }
+  
+  try {
+    ElMessage.info(t('topology.exporting'))
+    const canvas = await html2canvas(canvasEl, {
+      backgroundColor: '#0f1724',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    })
+    
+    const link = document.createElement('a')
+    link.download = `topology-${Date.now()}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+    ElMessage.success(t('topology.exportSuccess'))
+  } catch (error) {
+    console.error('Export PNG failed:', error)
+    ElMessage.error(t('topology.exportError'))
+  }
+}
+
+// 导出为JPG
+async function exportAsJPG() {
+  const canvasEl = canvasWrapper.value
+  if (!canvasEl) {
+    ElMessage.error(t('topology.exportError'))
+    return
+  }
+  
+  try {
+    ElMessage.info(t('topology.exporting'))
+    const canvas = await html2canvas(canvasEl, {
+      backgroundColor: '#0f1724',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    })
+    
+    const link = document.createElement('a')
+    link.download = `topology-${Date.now()}.jpg`
+    link.href = canvas.toDataURL('image/jpeg', 0.95)
+    link.click()
+    ElMessage.success(t('topology.exportSuccess'))
+  } catch (error) {
+    console.error('Export JPG failed:', error)
+    ElMessage.error(t('topology.exportError'))
+  }
+}
+
+// 导出为PDF
+async function exportAsPDF() {
+  const canvasEl = canvasWrapper.value
+  if (!canvasEl) {
+    ElMessage.error(t('topology.exportError'))
+    return
+  }
+  
+  try {
+    ElMessage.info(t('topology.exporting'))
+    const canvas = await html2canvas(canvasEl, {
+      backgroundColor: '#0f1724',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    })
+    
+    const imgData = canvas.toDataURL('image/png')
+    const pdf = new jsPDF({
+      orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+      unit: 'px',
+      format: [canvas.width, canvas.height]
+    })
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
+    pdf.save(`topology-${Date.now()}.pdf`)
+    ElMessage.success(t('topology.exportSuccess'))
+  } catch (error) {
+    console.error('Export PDF failed:', error)
+    ElMessage.error(t('topology.exportError'))
+  }
+}
+
 onMounted(async () => {
   handleResize()
   window.addEventListener('resize', handleResize)
@@ -646,99 +965,118 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: linear-gradient(135deg, #0a0e1a 0%, #1a1a2e 50%, #0f1724 100%);
+  background: #0a0e1a;
+  position: relative;
 }
 
 .topology-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  background: linear-gradient(180deg, rgba(22, 33, 62, 0.95) 0%, rgba(22, 33, 62, 0.85) 100%);
-  backdrop-filter: blur(10px);
+  padding: 12px 20px;
+  background: rgba(22, 33, 62, 0.95);
   border-bottom: 1px solid rgba(45, 58, 79, 0.5);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .search-input {
-  width: 320px;
+  width: 240px;
 }
 
 .search-input :deep(.el-input__wrapper) {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(64, 158, 255, 0.3);
-  box-shadow: none;
-  transition: all 0.3s ease;
-}
-
-.search-input :deep(.el-input__wrapper:hover) {
-  border-color: rgba(64, 158, 255, 0.6);
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.search-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #409eff;
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
 }
 
 .search-input :deep(.el-input__inner) {
   color: #fff;
 }
 
-.search-input :deep(.el-input__prefix) {
-  color: rgba(255, 255, 255, 0.6);
-}
-
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .site-select {
-  width: 200px;
+  width: 160px;
 }
 
 .site-select :deep(.el-input__wrapper) {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(64, 158, 255, 0.3);
-  box-shadow: none;
 }
 
 .site-select :deep(.el-input__inner) {
   color: #fff;
 }
 
+.internet-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.control-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.control-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #40A9FF;
+  min-width: 20px;
+  text-align: center;
+}
+
+.internet-control .el-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  font-size: 14px;
+  background: rgba(64, 158, 255, 0.15);
+  border-color: rgba(64, 158, 255, 0.3);
+  color: #40A9FF;
+}
+
+.internet-control .el-button:hover {
+  background: rgba(64, 158, 255, 0.3);
+}
+
 .toolbar-btn {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(64, 158, 255, 0.2);
   color: #fff;
-  transition: all 0.3s ease;
 }
 
 .toolbar-btn:hover {
   background: rgba(64, 158, 255, 0.2);
-  border-color: rgba(64, 158, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
-.toolbar-btn:active {
-  transform: translateY(0);
+.topology-main {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
 }
 
 .topology-canvas {
   flex: 1;
   position: relative;
-  overflow: hidden;
   background: 
-    radial-gradient(ellipse at 20% 30%, rgba(64, 158, 255, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(100, 89, 234, 0.08) 0%, transparent 50%),
-    linear-gradient(180deg, #0a0e1a 0%, #1a1a2e 100%);
+    radial-gradient(ellipse at 20% 30%, rgba(64, 158, 255, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(100, 89, 234, 0.04) 0%, transparent 50%),
+    #0a0e1a;
 }
 
 .topology-canvas::before {
@@ -749,11 +1087,10 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 30px 30px;
   pointer-events: none;
-  opacity: 0.5;
 }
 
 .topology-svg {
@@ -765,41 +1102,48 @@ onUnmounted(() => {
 }
 
 .topology-edge {
-  stroke: #4a5568;
-  stroke-width: 2;
   fill: none;
   transition: all 0.3s ease;
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
 }
 
-.topology-edge.normal {
-  stroke: #67C23A;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 0 6px rgba(103, 194, 58, 0.4));
+.topology-edge.edge-normal {
+  stroke: #5B8DB8;
+  stroke-width: 2;
 }
 
-.topology-edge.warning {
+.topology-edge.edge-warning {
   stroke: #E6A23C;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 0 6px rgba(230, 162, 60, 0.4));
+  stroke-width: 2;
+  stroke-dasharray: 8,3;
 }
 
-.topology-edge.offline,
-.topology-edge.critical {
+.topology-edge.edge-offline {
+  stroke: #606266;
+  stroke-width: 1.5;
+  stroke-dasharray: 4,4;
+}
+
+.topology-edge.edge-critical {
   stroke: #F56C6C;
   stroke-width: 2;
-  stroke-dasharray: 6,4;
-  filter: drop-shadow(0 0 6px rgba(245, 108, 108, 0.4));
-  animation: edge-pulse 2s ease-in-out infinite;
+  stroke-dasharray: 6,3;
 }
 
-@keyframes edge-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+.edge-bandwidth {
+  fill: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
 }
 
 .topology-node {
   cursor: pointer;
+}
+
+.topology-node:hover .node-box {
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15));
 }
 
 .topology-node text,
@@ -807,185 +1151,319 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-.topology-node:hover {
-}
-
-.topology-node:hover .node-box {
-  stroke: #409eff;
-  stroke-width: 3;
-}
-
 .node-selected .node-box {
   stroke: #409eff;
-  stroke-width: 3;
-  filter: drop-shadow(0 0 15px rgba(64, 158, 255, 0.5));
-}
-
-.node-filtered {
-  opacity: 0.3;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px rgba(64, 158, 255, 0.4));
 }
 
 .node-box {
-  fill: rgba(45, 58, 79, 0.9);
-  stroke: rgba(74, 85, 104, 0.8);
-  stroke-width: 2;
-  backdrop-filter: blur(4px);
+  stroke-width: 1.5;
 }
 
-.node-switch .node-box {
-  fill: rgba(45, 58, 79, 0.9);
-}
-
-.node-router .node-box {
-  fill: rgba(45, 58, 79, 0.9);
-}
-
-.node-firewall .node-box {
-  fill: rgba(45, 58, 79, 0.9);
+.node-icon {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none;
+  padding: 2px;
 }
 
 .status-dot {
-  stroke: #fff;
-  stroke-width: 2;
-  filter: drop-shadow(0 0 4px currentColor);
+  filter: drop-shadow(0 0 3px currentColor);
 }
 
 .node-name {
   fill: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  font-size: 14px;
+  font-weight: 700;
 }
 
-.node-city {
-  fill: rgba(144, 147, 153, 0.9);
+.node-ip {
+  fill: rgba(144, 147, 153, 0.7);
+  font-size: 12px;
+}
+
+.node-status {
   font-size: 11px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.node-monitor {
-  font-size: 11px;
-}
-
-.monitor-label {
-  fill: rgba(144, 147, 153, 0.8);
-}
-
-.monitor-value {
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
-.monitor-normal {
+.node-status.status-online,
+.node-status.status-normal {
   fill: #67C23A;
 }
 
-.monitor-caution {
+.node-status.status-warning {
   fill: #E6A23C;
 }
 
-.monitor-warning {
+.node-status.status-offline,
+.node-status.status-critical,
+.node-status.status-error {
   fill: #F56C6C;
 }
 
-.tooltip {
-  position: fixed;
-  background: rgba(15, 23, 36, 0.98);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(64, 158, 255, 0.3);
-  border-radius: 12px;
-  padding: 16px 20px;
-  z-index: 10000;
-  pointer-events: none;
-  min-width: 240px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(64, 158, 255, 0.1);
+.node-status.status-unknown {
+  fill: #909399;
 }
 
-.tooltip-title {
-  font-size: 15px;
+/* Tooltip */
+.tooltip-panel {
+  position: absolute;
+  background: rgba(20, 30, 50, 0.96);
+  border: 1px solid rgba(64, 158, 255, 0.25);
+  border-radius: 8px;
+  padding: 12px 16px;
+  min-width: 220px;
+  z-index: 200;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tooltip-header {
+  margin-bottom: 4px;
+}
+
+.tooltip-name {
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(64, 158, 255, 0.2);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.tooltip-content {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  line-height: 1.8;
+.tooltip-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 8px 0;
 }
 
-.tooltip-content div {
-  margin-bottom: 6px;
+.tooltip-row {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
 }
 
 .tooltip-label {
-  flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
-.tooltip-content div:last-child {
-  margin-bottom: 0;
+.tooltip-value {
+  font-size: 12px;
+  color: #fff;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.tooltip-content div:first-child {
+.tooltip-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.tooltip-hint {
+  font-size: 11px;
+  color: rgba(64, 158, 255, 0.7);
+  margin-top: 4px;
+}
+
+/* Detail Panel */
+.detail-panel {
+  position: absolute;
+  right: 0;
+  top: 60px;
+  bottom: 0;
+  width: 260px;
+  background: rgba(15, 23, 36, 0.98);
+  border-left: 1px solid rgba(64, 158, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(64, 158, 255, 0.2);
+}
+
+.panel-title {
+  font-size: 16px;
   font-weight: 600;
   color: #fff;
 }
 
-.status-normal,
-.status-online {
-  color: #67C23A;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(103, 194, 58, 0.4);
+.close-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.status-warning {
-  color: #E6A23C;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(230, 162, 60, 0.4);
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
-.status-offline,
-.status-unknown {
-  color: #909399;
-  font-weight: 600;
+.panel-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
 }
 
-.status-critical,
-.status-error {
-  color: #F56C6C;
-  font-weight: 600;
-  text-shadow: 0 0 8px rgba(245, 108, 108, 0.4);
-}
-
-.topology-legend {
+.info-row {
   display: flex;
-  gap: 20px;
-  padding: 16px 24px;
-  background: linear-gradient(180deg, rgba(22, 33, 62, 0.85) 0%, rgba(22, 33, 62, 0.95) 100%);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(45, 58, 79, 0.5);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.info-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.info-value {
+  font-size: 12px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.panel-footer {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(64, 158, 255, 0.2);
+}
+
+.panel-footer .el-button {
+  width: 100%;
+}
+
+/* Connection Setting */
+.connection-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(64, 158, 255, 0.2);
+}
+
+.connection-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+.connection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.connection-item {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.connection-device {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 500;
+}
+
+.connection-ports {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.port-info {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Legend */
+.legend-panel {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(15, 23, 36, 0.95);
+  border: 1px solid rgba(64, 158, 255, 0.15);
+  border-radius: 8px;
+  padding: 12px 16px;
+  z-index: 50;
+}
+
+.legend-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 8px;
+}
+
+.legend-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.legend-section:last-child {
+  margin-bottom: 0;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
 }
 
-.legend-item .status-dot {
-  width: 12px;
-  height: 12px;
+.legend-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  box-shadow: 0 0 8px currentColor;
+}
+
+.legend-dot.online {
+  background: #67C23A;
+}
+
+.legend-dot.warning {
+  background: #E6A23C;
+}
+
+.legend-dot.offline {
+  background: #F56C6C;
+}
+
+.status-normal,
+.status-online {
+  color: #67C23A;
+}
+
+.status-warning {
+  color: #E6A23C;
+}
+
+.status-offline,
+.status-critical,
+.status-error {
+  color: #F56C6C;
+}
+
+.status-unknown {
+  color: #909399;
 }
 </style>

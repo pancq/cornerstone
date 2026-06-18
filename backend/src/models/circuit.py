@@ -22,3 +22,5 @@ class Circuit(Base):
     note = Column(String(500))
     updated_by = Column(String(50))
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
+    # 拓扑图中专线连接的目标设备ID
+    connected_device_id = Column(Integer, ForeignKey("devices.id"), nullable=True)

@@ -9,6 +9,7 @@ from src.models.site import Site
 from src.models.circuit import Circuit
 from src.models.device import Device
 from src.models.device_link import DeviceLink
+from src.models.ip_address import IPAddress
 from src.schemas import DeviceLinkCreate, DeviceLinkUpdate, DeviceLinkResponse
 
 router = APIRouter(tags=["topology"])
@@ -139,18 +140,41 @@ async def get_device_graph(
     from src.models.ip_address import IPAddress
     from src.models.link_monitor import LinkMonitor
     
-    # 获取设备及其关联的IP地址和站点信息
-    query = select(Device, IPAddress, Site).outerjoin(IPAddress, Device.mgmt_ip_id == IPAddress.id).outerjoin(Site, Device.site_id == Site.id)
-    if site_id:
-        query = query.where(Device.site_id == site_id)
-    
-    result = await db.execute(query)
-    device_ip_site_pairs = result.all()
-    
-    # 获取设备连接关系
+    # 获取设备连接关系（用于后续确定需要查询的设备范围）
     links_query = select(DeviceLink)
     links_result = await db.execute(links_query)
     links = links_result.scalars().all()
+    
+    # 收集所有需要查询的设备ID（当前站点设备 + 通过连接关系关联的设备）
+    required_device_ids = set()
+    
+    # 获取当前站点的设备
+    base_device_query = select(Device).where(
+        Device.site_id == site_id if site_id else True
+    )
+    base_device_result = await db.execute(base_device_query)
+    base_devices = base_device_result.scalars().all()
+    
+    for device in base_devices:
+        required_device_ids.add(device.id)
+    
+    # 收集通过连接关系关联的设备ID
+    for link in links:
+        if link.source_device_id:
+            required_device_ids.add(link.source_device_id)
+        if link.target_device_id:
+            required_device_ids.add(link.target_device_id)
+    
+    # 获取所有需要的设备及其关联的IP地址和站点信息
+    if required_device_ids:
+        query = select(Device, IPAddress, Site).outerjoin(IPAddress, Device.mgmt_ip_id == IPAddress.id).outerjoin(Site, Device.site_id == Site.id).where(
+            Device.id.in_(required_device_ids)
+        )
+    else:
+        query = select(Device, IPAddress, Site).outerjoin(IPAddress, Device.mgmt_ip_id == IPAddress.id).outerjoin(Site, Device.site_id == Site.id)
+    
+    result = await db.execute(query)
+    device_ip_site_pairs = result.all()
     
     # 获取最新的监控数据
     monitor_query = select(
@@ -172,6 +196,32 @@ async def get_device_graph(
                 "monitor_status": status
             }
     
+    # 获取所有专线（不限制站点，因为可能有跨站点的专线连接）
+    circuit_query = select(Circuit)
+    circuit_result = await db.execute(circuit_query)
+    circuits = circuit_result.scalars().all()
+    
+    # 筛选互联网专线
+    internet_circuits = [c for c in circuits if c.type and (
+        "互联网" in c.type or "internet" in c.type.lower()
+    )]
+    
+    # 收集所有配置了连接关系的专线（包括MPLS、SD-WAN等）
+    linked_circuit_ids = set()
+    for link in links:
+        if link.source_circuit_id:
+            linked_circuit_ids.add(link.source_circuit_id)
+        if link.target_circuit_id:
+            linked_circuit_ids.add(link.target_circuit_id)
+    
+    # 收集所有配置了connected_device_id的专线
+    for circuit in circuits:
+        if circuit.connected_device_id:
+            linked_circuit_ids.add(circuit.id)
+    
+    # 获取所有需要显示的专线（配置了连接关系的专线）
+    display_circuits = [c for c in circuits if c.id in linked_circuit_ids]
+    
     nodes = []
     edges = []
     
@@ -184,28 +234,29 @@ async def get_device_graph(
         monitor_status = monitor_info.get("monitor_status")
         
         # 状态判定优先级：监控状态 > 设备状态 > 默认状态
-        status = "unknown"  # 默认状态改为unknown
+        status = "unknown"
         
-        # 如果有监控状态，优先使用监控状态
         if monitor_status:
             status = monitor_status
-        # 否则使用设备模型中的状态
         elif device.status == "offline" or device.status == "decommissioned":
             status = "offline"
         elif device.status == "warning":
             status = "warning"
+        elif device.status == "maintenance":
+            status = "warning"
         elif device.status == "active":
-            # 设备状态为active但没有监控数据，标记为未知（保持默认的unknown）
-            pass
+            status = "normal"
         
         device_type = "switch"
         if device.type:
-            if "router" in device.type.lower():
+            if "router" in device.type.lower() or "路由" in device.type:
                 device_type = "router"
-            elif "firewall" in device.type.lower():
+            elif "firewall" in device.type.lower() or "防火墙" in device.type:
                 device_type = "firewall"
-            elif "server" in device.type.lower():
+            elif "server" in device.type.lower() or "服务器" in device.type:
                 device_type = "server"
+            elif "internet" in device.type.lower() or "互联网" in device.type:
+                device_type = "internet"
         
         node = {
             "id": f"device_{device.id}",
@@ -222,19 +273,111 @@ async def get_device_graph(
         }
         nodes.append(node)
     
-    # 构建连接边
-    for link in links:
-        edge = {
-            "id": f"link_{link.id}",
-            "link_id": link.id,
-            "source": f"device_{link.source_device_id}",
-            "target": f"device_{link.target_device_id}",
-            "source_interface": link.source_interface,
-            "target_interface": link.target_interface,
-            "link_type": link.link_type,
-            "confidence": link.confidence,
+    # 为每个配置了连接关系的专线创建出口节点，并建立连接
+    for circuit in display_circuits:
+        target_device = None
+        
+        # 优先从DeviceLink中查找专线与设备的连接关系
+        for link in links:
+            if link.source_circuit_id == circuit.id and link.target_device_id:
+                for device, ip_addr, site in device_ip_site_pairs:
+                    if device.id == link.target_device_id:
+                        target_device = device
+                        break
+                break
+            elif link.target_circuit_id == circuit.id and link.source_device_id:
+                for device, ip_addr, site in device_ip_site_pairs:
+                    if device.id == link.source_device_id:
+                        target_device = device
+                        break
+                break
+        
+        # 如果没有通过DeviceLink配置，再检查circuit.connected_device_id
+        if not target_device and circuit.connected_device_id:
+            for device, ip_addr, site in device_ip_site_pairs:
+                if device.id == circuit.connected_device_id:
+                    target_device = device
+                    break
+        
+        # 只有明确配置了连接关系的专线才在拓扑图中显示
+        if not target_device:
+            continue
+        
+        # 创建出口节点
+        isp_name = circuit.provider or "运营商"
+        circuit_name = circuit.name or f"{isp_name}专线"
+        
+        # 根据专线类型设置节点图标类型
+        circuit_type = circuit.type or ""
+        if "互联网" in circuit_type or "internet" in circuit_type.lower():
+            node_type = "internet"
+        elif "mpls" in circuit_type.lower():
+            node_type = "isp"
+        elif "sd-wan" in circuit_type.lower() or "sdwan" in circuit_type.lower():
+            node_type = "sdwan"
+        else:
+            node_type = "internet"
+        
+        internet_node = {
+            "id": f"internet_{circuit.id}",
+            "device_id": -circuit.id,
+            "name": circuit_name,
+            "ip_address": circuit.public_ip or f"ISP:{isp_name}",
+            "type": node_type,
+            "vendor": isp_name,
+            "status": "normal",
+            "site_id": circuit.site_id,
+            "site_name": None,
+            "latency": None,
+            "packet_loss": None,
+            "circuit_id": circuit.id,
+            "provider": circuit.provider,
+            "bandwidth": circuit.bandwidth,
         }
-        edges.append(edge)
+        nodes.append(internet_node)
+        
+        # 如果找到目标设备，建立连接
+        if target_device:
+            internet_edge = {
+                "id": f"link_internet_{circuit.id}",
+                "link_id": -circuit.id,
+                "source": f"internet_{circuit.id}",
+                "target": f"device_{target_device.id}",
+                "source_interface": None,
+                "target_interface": None,
+                "link_type": "internet",
+                "confidence": 1.0,
+            }
+            edges.append(internet_edge)
+    
+    # 构建连接边（支持设备-设备、专线-设备、设备-专线）
+    for link in links:
+        # 确定source和target
+        source = None
+        target = None
+        
+        if link.source_device_id and link.target_device_id:
+            source = f"device_{link.source_device_id}"
+            target = f"device_{link.target_device_id}"
+        elif link.source_circuit_id and link.target_device_id:
+            source = f"internet_{link.source_circuit_id}"
+            target = f"device_{link.target_device_id}"
+        elif link.source_device_id and link.target_circuit_id:
+            source = f"device_{link.source_device_id}"
+            target = f"internet_{link.target_circuit_id}"
+        
+        if source and target:
+            edge = {
+                "id": f"link_{link.id}",
+                "link_id": link.id,
+                "source": source,
+                "target": target,
+                "source_interface": link.source_interface,
+                "target_interface": link.target_interface,
+                "link_type": link.link_type,
+                "confidence": link.confidence,
+            }
+            edges.append(edge)
     
     return {
         "nodes": nodes,
@@ -274,28 +417,62 @@ async def create_device_link(
     link: DeviceLinkCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    """创建设备连接关系"""
-    # 验证源设备和目标设备是否存在
-    source_query = select(Device).where(Device.id == link.source_device_id)
-    source_result = await db.execute(source_query)
-    if not source_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Source device not found")
+    """创建设备连接关系（支持设备-设备、专线-设备、设备-专线）"""
+    # 验证至少有一端是有效的（source或target必须有device_id或circuit_id）
+    if not link.source_device_id and not link.source_circuit_id:
+        raise HTTPException(status_code=400, detail="Source must have device_id or circuit_id")
+    if not link.target_device_id and not link.target_circuit_id:
+        raise HTTPException(status_code=400, detail="Target must have device_id or circuit_id")
     
-    target_query = select(Device).where(Device.id == link.target_device_id)
-    target_result = await db.execute(target_query)
-    if not target_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Target device not found")
+    # 验证源设备是否存在（如果提供了）
+    if link.source_device_id:
+        source_query = select(Device).where(Device.id == link.source_device_id)
+        source_result = await db.execute(source_query)
+        if not source_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Source device not found")
     
-    # 检查是否已存在相同的连接
-    existing_query = select(DeviceLink).where(
-        ((DeviceLink.source_device_id == link.source_device_id) & 
-         (DeviceLink.target_device_id == link.target_device_id)) |
-        ((DeviceLink.source_device_id == link.target_device_id) & 
-         (DeviceLink.target_device_id == link.source_device_id))
-    )
-    existing_result = await db.execute(existing_query)
-    if existing_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Device link already exists")
+    # 验证目标设备是否存在（如果提供了）
+    if link.target_device_id:
+        target_query = select(Device).where(Device.id == link.target_device_id)
+        target_result = await db.execute(target_query)
+        if not target_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Target device not found")
+    
+    # 验证源专线是否存在（如果提供了）
+    if link.source_circuit_id:
+        source_circuit_query = select(Circuit).where(Circuit.id == link.source_circuit_id)
+        source_circuit_result = await db.execute(source_circuit_query)
+        if not source_circuit_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Source circuit not found")
+    
+    # 验证目标专线是否存在（如果提供了）
+    if link.target_circuit_id:
+        target_circuit_query = select(Circuit).where(Circuit.id == link.target_circuit_id)
+        target_circuit_result = await db.execute(target_circuit_query)
+        if not target_circuit_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Target circuit not found")
+    
+    # 检查是否已存在相同的连接（设备-设备连接时）
+    if link.source_device_id and link.target_device_id:
+        existing_query = select(DeviceLink).where(
+            ((DeviceLink.source_device_id == link.source_device_id) & 
+             (DeviceLink.target_device_id == link.target_device_id)) |
+            ((DeviceLink.source_device_id == link.target_device_id) & 
+             (DeviceLink.target_device_id == link.source_device_id))
+        )
+        existing_result = await db.execute(existing_query)
+        if existing_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Device link already exists")
+    
+    # 检查是否已存在相同的连接（专线-设备连接时）
+    if link.source_circuit_id and link.target_device_id:
+        existing_query = select(DeviceLink).where(
+            (DeviceLink.source_circuit_id == link.source_circuit_id) & 
+            (DeviceLink.target_device_id == link.target_device_id)
+        )
+        existing_result = await db.execute(existing_query)
+        if existing_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Circuit-device link already exists")
     
     # 创建连接关系
     db_link = DeviceLink(**link.model_dump())
@@ -344,6 +521,64 @@ async def delete_device_link(
     await db.delete(db_link)
     await db.commit()
     return {"message": "Device link deleted successfully"}
+
+
+@router.put("/circuits/{circuit_id}/connect")
+async def update_circuit_connection(
+    circuit_id: int,
+    connected_device_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """更新专线连接的设备"""
+    from pydantic import BaseModel
+    
+    # 查找专线
+    query = select(Circuit).where(Circuit.id == circuit_id)
+    result = await db.execute(query)
+    circuit = result.scalar_one_or_none()
+    if circuit is None:
+        raise HTTPException(status_code=404, detail="Circuit not found")
+    
+    # 验证设备存在（如果提供了设备ID）
+    if connected_device_id is not None:
+        device_query = select(Device).where(Device.id == connected_device_id)
+        device_result = await db.execute(device_query)
+        if not device_result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Device not found")
+    
+    # 更新连接
+    circuit.connected_device_id = connected_device_id
+    await db.commit()
+    await db.refresh(circuit)
+    
+    return {
+        "id": circuit.id,
+        "name": circuit.name,
+        "connected_device_id": circuit.connected_device_id,
+        "message": "Connection updated successfully"
+    }
+
+
+@router.get("/site-devices")
+async def get_site_devices(
+    site_id: int = Query(..., description="站点 ID"),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取站点的设备列表，用于专线连接选择"""
+    query = select(Device, IPAddress).outerjoin(IPAddress, Device.mgmt_ip_id == IPAddress.id).where(Device.site_id == site_id)
+    result = await db.execute(query)
+    device_ip_pairs = result.all()
+    
+    devices = []
+    for device, ip_addr in device_ip_pairs:
+        devices.append({
+            "id": device.id,
+            "name": device.name,
+            "type": device.type,
+            "ip_address": ip_addr.address if ip_addr else None,
+        })
+    
+    return devices
 
 
 @router.post("/discover-lldp")

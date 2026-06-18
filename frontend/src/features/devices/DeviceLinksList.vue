@@ -17,15 +17,15 @@
 
     <el-table :data="deviceLinks" style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column label="源设备">
+      <el-table-column label="源">
         <template #default="{ row }">
-          <span>{{ getDeviceName(row.source_device_id) }}</span>
+          <span>{{ getSourceName(row) }}</span>
           <span v-if="row.source_interface" class="interface-label">{{ row.source_interface }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="目标设备">
+      <el-table-column label="目标">
         <template #default="{ row }">
-          <span>{{ getDeviceName(row.target_device_id) }}</span>
+          <span>{{ getTargetName(row) }}</span>
           <span v-if="row.target_interface" class="interface-label">{{ row.target_interface }}</span>
         </template>
       </el-table-column>
@@ -58,12 +58,18 @@
     <!-- 创建/编辑连接对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="dialogMode === 'create' ? '创建设备连接' : '编辑设备连接'"
+      :title="dialogMode === 'create' ? '创建连接' : '编辑连接'"
       width="600px"
       @close="resetForm"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="源设备" prop="source_device_id">
+        <el-form-item label="源类型">
+          <el-select v-model="form.source_type" placeholder="请选择源类型" style="width: 100%">
+            <el-option label="设备" value="device" />
+            <el-option label="专线" value="circuit" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="源设备" v-if="form.source_type === 'device'" prop="source_device_id">
           <el-select v-model="form.source_device_id" placeholder="请选择源设备" filterable style="width: 100%">
             <el-option
               v-for="device in devices"
@@ -73,16 +79,42 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="源专线" v-if="form.source_type === 'circuit'" prop="source_circuit_id">
+          <el-select v-model="form.source_circuit_id" placeholder="请选择源专线" filterable style="width: 100%">
+            <el-option
+              v-for="circuit in circuits"
+              :key="circuit.id"
+              :label="circuit.name"
+              :value="circuit.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="源接口" prop="source_interface">
           <el-input v-model="form.source_interface" placeholder="如：GigabitEthernet0/1" />
         </el-form-item>
-        <el-form-item label="目标设备" prop="target_device_id">
+        <el-form-item label="目标类型">
+          <el-select v-model="form.target_type" placeholder="请选择目标类型" style="width: 100%">
+            <el-option label="设备" value="device" />
+            <el-option label="专线" value="circuit" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="目标设备" v-if="form.target_type === 'device'" prop="target_device_id">
           <el-select v-model="form.target_device_id" placeholder="请选择目标设备" filterable style="width: 100%">
             <el-option
               v-for="device in devices"
               :key="device.id"
               :label="device.name"
               :value="device.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="目标专线" v-if="form.target_type === 'circuit'" prop="target_circuit_id">
+          <el-select v-model="form.target_circuit_id" placeholder="请选择目标专线" filterable style="width: 100%">
+            <el-option
+              v-for="circuit in circuits"
+              :key="circuit.id"
+              :label="circuit.name"
+              :value="circuit.id"
             />
           </el-select>
         </el-form-item>
@@ -130,40 +162,80 @@ import {
   type DeviceLinkUpdate
 } from '@/api/topology'
 import { getDevices, type DeviceResponse } from '@/api/devices'
+import { getCircuits, type CircuitResponse } from '@/api/circuits'
 
 const loading = ref(false)
 const submitting = ref(false)
 const discovering = ref(false)
 const deviceLinks = ref<DeviceLink[]>([])
 const devices = ref<DeviceResponse[]>([])
+const circuits = ref<CircuitResponse[]>([])
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const editingLinkId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
 
-const form = ref<DeviceLinkCreate & { note?: string }>({
-  source_device_id: 0,
+const form = ref<DeviceLinkCreate & { source_type?: string; target_type?: string; note?: string }>({
+  source_type: 'device',
+  source_device_id: undefined,
   source_interface: undefined,
-  target_device_id: 0,
+  target_type: 'device',
+  target_device_id: undefined,
   target_interface: undefined,
   link_type: 'manual',
   confidence: 100,
-  note: undefined
+  note: undefined,
+  source_circuit_id: undefined,
+  target_circuit_id: undefined
 })
 
 const rules: FormRules = {
-  source_device_id: [{ required: true, message: '请选择源设备', trigger: 'change' }],
-  target_device_id: [
-    { required: true, message: '请选择目标设备', trigger: 'change' },
-    {
-      validator: (_rule, value, callback) => {
-        if (value === form.value.source_device_id) {
-          callback(new Error('目标设备不能与源设备相同'))
+  source_device_id: [
+    { 
+      validator: (rule, value, callback) => {
+        if (form.value.source_type === 'device' && !value) {
+          callback(new Error('请选择源设备'))
         } else {
           callback()
         }
-      },
-      trigger: 'change'
+      }, 
+      trigger: 'change' 
+    }
+  ],
+  source_circuit_id: [
+    { 
+      validator: (rule, value, callback) => {
+        if (form.value.source_type === 'circuit' && !value) {
+          callback(new Error('请选择源专线'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'change' 
+    }
+  ],
+  target_device_id: [
+    { 
+      validator: (rule, value, callback) => {
+        if (form.value.target_type === 'device' && !value) {
+          callback(new Error('请选择目标设备'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'change' 
+    }
+  ],
+  target_circuit_id: [
+    { 
+      validator: (rule, value, callback) => {
+        if (form.value.target_type === 'circuit' && !value) {
+          callback(new Error('请选择目标专线'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'change' 
     }
   ]
 }
@@ -195,9 +267,28 @@ const getConfidenceClass = (confidence: number | null) => {
   return 'confidence-low'
 }
 
-const getDeviceName = (deviceId: number) => {
+const getDeviceName = (deviceId: number | undefined) => {
+  if (!deviceId) return '-'
   const device = devices.value.find(d => d.id === deviceId)
   return device ? device.name : `设备${deviceId}`
+}
+
+const getCircuitName = (circuitId: number | undefined) => {
+  if (!circuitId) return '-'
+  const circuit = circuits.value.find(c => c.id === circuitId)
+  return circuit ? circuit.name : `专线${circuitId}`
+}
+
+const getSourceName = (row: DeviceLink) => {
+  if (row.source_device_id) return getDeviceName(row.source_device_id)
+  if (row.source_circuit_id) return getCircuitName(row.source_circuit_id)
+  return '-'
+}
+
+const getTargetName = (row: DeviceLink) => {
+  if (row.target_device_id) return getDeviceName(row.target_device_id)
+  if (row.target_circuit_id) return getCircuitName(row.target_circuit_id)
+  return '-'
 }
 
 const loadDeviceLinks = async () => {
@@ -221,6 +312,15 @@ const loadDevices = async () => {
   }
 }
 
+const loadCircuits = async () => {
+  try {
+    const data = await getCircuits()
+    circuits.value = data
+  } catch (error) {
+    console.error('Failed to load circuits:', error)
+  }
+}
+
 const showCreateDialog = () => {
   dialogMode.value = 'create'
   dialogVisible.value = true
@@ -230,10 +330,14 @@ const showEditDialog = (link: DeviceLink) => {
   dialogMode.value = 'edit'
   editingLinkId.value = link.id
   form.value = {
+    source_type: link.source_device_id ? 'device' : 'circuit',
     source_device_id: link.source_device_id,
     source_interface: link.source_interface,
+    source_circuit_id: link.source_circuit_id,
+    target_type: link.target_device_id ? 'device' : 'circuit',
     target_device_id: link.target_device_id,
     target_interface: link.target_interface,
+    target_circuit_id: link.target_circuit_id,
     link_type: link.link_type,
     confidence: link.confidence || 100,
     note: link.note || undefined
@@ -245,10 +349,14 @@ const resetForm = () => {
   formRef.value?.resetFields()
   editingLinkId.value = null
   form.value = {
-    source_device_id: 0,
+    source_type: 'device',
+    source_device_id: undefined,
     source_interface: undefined,
-    target_device_id: 0,
+    source_circuit_id: undefined,
+    target_type: 'device',
+    target_device_id: undefined,
     target_interface: undefined,
+    target_circuit_id: undefined,
     link_type: 'manual',
     confidence: 100,
     note: undefined
@@ -263,12 +371,24 @@ const handleSubmit = async () => {
     
     submitting.value = true
     try {
+      const submitData: DeviceLinkCreate = {
+        source_device_id: form.value.source_type === 'device' ? form.value.source_device_id : undefined,
+        source_interface: form.value.source_interface,
+        source_circuit_id: form.value.source_type === 'circuit' ? form.value.source_circuit_id : undefined,
+        target_device_id: form.value.target_type === 'device' ? form.value.target_device_id : undefined,
+        target_interface: form.value.target_interface,
+        target_circuit_id: form.value.target_type === 'circuit' ? form.value.target_circuit_id : undefined,
+        link_type: form.value.link_type,
+        confidence: form.value.confidence,
+        note: form.value.note
+      }
+      
       if (dialogMode.value === 'create') {
-        await createDeviceLink(form.value as DeviceLinkCreate)
+        await createDeviceLink(submitData)
         ElMessage.success('创建成功')
       } else {
         if (!editingLinkId.value) return
-        const updateData: DeviceLinkUpdate = { ...form.value }
+        const updateData: DeviceLinkUpdate = { ...submitData }
         await updateDeviceLink(editingLinkId.value, updateData)
         ElMessage.success('更新成功')
       }
@@ -319,6 +439,7 @@ const runLldpDiscovery = async () => {
 onMounted(() => {
   loadDeviceLinks()
   loadDevices()
+  loadCircuits()
 })
 </script>
 

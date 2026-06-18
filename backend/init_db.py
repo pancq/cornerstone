@@ -12,6 +12,7 @@ from passlib.context import CryptContext
 import sqlalchemy.orm
 from src.database import sync_engine, Base
 from src.models import Aggregate, AuditLog, Backup, Circuit, Device, IPAddress, Prefix, Site, User, Vlan, VlanGroup
+from src.models.device_link import DeviceLink
 from src.models.alert import AlertRule  # 确保关联模型被加载
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -50,6 +51,9 @@ def seed_demo_data(session: sqlalchemy.orm.Session):
         Device(id=1, name="SW-DEMO-CORE-01", type="交换机", brand="Cisco", vendor="cisco_ios", model="Catalyst 9300", sn="DEMO-SW-0001", site_id=1, location="演示机柜A-U12", status="active", purchase_date=datetime(2024, 3, 12), warranty_end=datetime(2026, 6, 18), purchase_amount=82000, owner="演示网络组", note="演示核心交换机"),
         Device(id=2, name="FW-DEMO-EDGE-01", type="防火墙", brand="Huawei", vendor="huawei_vrp", model="USG6655E", sn="DEMO-FW-0001", site_id=1, location="演示机柜B-U06", status="active", purchase_date=datetime(2023, 8, 20), warranty_end=datetime(2026, 5, 30), purchase_amount=128000, owner="演示安全组", note="演示互联网边界防火墙"),
         Device(id=3, name="RT-DEMO-WAN-01", type="路由器", brand="H3C", vendor="h3c", model="MSR 5660", sn="DEMO-RT-0001", site_id=2, location="演示机柜C-U08", status="maintenance", purchase_date=datetime(2022, 10, 1), warranty_end=datetime(2026, 12, 1), purchase_amount=64000, owner="演示网络组", note="演示广域网边界路由器"),
+        Device(id=4, name="SW-DEMO-ACC-01", type="交换机", brand="Huawei", vendor="huawei_vrp", model="S5735-L24T4X-A", sn="DEMO-SW-0002", site_id=1, location="演示机柜A-U08", status="active", purchase_date=datetime(2024, 5, 20), warranty_end=datetime(2027, 5, 20), purchase_amount=18000, owner="演示网络组", note="演示接入交换机-24口"),
+        Device(id=5, name="SW-DEMO-ACC-02", type="交换机", brand="Huawei", vendor="huawei_vrp", model="S5735-L24T4X-A", sn="DEMO-SW-0003", site_id=1, location="演示机柜A-U09", status="active", purchase_date=datetime(2024, 5, 20), warranty_end=datetime(2027, 5, 20), purchase_amount=18000, owner="演示网络组", note="演示接入交换机-24口"),
+        Device(id=6, name="SRV-DEMO-APP-01", type="服务器", brand="Dell", vendor="dell_os10", model="PowerEdge R750", sn="DEMO-SRV-0001", site_id=1, location="演示机柜D-U04", status="active", purchase_date=datetime(2023, 11, 15), warranty_end=datetime(2026, 11, 15), purchase_amount=45000, owner="演示运维组", note="演示应用服务器"),
     ]
     session.add_all(devices)
     session.flush()
@@ -59,10 +63,13 @@ def seed_demo_data(session: sqlalchemy.orm.Session):
         IPAddress(id=2, address="192.0.2.66", prefix_id=2, device_id=2, usage="演示防火墙管理地址", owner="演示安全组", status="assigned"),
         IPAddress(id=3, address="192.0.2.129", prefix_id=3, device_id=3, usage="演示分支路由器管理地址", owner="演示网络组", status="assigned"),
         IPAddress(id=4, address="198.51.100.10", prefix_id=4, usage="演示实验室预留主机", owner="演示实验室", status="reserved"),
+        IPAddress(id=5, address="192.0.2.67", prefix_id=2, device_id=4, usage="演示接入交换机管理地址", owner="演示网络组", status="assigned"),
+        IPAddress(id=6, address="192.0.2.68", prefix_id=2, device_id=5, usage="演示接入交换机管理地址", owner="演示网络组", status="assigned"),
+        IPAddress(id=7, address="192.0.2.69", prefix_id=2, device_id=6, usage="演示应用服务器管理地址", owner="演示运维组", status="assigned"),
     ]
     session.add_all(ip_addresses)
     session.flush()
-    for device_id, mgmt_ip_id in [(1, 1), (2, 2), (3, 3)]:
+    for device_id, mgmt_ip_id in [(1, 1), (2, 2), (3, 3), (4, 5), (5, 6), (6, 7)]:
         session.query(Device).filter(Device.id == device_id).update({"mgmt_ip_id": mgmt_ip_id})
     session.flush()
 
@@ -98,6 +105,17 @@ def seed_demo_data(session: sqlalchemy.orm.Session):
         Vlan(vid=999, name="演示DMZ网络", status="reserved", description="演示预留DMZ VLAN"),
     ]
     session.add_all(vlans)
+    session.flush()
+
+    device_links = [
+        DeviceLink(id=1, source_device_id=1, source_interface="GigabitEthernet1/0/1", target_device_id=2, target_interface="GigabitEthernet0/0/1", link_type="manual", confidence=100),
+        DeviceLink(id=2, source_device_id=2, source_interface="GigabitEthernet0/0/2", target_device_id=3, target_interface="GigabitEthernet0/0/1", link_type="manual", confidence=100),
+        DeviceLink(id=3, source_device_id=1, source_interface="GigabitEthernet1/0/2", target_device_id=4, target_interface="GigabitEthernet0/0/24", link_type="lldp", confidence=95),
+        DeviceLink(id=4, source_device_id=1, source_interface="GigabitEthernet1/0/3", target_device_id=5, target_interface="GigabitEthernet0/0/24", link_type="lldp", confidence=95),
+        DeviceLink(id=5, source_device_id=1, source_interface="GigabitEthernet1/0/4", target_device_id=6, target_interface="eth0", link_type="manual", confidence=100),
+    ]
+    session.add_all(device_links)
+    session.flush()
 
     audit_logs = [
         AuditLog(user="ops", action="更新专线状态", resource="演示实验室SD-WAN备份", detail="状态由 正常 改为 故障", ip_address="192.0.2.200", success="true"),

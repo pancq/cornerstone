@@ -42,6 +42,10 @@ export interface DeviceNode {
   site_name: string | null
   latency: number | null
   packet_loss: number | null
+  // 互联网出口专线字段
+  circuit_id?: number
+  provider?: string
+  bandwidth?: number
 }
 
 export interface SiteGraphResponse {
@@ -51,36 +55,42 @@ export interface SiteGraphResponse {
 
 export interface DeviceLink {
   id: number
-  source_device_id: number
+  source_device_id: number | null
   source_interface: string | null
-  target_device_id: number
+  target_device_id: number | null
   target_interface: string | null
   link_type: string
   confidence: number | null
   discovered_at: string | null
   verified_at: string | null
   note: string | null
+  source_circuit_id: number | null
+  target_circuit_id: number | null
 }
 
 export interface DeviceLinkCreate {
-  source_device_id: number
+  source_device_id?: number | null
   source_interface?: string | null
-  target_device_id: number
+  target_device_id?: number | null
   target_interface?: string | null
   link_type?: string
   confidence?: number | null
   note?: string | null
+  source_circuit_id?: number | null
+  target_circuit_id?: number | null
 }
 
 export interface DeviceLinkUpdate {
-  source_device_id?: number
+  source_device_id?: number | null
   source_interface?: string | null
-  target_device_id?: number
+  target_device_id?: number | null
   target_interface?: string | null
   link_type?: string
   confidence?: number | null
   verified_at?: string | null
   note?: string | null
+  source_circuit_id?: number | null
+  target_circuit_id?: number | null
 }
 
 export interface DeviceGraphResponse {
@@ -97,6 +107,19 @@ export interface DeviceEdge {
   target_interface: string | null
   link_type: string
   confidence: number | null
+}
+
+// 站点设备选项（用于专线连接设置）
+export interface SiteDeviceOption {
+  id: number
+  name: string
+  type: string
+  ip_address: string | null
+}
+
+// 更新专线连接
+export interface CircuitConnectionUpdate {
+  connected_device_id: number | null
 }
 
 export async function getSiteGraph(): Promise<SiteGraphResponse> {
@@ -136,4 +159,23 @@ export async function deleteDeviceLink(linkId: number): Promise<void> {
 
 export async function discoverLldpNeighbors(): Promise<void> {
   await request.post('/topology/discover-lldp')
+}
+
+// 获取站点设备列表
+export async function getSiteDevices(siteId: number): Promise<SiteDeviceOption[]> {
+  const response = await request.get('/topology/site-devices', { params: { site_id: siteId } })
+  return response.data
+}
+
+// 更新专线连接设备
+export async function updateCircuitConnection(
+  circuitId: number,
+  connectedDeviceId: number | null
+): Promise<any> {
+  const response = await request.put(
+    `/topology/circuits/${circuitId}/connect`,
+    null,
+    { params: { connected_device_id: connectedDeviceId } }
+  )
+  return response.data
 }

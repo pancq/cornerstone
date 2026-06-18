@@ -79,8 +79,8 @@ services:
       - cornerstone-net
     # 默认不对宿主机暴露 8000，由 frontend 容器内部反代
     # 如需直接访问 API，可取消注释：
-    # ports:
-    #   - "8000:8000"
+    ports:
+      - "8000:8000"
 
   frontend:
     build:
