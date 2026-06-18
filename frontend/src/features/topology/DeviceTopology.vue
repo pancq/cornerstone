@@ -196,17 +196,17 @@
                 stroke="#1a2035"
                 stroke-width="1.5"
               />
-              <!-- 图标区域：左侧居中 -->
-              <g :transform="`translate(${-nodeWidth / 2 + 4}, ${-24})`">
-                <foreignObject width="48" height="48">
-                  <NetworkIcon
-                    :type="getIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name)"
-                    :status="mapStatus(node.status)"
-                    size="md"
-                    :show-status="false"
-                    class="node-icon"
-                  />
-                </foreignObject>
+              <!-- 图标区域：左侧居中（纯 SVG 路径内联，支持 html2canvas 导出） -->
+              <g :transform="`translate(${-nodeWidth / 2 + 6}, ${-24})`">
+                <svg width="48" height="48" viewBox="0 0 24 24"
+                     :color="getDeviceIconColor(getIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name))">
+                  <g v-html="getDeviceIconSvg(getIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name))"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.5"
+                     stroke-linecap="round"
+                     stroke-linejoin="round" />
+                </svg>
               </g>
               <!-- 文本区域 -->
               <g :transform="`translate(${-nodeWidth / 2 + 56}, ${-nodeHeight / 2 + 12})`">
@@ -294,7 +294,6 @@ import { getDeviceGraph, getSiteDevices, updateCircuitConnection, type DeviceNod
 import { getSites as getSitesApi, type SiteResponse } from '../../api/sites'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import NetworkIcon from '../../components/icons/NetworkIcon.vue'
 import { inferIconType, mapStatus } from '../../components/icons/networkIconTypes'
 import { DEVICE_TYPE_CONFIG, STATUS_DOT_COLOR, DEVICE_RANK } from './topologyConfig'
 import html2canvas from 'html2canvas'
@@ -303,6 +302,43 @@ import jsPDF from 'jspdf'
 // 获取图标类型
 function getIconType(deviceType: string | null | undefined, vendor: string | null | undefined, name: string | null | undefined): string {
   return inferIconType(deviceType, vendor, name)
+}
+
+// 获取设备图标颜色
+function getDeviceIconColor(type: string): string {
+  const config = DEVICE_TYPE_CONFIG[type] || DEVICE_TYPE_CONFIG['unknown']
+  return config.color
+}
+
+// ── 设备 SVG 图标路径（内联路径，html2canvas 可正常渲染） ──
+// 每个字符串是 <g> 的子元素集合，通过 v-html 注入，fill/stroke 由父级控制
+const DEVICE_ICON_SVG: Record<string, string> = {
+  'router': `<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M8 10v4M12 10v4M16 10v4M6 12h12" stroke-width="1.3"/>`,
+  'core-switch': `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9v6M10 9v6M13 9v6M16 9v6" stroke-width="1.3"/><circle cx="7" cy="12" r=".8" fill="currentColor"/><circle cx="10" cy="12" r=".8" fill="currentColor"/><circle cx="13" cy="12" r=".8" fill="currentColor"/><circle cx="16" cy="12" r=".8" fill="currentColor"/>`,
+  'access-switch': `<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M7 9v6M10 9v6M13 9v6M16 9v6" stroke-width="1.3"/><circle cx="7" cy="12" r=".8" fill="currentColor"/><circle cx="13" cy="12" r=".8" fill="currentColor"/><circle cx="16" cy="12" r=".8" fill="currentColor"/>`,
+  'firewall': `<path d="M12 3C8 5 4 7 4 11v4a8 8 0 0 0 8 6 8 8 0 0 0 8-6v-4c0-4-4-6-8-8z"/><path d="M9 12l2 2 4-4" stroke-width="1.8"/>`,
+  'load-balancer': `<path d="M4 5h16v4H4zM4 15h16v4H4z"/><path d="M12 9v6M8 9l-2 3 2 3M16 9l2 3-2 3" stroke-width="1.3"/>`,
+  'ap': `<path d="M5 9a7 7 0 0 1 14 0M8 9a4 4 0 0 1 8 0"/><circle cx="12" cy="9" r="1.2" fill="currentColor"/><path d="M12 13v4M9 17h6"/>`,
+  'ac': `<rect x="7" y="4" width="10" height="6" rx="1.5"/><path d="M12 10v4M7 14h10M4 18a8 8 0 0 1 16 0" stroke-width="1.3"/>`,
+  'sdwan': `<circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><circle cx="18" cy="17" r="2.5"/><circle cx="12" cy="12" r="2"/><line x1="8.5" y1="8" x2="10.5" y2="10.5" stroke-width="1"/><line x1="15.5" y1="8" x2="13.5" y2="10.5" stroke-width="1"/><line x1="8.5" y1="16" x2="10.5" y2="13.5" stroke-width="1"/><line x1="15.5" y1="16" x2="13.5" y2="13.5" stroke-width="1"/>`,
+  'server': `<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M5 8h14M5 16h14" stroke-width="1.3"/><circle cx="10" cy="5" r=".8" fill="currentColor"/><circle cx="10" cy="13" r=".8" fill="currentColor"/><circle cx="10" cy="19" r=".8" fill="currentColor"/>`,
+  'pc': `<rect x="4" y="3" width="16" height="12" rx="1.5"/><path d="M9 15v4M15 15v4M7 19h10" stroke-width="1.3"/>`,
+  'laptop': `<rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 17a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2" stroke-width="1.3"/>`,
+  'printer': `<rect x="5" y="3" width="14" height="7" rx="1"/><path d="M7 10v5h10v-5M7 15v4h10v-4M9 7h6" stroke-width="1.3"/><rect x="9" y="17" width="6" height="2" rx=".5" fill="currentColor"/>`,
+  'nas': `<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" stroke-width="1.3"/>`,
+  'camera': `<path d="M5 7h1.5l2-3h7l2 3H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="3" stroke-width="1.3"/>`,
+  'ids-ips': `<path d="M12 3c-4 2-8 4-8 8v3a8 8 0 0 0 16 0v-3c0-4-4-6-8-8z"/><circle cx="12" cy="12" r="3" stroke-width="1.3"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>`,
+  'vpn': `<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4" stroke-width="1.3"/><circle cx="12" cy="16" r="1.2" fill="currentColor"/><path d="M12 16v2" stroke-width="1.3"/>`,
+  'waf': `<path d="M12 3C8 5 4 7 4 11v4a8 8 0 0 0 8 6 8 8 0 0 0 8-6v-4c0-4-4-6-8-8z"/><path d="M9 12l2 2 4-5" stroke-width="1.8"/>`,
+  'internet': `<path d="M6 16a4 4 0 0 1-1-7.9A5.5 5.5 0 0 1 14.5 4a5.5 5.5 0 0 1 4.5 2.1A4 4 0 0 1 18 16z"/><path d="M9 12h6M12 9v6" stroke-width="1.3"/>`,
+  'isp': `<path d="M12 2v4M12 9v2M5 12h14M8 16a4 4 0 0 1 8 0" stroke-width="1.3"/><circle cx="12" cy="20" r="1.2" fill="currentColor"/>`,
+  'datacenter': `<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M4 8h16M4 14h16M4 19h16" stroke-width="1.3"/><rect x="8" y="4" width="3" height="2" rx=".5" fill="currentColor"/><rect x="8" y="10" width="3" height="2" rx=".5" fill="currentColor"/><rect x="8" y="16" width="3" height="2" rx=".5" fill="currentColor"/>`,
+  'site': `<path d="M5 12l7-7 7 7M9 21V9h6v12M9 15h6"/>`,
+  'unknown': `<circle cx="12" cy="12" r="9"/><path d="M10 9a2 2 0 1 1 4 0c0 1.5-2 2-2 3v1" stroke-width="1.3"/>`,
+}
+
+function getDeviceIconSvg(type: string): string {
+  return DEVICE_ICON_SVG[type] || DEVICE_ICON_SVG['unknown']
 }
 
 const { t } = useI18n()
