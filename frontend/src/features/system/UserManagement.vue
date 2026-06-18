@@ -122,7 +122,32 @@ const showResetPwdModal = ref(false);
 const showSessionsModal = ref(false);
 const selectedUser = ref<UserItem | null>(null);
 const selectedUserId = ref<number>(0);
+const selectedUsers = ref<UserItem[]>([]);
 const resetPassword = ref('');
+function handleSelectionChange(val: UserItem[]) {
+  selectedUsers.value = val;
+}
+async function handleBatchDelete() {
+  if (selectedUsers.value.length === 0) return;
+  try {
+    await ElMessageBox.confirm(t('common.confirmDelete'), t('common.confirm'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
+      type: 'warning'
+    });
+    for (const user of selectedUsers.value) {
+      if (user.id === authStore.user?.id || user.is_superuser) continue;
+      await api.delete(`/users/${user.id}`);
+    }
+    ElMessage.success(t('system.deleteSuccess'));
+    loadUsers();
+    selectedUsers.value = [];
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(t('system.operationFailed'));
+    }
+  }
+}
 async function loadUsers() {
  if (!authStore.token)
  return;
@@ -506,6 +531,15 @@ onMounted(() => {
             <Plus class="el-icon" />
             {{ t('system.addUser') }}
           </el-button>
+          <el-button 
+            type="danger"
+            @click="handleBatchDelete"
+            v-permission="'system:write'"
+            :disabled="selectedUsers.length === 0"
+          >
+            <Delete class="el-icon" />
+            {{ t('common.delete') }}
+          </el-button>
         </div>
 
     <!-- 用户列表表格 -->
@@ -516,7 +550,9 @@ onMounted(() => {
       stripe
       style="width: 100%;"
       highlight-current-row
+      @selection-change="handleSelectionChange"
     >
+      <el-table-column type="selection" width="55" />
       <el-table-column prop="username" :label="t('system.userName')" min-width="140">
         <template #default="scope">
           <div class="user-cell">
@@ -594,17 +630,6 @@ onMounted(() => {
             >
               <Refresh class="el-icon" />
               {{ t('system.sessions') }}
-            </el-button>
-            <el-button 
-              size="small" 
-              type="danger"
-              @click="handleDeleteUser(scope.row.id)"
-              v-permission="'system:write'"
-              :disabled="scope.row.id === authStore.user?.id || scope.row.is_superuser"
-              class="action-btn"
-            >
-              <Delete class="el-icon" />
-              {{ t('common.delete') }}
             </el-button>
           </div>
         </template>
