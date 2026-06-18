@@ -392,7 +392,11 @@ function isCircuitNode(node: any): boolean {
 // 判断选中的节点是否为互联网出口
 const isInternetNode = computed(() => {
   if (!selectedNode.value) return false
-  return selectedNode.value.type === 'internet' || selectedNode.value.id.startsWith('internet_')
+  // 判断是否为专线类型节点（internet/isp/sdwan）
+  const nodeType = selectedNode.value.type
+  const nodeId = selectedNode.value.id
+  return nodeType === 'internet' || nodeType === 'isp' || nodeType === 'sdwan' ||
+         nodeId.startsWith('internet_') || nodeId.startsWith('isp_') || nodeId.startsWith('sdwan_')
 })
 
 // 获取当前选中互联网出口对应的电路ID
