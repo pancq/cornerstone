@@ -36,6 +36,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# 临时迁移脚本（使用 apply_migrations 函数替代）
+backend/scripts/add_connected_device_id.py
+
 # Node
 node_modules/
 frontend/dist/

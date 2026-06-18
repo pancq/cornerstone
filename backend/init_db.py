@@ -18,6 +18,99 @@ from src.models.alert import AlertRule  # 确保关联模型被加载
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def apply_migrations():
+    """应用数据库迁移：补全缺失的列和表"""
+    from sqlalchemy import text
+
+    with sqlalchemy.orm.Session(sync_engine) as session:
+        conn = session.connection()
+
+        # 1. 检查并添加 circuits.connected_device_id
+        result = conn.execute(text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'circuits'
+            AND column_name = 'connected_device_id';
+        """))
+        if not result.fetchone():
+            print("[migrations] Adding circuits.connected_device_id...")
+            conn.execute(text("""
+                ALTER TABLE circuits
+                ADD COLUMN connected_device_id INTEGER
+                REFERENCES devices(id)
+                ON DELETE SET NULL;
+            """))
+            conn.commit()
+
+        # 2. 检查并添加 device_links.source_circuit_id
+        result = conn.execute(text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'device_links'
+            AND column_name = 'source_circuit_id';
+        """))
+        if not result.fetchone():
+            print("[migrations] Adding device_links.source_circuit_id...")
+            conn.execute(text("""
+                ALTER TABLE device_links
+                ADD COLUMN source_circuit_id INTEGER
+                REFERENCES circuits(id)
+                ON DELETE SET NULL;
+            """))
+            conn.commit()
+
+        # 3. 检查并添加 device_links.target_circuit_id
+        result = conn.execute(text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'device_links'
+            AND column_name = 'target_circuit_id';
+        """))
+        if not result.fetchone():
+            print("[migrations] Adding device_links.target_circuit_id...")
+            conn.execute(text("""
+                ALTER TABLE device_links
+                ADD COLUMN target_circuit_id INTEGER
+                REFERENCES circuits(id)
+                ON DELETE SET NULL;
+            """))
+            conn.commit()
+
+        # 4. 检查并修改 device_links.source_device_id 为可空
+        result = conn.execute(text("""
+            SELECT is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'device_links'
+            AND column_name = 'source_device_id';
+        """))
+        row = result.fetchone()
+        if row and row[0] == "NO":
+            print("[migrations] Making device_links.source_device_id nullable...")
+            conn.execute(text("""
+                ALTER TABLE device_links
+                ALTER COLUMN source_device_id DROP NOT NULL;
+            """))
+            conn.commit()
+
+        # 5. 检查并修改 device_links.target_device_id 为可空
+        result = conn.execute(text("""
+            SELECT is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'device_links'
+            AND column_name = 'target_device_id';
+        """))
+        row = result.fetchone()
+        if row and row[0] == "NO":
+            print("[migrations] Making device_links.target_device_id nullable...")
+            conn.execute(text("""
+                ALTER TABLE device_links
+                ALTER COLUMN target_device_id DROP NOT NULL;
+            """))
+            conn.commit()
+
+        print("[migrations] All migrations applied.")
+
+
 def seed_demo_data(session: sqlalchemy.orm.Session):
     """写入脱敏演示数据，仅在空库中执行。"""
     # 检查核心实体（devices）是否已有数据，避免重复写入
@@ -129,6 +222,9 @@ def init_db():
     print("创建数据库表...")
     Base.metadata.create_all(bind=sync_engine)
     print("数据库表创建成功！")
+
+    # 应用迁移，补全缺失的列
+    apply_migrations()
 
     print("创建默认管理员用户...")
     initial_admin_password = os.environ.get("INITIAL_ADMIN_PASSWORD", "password")
