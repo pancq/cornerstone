@@ -449,6 +449,7 @@ function getRoleDisplayName(roleName: string): string {
 }
 onMounted(() => {
  loadUsers();
+ loadRoles();
 });
 </script>
 
