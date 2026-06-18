@@ -51,13 +51,19 @@ async def build_user_response(db: AsyncSession, user: User) -> UserResponse:
     result = await db.execute(stmt)
     permissions = result.scalars().all()
     
+    role_name = ""
+    role_display_name = ""
+    if role:
+        role_name = role.name
+        role_display_name = role.display_name or role.name
+    
     return UserResponse(
         id=user.id,
         username=user.username,
         email=user.email,
         display_name=user.display_name or user.username,
-        role=role.name if role else "",
-        role_display_name=role.display_name if role else "",
+        role=role_name,
+        role_display_name=role_display_name,
         permissions=[f"{p.module}:{p.action}" for p in permissions],
         is_active=user.is_active,
         is_superuser=user.is_superuser,
