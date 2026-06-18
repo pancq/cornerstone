@@ -82,7 +82,7 @@ const displayRoles = computed(() => {
   return availableRoles.map(role => ({
     ...role,
     display_name: role.display_name || role.name || `${t('system.role')} ${role.id}`
-  ));
+  }));
 });
 
 // 可配置的权限列表
