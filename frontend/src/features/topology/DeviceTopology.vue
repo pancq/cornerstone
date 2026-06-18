@@ -46,7 +46,7 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item @click="exportAsPNG">
-                <el-icon><Image /></el-icon>
+                <el-icon><PictureFilled /></el-icon>
                 {{ t('topology.exportPNG') }}
               </el-dropdown-item>
               <el-dropdown-item @click="exportAsJPG">
@@ -289,7 +289,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { Search, Refresh, Grid, ZoomIn, ZoomOut, FullScreen, Close, Download, Image, Picture, Document } from '@element-plus/icons-vue'
+import { Search, Refresh, Grid, ZoomIn, ZoomOut, FullScreen, Close, Download, PictureFilled, Picture, Document } from '@element-plus/icons-vue'
 import { getDeviceGraph, getSiteDevices, updateCircuitConnection, type DeviceNode, type DeviceEdge, type SiteDeviceOption } from '../../api/topology'
 import { getSites as getSitesApi, type SiteResponse } from '../../api/sites'
 import { useI18n } from 'vue-i18n'
