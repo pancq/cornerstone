@@ -608,7 +608,8 @@
       "viewer": "Viewer",
       "superAdminDesc": "Full system access, manage users, roles, configs and all resources",
       "engineerDesc": "Daily operations, manage devices, circuits, alerts and backups",
-      "viewerDesc": "Read-only access, no write operations allowed"
+      "viewerDesc": "Read-only access, no write operations allowed",
+      "unknownRole": "Unknown Role"
     },
     "perm": {
       "userMgmt": "User Mgmt",

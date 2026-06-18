@@ -923,7 +923,8 @@
       "viewer": "只读用户",
       "superAdminDesc": "拥有系统所有权限，可管理用户、角色、配置及所有资源",
       "engineerDesc": "可进行日常运维操作，管理设备、专线、告警及备份",
-      "viewerDesc": "仅可查看数据，不可进行任何写操作"
+      "viewerDesc": "仅可查看数据，不可进行任何写操作",
+      "unknownRole": "未知角色"
     },
     "perm": {
       "userMgmt": "用户管理",
