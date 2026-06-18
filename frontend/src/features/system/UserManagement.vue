@@ -397,12 +397,12 @@ function closeResetPwdModal() {
  hasReset.value = false;
 }
 interface SessionItem {
-  id: string;
-  ip: string;
-  user_agent: string;
-  login_at: string;
+  id: string | number;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
   expires_at: string;
-  is_current: boolean;
+  is_revoked: boolean;
 }
 const sessions = ref<SessionItem[]>([]);
 async function openSessionsModal(user: UserItem) {
@@ -814,14 +814,14 @@ onMounted(() => {
           {{ t('system.revokeAllSessions') }}
         </el-button>
         <el-table :data="sessions" border style="width: 100%; margin-top: 16px;">
-          <el-table-column :label="t('system.ipAddress')" min-width="120" />
+          <el-table-column prop="ip_address" :label="t('system.ipAddress')" min-width="120" />
           <el-table-column prop="user_agent" :label="t('system.device')" min-width="200" />
-          <el-table-column prop="login_at" :label="t('system.loginTime')" min-width="160" />
+          <el-table-column prop="created_at" :label="t('system.loginTime')" min-width="160" />
           <el-table-column prop="expires_at" :label="t('system.expireTime')" min-width="160" />
           <el-table-column :label="t('system.userStatus')" min-width="80">
             <template #default="scope">
-              <el-tag v-if="scope.row.is_current" type="success" size="small">{{ t('system.current') }}</el-tag>
-              <span v-else class="text-gray">{{ t('system.other') }}</span>
+              <el-tag v-if="scope.row.is_revoked" type="danger" size="small">{{ t('system.revoked') }}</el-tag>
+              <span v-else class="text-gray">{{ t('system.active') }}</span>
             </template>
           </el-table-column>
           <el-table-column :label="t('common.actions')" min-width="100">
@@ -829,8 +829,8 @@ onMounted(() => {
               <el-button 
                 size="small" 
                 type="danger"
-                @click="revokeSession(scope.row.id)"
-                :disabled="scope.row.is_current"
+                @click="revokeSession(String(scope.row.id))"
+                :disabled="scope.row.is_revoked"
               >
                 {{ t('system.revoke') }}
               </el-button>

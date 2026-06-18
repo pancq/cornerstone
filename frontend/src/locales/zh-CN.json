@@ -893,6 +893,8 @@
     "lastLogin": "最后登录",
     "neverLoggedIn": "从未登录",
     "current": "当前",
+    "revoked": "已吊销",
+    "active": "活跃",
     "superAdmin": "超级管理员",
     "builtinRole": "内置角色",
     "roleIdentifier": "角色标识",
