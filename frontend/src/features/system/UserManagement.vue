@@ -396,15 +396,26 @@ function closeResetPwdModal() {
  resetPassword.value = '';
  hasReset.value = false;
 }
-function openSessionsModal(user: UserItem) {
- selectedUser.value = user;
- showSessionsModal.value = true;
+interface SessionItem {
+  id: string;
+  ip: string;
+  user_agent: string;
+  login_at: string;
+  expires_at: string;
+  is_current: boolean;
 }
-const sessions = ref([
- { id: 'sess_1', ip: '192.0.2.100', user_agent: 'Chrome - Windows', login_at: '2024-01-15 10:30:25', expires_at: '2024-01-15 16:30:25', is_current: true },
- { id: 'sess_2', ip: '198.51.100.50', user_agent: 'Safari - macOS', login_at: '2024-01-14 15:45:12', expires_at: '2024-01-14 21:45:12', is_current: false },
- { id: 'sess_3', ip: '203.0.113.101', user_agent: 'Firefox - Linux', login_at: '2024-01-13 09:20:33', expires_at: '2024-01-13 15:20:33', is_current: false }
-]);
+const sessions = ref<SessionItem[]>([]);
+async function openSessionsModal(user: UserItem) {
+  selectedUser.value = user;
+  try {
+    const response = await api.get(`/users/${user.id}/sessions`);
+    sessions.value = response.data;
+  } catch (error) {
+    console.error('Load sessions failed:', error);
+    sessions.value = [];
+  }
+  showSessionsModal.value = true;
+}
 async function revokeSession(sessionId: string) {
  try {
  await ElMessageBox.confirm(t('system.confirmRevokeSession'), t('system.confirmRevoke'), {
@@ -454,7 +465,7 @@ function getRoleDisplayName(roleName: string): string {
     viewer: t('system.roles.viewer'),
     admin: t('system.roles.admin')
   };
-  return displayNames[roleName] || roleName || t('system.unknownRole');
+  return displayNames[roleName] || roleName || t('system.roles.unknownRole');
 }
 onMounted(() => {
  loadUsers();
@@ -554,37 +565,48 @@ onMounted(() => {
           <span v-else class="text-gray">{{ t('system.neverLoggedIn') }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('common.actions')" min-width="200" fixed="right">
+      <el-table-column :label="t('common.actions')" min-width="280" fixed="right">
         <template #default="scope">
-          <el-button 
-            size="small" 
-            @click="openEditModal(scope.row)"
-            v-permission="'system:write'"
-            class="action-btn"
-          >
-            <Edit class="el-icon" />
-            {{ t('common.edit') }}
-          </el-button>
-          <el-button 
-            size="small" 
-            @click="openResetPwdModal(scope.row.id)"
-            v-permission="'system:write'"
-            class="action-btn"
-          >
-            <Key class="el-icon" />
-            {{ t('system.resetPassword') }}
-          </el-button>
-          <el-button 
-            size="small" 
-            type="danger"
-            @click="handleDeleteUser(scope.row.id)"
-            v-permission="'system:write'"
-            :disabled="scope.row.id === authStore.user?.id || scope.row.is_superuser"
-            class="action-btn"
-          >
-            <Delete class="el-icon" />
-            {{ t('common.delete') }}
-          </el-button>
+          <div class="action-buttons">
+            <el-button 
+              size="small" 
+              @click="openEditModal(scope.row)"
+              v-permission="'system:write'"
+              class="action-btn"
+            >
+              <Edit class="el-icon" />
+              {{ t('common.edit') }}
+            </el-button>
+            <el-button 
+              size="small" 
+              @click="openResetPwdModal(scope.row.id)"
+              v-permission="'system:write'"
+              class="action-btn"
+            >
+              <Key class="el-icon" />
+              {{ t('system.resetPassword') }}
+            </el-button>
+            <el-button 
+              size="small" 
+              @click="openSessionsModal(scope.row)"
+              v-permission="'system:write'"
+              class="action-btn"
+            >
+              <Refresh class="el-icon" />
+              {{ t('system.sessions') }}
+            </el-button>
+            <el-button 
+              size="small" 
+              type="danger"
+              @click="handleDeleteUser(scope.row.id)"
+              v-permission="'system:write'"
+              :disabled="scope.row.id === authStore.user?.id || scope.row.is_superuser"
+              class="action-btn"
+            >
+              <Delete class="el-icon" />
+              {{ t('common.delete') }}
+            </el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -1100,6 +1122,13 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 2px;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .action-btn {
