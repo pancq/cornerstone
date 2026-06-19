@@ -79,10 +79,14 @@ const defaultRoles = computed<RoleItem[]>(() => [
 // 显示的角色（优先使用API返回的数据，否则用默认）
 const displayRoles = computed(() => {
   const availableRoles = roles.value.length > 0 ? roles.value : defaultRoles.value;
-  return availableRoles.map(role => ({
-    ...role,
-    display_name: role.display_name || role.name || `${t('system.role')} ${role.id}`
-  }));
+  return availableRoles.map(role => {
+    const displayName = role.display_name || role.name;
+    const translatedName = rolePermissions.value[role.name]?.name || displayName;
+    return {
+      ...role,
+      display_name: translatedName
+    };
+  });
 });
 
 // 可配置的权限列表
