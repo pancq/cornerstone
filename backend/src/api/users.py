@@ -489,6 +489,68 @@ async def get_roles(
     
     return role_responses
 
+@router.put("/roles/{role_id}", response_model=RoleResponse)
+async def update_role(
+    role_id: int,
+    role_update: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_superuser)
+):
+    """更新角色信息"""
+    stmt = select(Role).where(Role.id == role_id)
+    result = await db.execute(stmt)
+    role = result.scalar_one_or_none()
+    
+    if not role:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    
+    if role.is_builtin:
+        raise HTTPException(status_code=400, detail="内置角色不能修改")
+    
+    if "display_name" in role_update:
+        role.display_name = role_update["display_name"]
+    if "description" in role_update:
+        role.description = role_update["description"]
+    
+    if "permissions" in role_update:
+        await db.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
+        
+        for perm_str in role_update["permissions"]:
+            if ":" in perm_str:
+                module, action = perm_str.split(":")
+                perm_stmt = select(Permission).where(
+                    Permission.module == module,
+                    Permission.action == action
+                )
+                perm_result = await db.execute(perm_stmt)
+                permission = perm_result.scalar_one_or_none()
+                
+                if permission:
+                    await db.execute(insert(RolePermission).values(
+                        role_id=role_id,
+                        permission_id=permission.id
+                    ))
+    
+    await db.commit()
+    await db.refresh(role)
+    
+    perm_stmt = select(Permission).join(
+        RolePermission, RolePermission.permission_id == Permission.id
+    ).where(RolePermission.role_id == role.id)
+    perm_result = await db.execute(perm_stmt)
+    permissions = perm_result.scalars().all()
+    
+    return {
+        "id": role.id,
+        "name": role.name,
+        "display_name": role.display_name or role.name,
+        "description": role.description,
+        "is_builtin": role.is_builtin,
+        "permissions": [f"{p.module}:{p.action}" for p in permissions],
+        "created_at": role.created_at,
+        "updated_at": role.updated_at
+    }
+
 @router.get("/permissions/", response_model=list[PermissionResponse])
 async def get_permissions(
     db: AsyncSession = Depends(get_db),
