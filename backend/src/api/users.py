@@ -504,15 +504,12 @@ async def update_role(
     if not role:
         raise HTTPException(status_code=404, detail="角色不存在")
     
-    if role.is_builtin:
-        raise HTTPException(status_code=400, detail="内置角色不能修改")
-    
     if "display_name" in role_update:
         role.display_name = role_update["display_name"]
     if "description" in role_update:
         role.description = role_update["description"]
     
-    if "permissions" in role_update:
+    if "permissions" in role_update and not role.is_builtin:
         await db.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
         
         for perm_str in role_update["permissions"]:
