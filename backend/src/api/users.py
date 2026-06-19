@@ -479,7 +479,7 @@ async def get_roles(
         role_responses.append({
             "id": role.id,
             "name": role.name,
-            "display_name": role.display_name,
+            "display_name": role.display_name or role.name,
             "description": role.description,
             "is_builtin": role.is_builtin,
             "permissions": [f"{p.module}:{p.action}" for p in permissions],
