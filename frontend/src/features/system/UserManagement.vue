@@ -643,41 +643,6 @@ onMounted(() => {
     <el-empty v-if="!loading && users.length === 0" :description="t('system.noUsers')" />
     </el-card>
 
-    <!-- 权限边界说明 -->
-    <el-card class="permission-matrix-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <div class="card-title">
-            <InfoFilled class="el-icon" />
-            {{ t('system.permissionBoundary') }}
-          </div>
-        </div>
-      </template>
-      <div class="permission-matrix">
-        <div 
-          v-for="(config, roleKey) in rolePermissions" 
-          :key="roleKey" 
-          class="role-section"
-        >
-          <div class="role-header">
-            <el-tag :type="config.color" size="medium">{{ config.name }}</el-tag>
-            <span class="role-desc">{{ config.description }}</span>
-          </div>
-          <div class="permission-tags">
-            <el-tag 
-              v-for="(perm, idx) in config.permissions" 
-              :key="idx" 
-              size="small" 
-              effect="light"
-              :type="config.color"
-            >
-              {{ perm }}
-            </el-tag>
-          </div>
-        </div>
-      </div>
-    </el-card>
-
     <!-- 新增用户弹窗 -->
     <el-dialog 
       :title="t('system.addUser')" 
@@ -1013,85 +978,6 @@ onMounted(() => {
 .tip-desc {
   font-size: 13px;
   color: #8c8c8c;
-}
-
-/* 权限矩阵卡片 */
-.permission-matrix-card {
-  margin-bottom: 16px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #262626;
-}
-
-.card-title .el-icon {
-  color: #1890ff;
-}
-
-.permission-matrix {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 1200px) {
-  .permission-matrix {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .permission-matrix {
-    grid-template-columns: 1fr;
-  }
-}
-
-.role-section {
-  padding: 16px;
-  background: #fafafa;
-  border-radius: 8px;
-  border-left: 4px solid #1890ff;
-}
-
-.role-section:nth-child(1) {
-  border-left-color: #f5222d;
-}
-
-.role-section:nth-child(2) {
-  border-left-color: #1890ff;
-}
-
-.role-section:nth-child(3) {
-  border-left-color: #13c2c2;
-}
-
-.role-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.role-desc {
-  font-size: 13px;
-  color: #8c8c8c;
-}
-
-.permission-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .toolbar {
