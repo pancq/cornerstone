@@ -23,6 +23,12 @@ const appStore = useAppStore()
 const roles = ref<RoleItem[]>([])
 const loading = ref(false)
 
+const defaultRoles = ref([
+  { id: 1, name: 'super_admin', display_name: t('system.roles.superAdmin'), description: t('system.roles.superAdminDesc'), is_builtin: true, permissions: ['all'] },
+  { id: 2, name: 'engineer', display_name: t('system.roles.engineer'), description: t('system.roles.engineerDesc'), is_builtin: true, permissions: ['sites:read', 'sites:write', 'sites:delete', 'sites:export', 'circuits:read', 'circuits:write', 'circuits:delete', 'circuits:export', 'ipam:read', 'ipam:write', 'ipam:delete', 'ipam:export', 'ipam:scan_exec', 'devices:read', 'devices:write', 'devices:delete', 'devices:export', 'backups:read', 'backups:write', 'backups:delete', 'backups:export', 'backups:backup_exec', 'topology:read', 'topology:write', 'topology:delete', 'alerts:read', 'logs:read'] },
+  { id: 3, name: 'viewer', display_name: t('system.roles.viewer'), description: t('system.roles.viewerDesc'), is_builtin: true, permissions: ['sites:read', 'circuits:read', 'ipam:read', 'devices:read', 'backups:read', 'topology:read', 'alerts:read', 'logs:read'] }
+])
+
 const rolePermissions = computed(() => ({
   super_admin: {
     name: t('system.roles.superAdmin'),
@@ -44,21 +50,40 @@ const rolePermissions = computed(() => ({
   }
 }))
 
-const defaultRoles = computed<RoleItem[]>(() => [
-  { id: 1, name: 'super_admin', display_name: t('system.roles.superAdmin'), description: t('system.roles.superAdminDesc'), is_builtin: true, permissions: ['system:read', 'system:write', 'users:read', 'users:write', 'alerts:read', 'alerts:write', 'ai:config'] },
-  { id: 2, name: 'engineer', display_name: t('system.roles.engineer'), description: t('system.roles.engineerDesc'), is_builtin: true, permissions: ['system:read', 'users:read', 'alerts:read', 'alerts:write', 'ai:use'] },
-  { id: 3, name: 'viewer', display_name: t('system.roles.viewer'), description: t('system.roles.viewerDesc'), is_builtin: true, permissions: ['system:read', 'users:read', 'alerts:read'] }
-])
-
 const availablePermissions = [
+  { key: 'sites:read', name: t('system.perm.sitesRead'), description: t('system.perm.sitesReadDesc') },
+  { key: 'sites:write', name: t('system.perm.sitesWrite'), description: t('system.perm.sitesWriteDesc') },
+  { key: 'sites:delete', name: t('system.perm.sitesDelete'), description: t('system.perm.sitesDeleteDesc') },
+  { key: 'sites:export', name: t('system.perm.sitesExport'), description: t('system.perm.sitesExportDesc') },
+  { key: 'circuits:read', name: t('system.perm.circuitsRead'), description: t('system.perm.circuitsReadDesc') },
+  { key: 'circuits:write', name: t('system.perm.circuitsWrite'), description: t('system.perm.circuitsWriteDesc') },
+  { key: 'circuits:delete', name: t('system.perm.circuitsDelete'), description: t('system.perm.circuitsDeleteDesc') },
+  { key: 'circuits:export', name: t('system.perm.circuitsExport'), description: t('system.perm.circuitsExportDesc') },
+  { key: 'ipam:read', name: t('system.perm.ipamRead'), description: t('system.perm.ipamReadDesc') },
+  { key: 'ipam:write', name: t('system.perm.ipamWrite'), description: t('system.perm.ipamWriteDesc') },
+  { key: 'ipam:delete', name: t('system.perm.ipamDelete'), description: t('system.perm.ipamDeleteDesc') },
+  { key: 'ipam:export', name: t('system.perm.ipamExport'), description: t('system.perm.ipamExportDesc') },
+  { key: 'ipam:scan_exec', name: t('system.perm.ipamScan'), description: t('system.perm.ipamScanDesc') },
+  { key: 'devices:read', name: t('system.perm.devicesRead'), description: t('system.perm.devicesReadDesc') },
+  { key: 'devices:write', name: t('system.perm.devicesWrite'), description: t('system.perm.devicesWriteDesc') },
+  { key: 'devices:delete', name: t('system.perm.devicesDelete'), description: t('system.perm.devicesDeleteDesc') },
+  { key: 'devices:export', name: t('system.perm.devicesExport'), description: t('system.perm.devicesExportDesc') },
+  { key: 'backups:read', name: t('system.perm.backupsRead'), description: t('system.perm.backupsReadDesc') },
+  { key: 'backups:write', name: t('system.perm.backupsWrite'), description: t('system.perm.backupsWriteDesc') },
+  { key: 'backups:delete', name: t('system.perm.backupsDelete'), description: t('system.perm.backupsDeleteDesc') },
+  { key: 'backups:export', name: t('system.perm.backupsExport'), description: t('system.perm.backupsExportDesc') },
+  { key: 'backups:backup_exec', name: t('system.perm.backupsExec'), description: t('system.perm.backupsExecDesc') },
+  { key: 'topology:read', name: t('system.perm.topologyRead'), description: t('system.perm.topologyReadDesc') },
+  { key: 'topology:write', name: t('system.perm.topologyWrite'), description: t('system.perm.topologyWriteDesc') },
+  { key: 'topology:delete', name: t('system.perm.topologyDelete'), description: t('system.perm.topologyDeleteDesc') },
+  { key: 'alerts:read', name: t('system.perm.alertView'), description: t('system.perm.alertViewDesc') },
   { key: 'system:read', name: t('system.perm.sysView'), description: t('system.perm.sysViewDesc') },
   { key: 'system:write', name: t('system.perm.sysMgmt'), description: t('system.perm.sysMgmtDesc') },
+  { key: 'system:delete', name: t('system.perm.systemDelete'), description: t('system.perm.systemDeleteDesc') },
+  { key: 'logs:read', name: t('system.perm.logsRead'), description: t('system.perm.logsReadDesc') },
   { key: 'users:read', name: t('system.perm.userView'), description: t('system.perm.userViewDesc') },
   { key: 'users:write', name: t('system.perm.userMgmt'), description: t('system.perm.userMgmtDesc') },
-  { key: 'alerts:read', name: t('system.perm.alertView'), description: t('system.perm.alertViewDesc') },
-  { key: 'alerts:write', name: t('system.perm.alertMgmt'), description: t('system.perm.alertMgmtDesc') },
-  { key: 'ai:use', name: t('system.perm.aiUse'), description: t('system.perm.aiUseDesc') },
-  { key: 'ai:config', name: t('system.perm.aiConfig'), description: t('system.perm.aiConfigDesc') }
+  { key: 'users:delete', name: t('system.perm.usersDelete'), description: t('system.perm.usersDeleteDesc') }
 ]
 
 const addRoleForm = reactive({

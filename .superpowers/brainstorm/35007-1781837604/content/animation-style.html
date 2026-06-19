@@ -1,0 +1,65 @@
+<h2>登录页幽灵角色动画设计方案</h2>
+<p class="subtitle">4个幽灵角色的交互式登录页动画系统</p>
+
+<div class="info-box">
+  <h3>角色预览</h3>
+  <div style="display: flex; gap: 40px; justify-content: center; margin-top: 20px;">
+    <div style="text-align: center;">
+      <div style="width: 60px; height: 60px; background: #FF6B35; border-radius: 50%; margin: 0 auto;"></div>
+      <p style="margin-top: 8px; font-size: 12px;">橙色幽灵</p>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 60px; height: 60px; background: #9B59B6; border-radius: 50%; margin: 0 auto;"></div>
+      <p style="margin-top: 8px; font-size: 12px;">紫色幽灵</p>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 60px; height: 60px; background: #2C3E50; border-radius: 50%; margin: 0 auto;"></div>
+      <p style="margin-top: 8px; font-size: 12px;">黑色幽灵</p>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 60px; height: 60px; background: #F39C12; border-radius: 50%; margin: 0 auto;"></div>
+      <p style="margin-top: 8px; font-size: 12px;">黄色幽灵</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top: 30px;">选择动画风格</h3>
+
+<div class="options">
+  <div class="option" data-choice="playful" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>活泼童趣型</h3>
+      <p>弹性缓动(ease-out-back)，轻微弹跳回弹，呼吸浮动±3px，60fps流畅度</p>
+      <p style="color: #10b981; font-size: 12px; margin-top: 8px;">✓ 推荐 - 符合需求文档描述</p>
+    </div>
+  </div>
+  
+  <div class="option" data-choice="subtle" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>简洁克制型</h3>
+      <p>线性过渡，幅度较小，响应式微动效，保持专业感</p>
+      <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">适合更严肃的企业风格</p>
+    </div>
+  </div>
+  
+  <div class="option" data-choice="dramatic" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>戏剧夸张型</h3>
+      <p>大幅度的弹跳和旋转，更夸张的表情变化，强烈的视觉反馈</p>
+      <p style="color: #6b7280; font-size: 12px; margin-top: 8px;">更有趣但可能影响专业性</p>
+    </div>
+  </div>
+</div>
+
+<style>
+.info-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+}
+</style>

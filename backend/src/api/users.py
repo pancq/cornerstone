@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 
 from ..database import get_db
 from ..models import User, Role, Permission, RolePermission, UserSession, AuditLog
-from ..schemas import UserCreate, UserUpdate, UserResponse, ResetPasswordResponse, UserSessionResponse, RoleResponse, PermissionResponse
+from ..schemas import UserCreate, UserUpdate, UserResponse, ResetPasswordResponse, UserSessionResponse, RoleResponse, RoleCreate, PermissionResponse
 from ..utils.security import get_password_hash, validate_password
 from .dependencies import get_current_active_user, get_current_superuser
 
@@ -488,6 +488,63 @@ async def get_roles(
         })
     
     return role_responses
+
+@router.post("/roles/", response_model=RoleResponse)
+async def create_role(
+    role_create: RoleCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_superuser)
+):
+    """创建角色"""
+    # 检查角色名是否已存在
+    stmt = select(Role).where(Role.name == role_create.name)
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=400, detail="角色标识已存在")
+    
+    role = Role(
+        name=role_create.name,
+        display_name=role_create.display_name,
+        description=role_create.description,
+        is_builtin=role_create.is_builtin
+    )
+    db.add(role)
+    await db.flush()
+    
+    # 分配权限
+    for perm_str in role_create.permissions:
+        module, action = perm_str.split(":")
+        stmt = select(Permission).where(
+            Permission.module == module,
+            Permission.action == action
+        )
+        result = await db.execute(stmt)
+        permission = result.scalars().first()
+        if permission:
+            rp = RolePermission(role_id=role.id, permission_id=permission.id)
+            db.add(rp)
+    
+    await db.commit()
+    await db.refresh(role)
+    
+    # 获取角色权限列表
+    perm_stmt = select(Permission).join(
+        RolePermission, RolePermission.permission_id == Permission.id
+    ).where(RolePermission.role_id == role.id)
+    perm_result = await db.execute(perm_stmt)
+    permissions = perm_result.scalars().all()
+    
+    return {
+        "id": role.id,
+        "name": role.name,
+        "display_name": role.display_name or role.name,
+        "description": role.description,
+        "is_builtin": role.is_builtin,
+        "permissions": [f"{p.module}:{p.action}" for p in permissions],
+        "created_at": role.created_at,
+        "updated_at": role.updated_at
+    }
 
 @router.put("/roles/{role_id}", response_model=RoleResponse)
 async def update_role(

@@ -1,10 +1,31 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/store/auth'
 
 import { getDashboardStats, getPrefixesUsage, getRecentLogs, getDeviceTypes, getCircuitTypes, type DashboardStats, type PrefixUsage, type AuditLogItem, type DeviceTypeItem, type CircuitTypeItem } from '@/api/dashboard'
 
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
+
+// 用户权限判断
+const isAdmin = computed(() => authStore.user?.role === 'super_admin')
+const isEngineer = computed(() => authStore.user?.role === 'engineer')
+const isViewer = computed(() => authStore.user?.role === 'viewer')
+
+// 根据角色确定可见的概览卡片
+const visibleCards = computed(() => {
+  const cards = []
+  // 所有角色都能看到站点统计
+  cards.push('sites', 'devices', 'bandwidth')
+  // 工程师和管理员能看到 IP 统计
+  if (isAdmin.value || isEngineer.value) cards.push('ipam')
+  // 工程师和管理员能看到备份统计
+  if (isAdmin.value || isEngineer.value) cards.push('backups')
+  // 管理员能看到系统健康状态
+  if (isAdmin.value) cards.push('health')
+  return cards
+})
 
 // 真实数据状态
 const dashboardStats = ref<DashboardStats | null>(null)
@@ -147,32 +168,38 @@ onMounted(() => {
 <template>
   <div class="dashboard-page">
     <div class="overview-cards" v-loading="loading">
-      <div class="overview-card">
+      <!-- 站点统计 - 所有角色可见 -->
+      <div v-if="visibleCards.includes('sites')" class="overview-card">
         <div class="overview-card-label">{{ t('sites.title') }}</div>
         <div class="overview-card-value">{{ dashboardStats?.sites.total || 0 }}</div>
         <div class="overview-card-trend">{{ t('topology.deviceCount') }}</div>
       </div>
-      <div class="overview-card overview-card-purple">
+      <!-- 设备统计 - 所有角色可见 -->
+      <div v-if="visibleCards.includes('devices')" class="overview-card overview-card-purple">
         <div class="overview-card-label">{{ t('devices.title') }}</div>
         <div class="overview-card-value">{{ dashboardStats?.devices.total || 0 }}</div>
         <div class="overview-card-trend">{{ dashboardStats?.devices.online || 0 }} {{ t('dashboard.onlineDevices') }}</div>
       </div>
-      <div class="overview-card overview-card-success">
+      <!-- 带宽统计 - 所有角色可见 -->
+      <div v-if="visibleCards.includes('bandwidth')" class="overview-card overview-card-success">
         <div class="overview-card-label">{{ t('circuits.bandwidth') }}</div>
         <div class="overview-card-value">{{ formatBandwidth(dashboardStats?.circuits.bandwidth || 0) }}</div>
         <div class="overview-card-trend">{{ dashboardStats?.circuits.normal || 0 }} {{ t('monitor.normal') }}</div>
       </div>
-      <div class="overview-card overview-card-blue">
+      <!-- IPAM统计 - 工程师和管理员可见 -->
+      <div v-if="visibleCards.includes('ipam')" class="overview-card overview-card-blue">
         <div class="overview-card-label">{{ t('ipam.usage') }}</div>
         <div class="overview-card-value">{{ dashboardStats?.ip.percent || 0 }}%</div>
         <div class="overview-card-trend">{{ dashboardStats?.ip.used || 0 }}/{{ dashboardStats?.ip.total || 0 }} {{ t('ipam.used') }}</div>
       </div>
-      <div class="overview-card overview-card-warning">
+      <!-- 备份统计 - 工程师和管理员可见 -->
+      <div v-if="visibleCards.includes('backups')" class="overview-card overview-card-warning">
         <div class="overview-card-label">{{ t('backups.title') }}</div>
         <div class="overview-card-value">{{ dashboardStats?.backups.today_successful || 0 }}/{{ dashboardStats?.backups.today_failed || 0 }}</div>
         <div class="overview-card-trend">{{ t('backups.backupSuccess') }} / {{ t('backups.backupFailed') }}</div>
       </div>
-      <div class="overview-card" :style="{ borderLeftColor: getHealthColor(dashboardStats?.health.score || 0) }">
+      <!-- 系统健康 - 仅管理员可见 -->
+      <div v-if="visibleCards.includes('health')" class="overview-card" :style="{ borderLeftColor: getHealthColor(dashboardStats?.health.score || 0) }">
         <div class="overview-card-label">{{ t('dashboard.systemStatus') }}</div>
         <div class="overview-card-value">{{ dashboardStats?.health.score || 0 }}</div>
         <div class="overview-card-trend" :style="{ color: getHealthColor(dashboardStats?.health.score || 0) }">
@@ -181,7 +208,8 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="circuit-types-card">
+    <!-- 专线类型分布 - 工程师和管理员可见 -->
+    <div v-if="isAdmin || isEngineer" class="circuit-types-card">
       <div class="card-title">
         <el-icon><Connection /></el-icon>
         {{ t('circuits.type') }}{{ t('common.distribution') }}
@@ -208,7 +236,8 @@ onMounted(() => {
     </div>
 
     <div class="grid-layout">
-      <el-card class="table-card" shadow="never">
+      <!-- IP子网使用情况 - 工程师和管理员可见 -->
+      <el-card v-if="isAdmin || isEngineer" class="table-card" shadow="never">
         <template #header>
           <div class="card-title">
             <el-icon><Monitor /></el-icon>
@@ -255,7 +284,8 @@ onMounted(() => {
         </div>
       </el-card>
 
-      <el-card class="table-card" shadow="never">
+      <!-- 操作日志 - 工程师和管理员可见 -->
+      <el-card v-if="isAdmin || isEngineer" class="table-card" shadow="never">
         <template #header>
           <div class="card-title">
             <el-icon><Clock /></el-icon>
@@ -301,7 +331,7 @@ onMounted(() => {
 
 .overview-cards {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 
@@ -344,7 +374,7 @@ onMounted(() => {
 
 .grid-layout {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
 }
 

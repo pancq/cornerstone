@@ -13,7 +13,7 @@ from .backup import BackupCreate, BackupResponse
 from .audit_log import AuditLogResponse
 from .vlan import VlanGroupCreate, VlanGroupUpdate, VlanGroupResponse, VlanCreate, VlanUpdate, VlanResponse
 from .device_link import DeviceLinkCreate, DeviceLinkUpdate, DeviceLinkResponse
-from .permission import PermissionResponse, RoleResponse, UserRoleUpdate
+from .permission import PermissionResponse, RoleResponse, RoleCreate, UserRoleUpdate
 
 __all__ = [
     'UserCreate', 'UserUpdate', 'UserResponse', 'Token', 'TokenData',
@@ -30,5 +30,5 @@ __all__ = [
     'VlanGroupCreate', 'VlanGroupUpdate', 'VlanGroupResponse',
     'VlanCreate', 'VlanUpdate', 'VlanResponse',
     'DeviceLinkCreate', 'DeviceLinkUpdate', 'DeviceLinkResponse',
-    'PermissionResponse', 'RoleResponse', 'UserRoleUpdate'
+    'PermissionResponse', 'RoleResponse', 'RoleCreate', 'UserRoleUpdate'
 ]

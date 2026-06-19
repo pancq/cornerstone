@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../../store/auth'
 import { useRouter } from 'vue-router'
@@ -27,9 +27,207 @@ const loginMode = ref<'local' | 'ldap'>('local')
 
 const isTypingUsername = ref(false)
 const isTypingPassword = ref(false)
-const showHideFace = computed(() => isTypingPassword.value && !showPassword.value)
-const showPeek = computed(() => isTypingUsername.value || isTypingPassword.value)
+const showHideFace = computed(() => false)
+// 只有用户名输入时才 peeking（看向输入框），密码时不 peeking
+const showPeek = computed(() => isTypingUsername.value)
 const companyLogo = ref<string>('')
+
+// ============================================
+// 幽灵角色动画系统
+// ============================================
+
+// 鼠标位置跟踪
+const mouseX = ref(0)
+const mouseY = ref(0)
+const illustrationRect = ref<DOMRect | null>(null)
+const illustrationRef = ref<HTMLElement | null>(null)
+
+// 动画模式状态
+type AnimationMode = 'default' | 'username' | 'password' | 'captcha' | 'login-click' | 'login-loading' | 'login-success' | 'login-fail'
+const animationMode = ref<AnimationMode>('default')
+
+// 入场动画完成标记
+const hasEntered = ref(false)
+
+// 计算瞳孔偏移（基于鼠标相对于插画区域的位置）
+const pupilOffset = computed(() => {
+  if (!illustrationRect.value) return { x: 0, y: 0 }
+  
+  const rect = illustrationRect.value
+  const centerX = rect.left + rect.width / 2
+  const centerY = rect.top + rect.height / 2
+  
+  const deltaX = mouseX.value - centerX
+  const deltaY = mouseY.value - centerY
+  
+  const maxOffset = 6
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+  const maxDistance = Math.max(rect.width, rect.height) / 2
+  
+  const ratio = Math.min(1, distance / maxDistance)
+  const easeRatio = ratio * (2 - ratio)
+  
+  const offsetX = (deltaX / Math.max(distance, 1)) * maxOffset * easeRatio
+  const offsetY = (deltaY / Math.max(distance, 1)) * maxOffset * easeRatio
+  
+  return { x: offsetX, y: offsetY }
+})
+
+// 根据动画模式计算每个角色的状态
+const characterStates = computed(() => {
+  const basePupil = pupilOffset.value
+  const mode = animationMode.value
+  
+  // 4个角色的配置: [紫色, 黑色, 黄色, 橙色]
+  const characters = [
+    { id: 1, color: 'purple' },
+    { id: 2, color: 'black' },
+    { id: 3, color: 'yellow' },
+    { id: 4, color: 'orange' }
+  ]
+  
+  return characters.map((char) => {
+    let pupilX = basePupil.x
+    let pupilY = basePupil.y
+    let headRotate = (basePupil.x / 6) * 3
+    let bodyRotate = 0
+    let mouth = 'normal'
+    let eyeState = 'open'
+    let isNodding = false
+    let isBouncing = false
+    
+    switch (mode) {
+      case 'username':
+        // 看向输入框（右侧）
+        pupilX = 5
+        pupilY = 2
+        headRotate = 8
+        bodyRotate = 5
+        // 橙色、紫色、黄色张嘴吃惊，黑色微张
+        if (char.color === 'orange' || char.color === 'purple' || char.color === 'yellow') {
+          mouth = 'surprised'
+        } else {
+          mouth = 'open'
+        }
+        break
+        
+      case 'password':
+        // 所有幽灵都向左看，回避输入密码
+        pupilX = -6
+        pupilY = 1
+        headRotate = -6
+        bodyRotate = -3
+        mouth = 'normal'
+        break
+        
+      case 'captcha':
+        pupilX = 4
+        pupilY = 2
+        headRotate = 5
+        bodyRotate = 3
+        mouth = 'normal'
+        // 黄色眯眼
+        if (char.color === 'yellow') {
+          eyeState = 'squinting'
+        }
+        break
+        
+      case 'login-click':
+        pupilX = 3
+        pupilY = 4
+        headRotate = 3
+        bodyRotate = 3
+        mouth = 'smile'
+        break
+        
+      case 'login-loading':
+        pupilX = 3
+        pupilY = 4
+        headRotate = 3
+        bodyRotate = 3
+        mouth = 'smile'
+        break
+        
+      case 'login-success':
+        mouth = 'surprised'
+        isBouncing = true
+        break
+        
+      case 'login-fail':
+        mouth = 'sad'
+        break
+        
+      default:
+        // default模式：跟随鼠标
+        pupilX = basePupil.x
+        pupilY = basePupil.y
+        headRotate = (basePupil.x / 6) * 3
+    }
+    
+    return {
+      ...char,
+      pupilX,
+      pupilY,
+      headRotate,
+      bodyRotate,
+      mouth,
+      eyeState,
+      isNodding,
+      isBouncing
+    }
+  })
+})
+
+// 处理鼠标移动
+const handleMouseMove = (e: MouseEvent) => {
+  mouseX.value = e.clientX
+  mouseY.value = e.clientY
+}
+
+// 更新插画区域尺寸
+const updateIllustrationRect = () => {
+  if (illustrationRef.value) {
+    illustrationRect.value = illustrationRef.value.getBoundingClientRect()
+  }
+}
+
+// 设置动画模式
+const setAnimationMode = (mode: AnimationMode) => {
+  animationMode.value = mode
+  
+  if (mode === 'login-success') {
+    setTimeout(() => {
+      animationMode.value = 'default'
+    }, 1000)
+  } else if (mode === 'login-fail') {
+    setTimeout(() => {
+      animationMode.value = 'default'
+    }, 800)
+  }
+}
+
+// 触发点头动画
+const triggerNod = () => {
+  // 通过临时添加类来触发CSS动画
+  const container = document.querySelector('.characters-container')
+  if (container) {
+    container.classList.add('nodding')
+    setTimeout(() => {
+      container.classList.remove('nodding')
+    }, 300)
+  }
+}
+
+// 触发黄色幽灵蹦跳
+const triggerYellowBounce = () => {
+  const yellowChar = document.querySelector('.character-3')
+  if (yellowChar) {
+    yellowChar.classList.add('yellow-bounce')
+    setTimeout(() => {
+      yellowChar.classList.remove('yellow-bounce')
+    }, 400)
+  }
+}
 
 const loadLogo = async () => {
   try {
@@ -83,6 +281,7 @@ async function handleLogin() {
 
     loading.value = true
     error.value = ''
+    setAnimationMode('login-loading')
 
     try {
         const success = await authStore.loginWithCaptcha(
@@ -92,12 +291,17 @@ async function handleLogin() {
             captchaCode.value
         )
         if (success) {
-            router.push('/')
+            setAnimationMode('login-success')
+            setTimeout(() => {
+                router.push('/')
+            }, 500)
         } else {
+            setAnimationMode('login-fail')
             error.value = t('login.invalidCredentials')
             refreshCaptcha()
         }
     } catch (err: any) {
+        setAnimationMode('login-fail')
         if (err.response?.data?.detail === '验证码错误' || 
             err.response?.data?.detail === 'Captcha error') {
             error.value = t('login.captchaError')
@@ -136,6 +340,7 @@ async function handleLDAPLogin() {
 
     loading.value = true
     error.value = ''
+    setAnimationMode('login-loading')
 
     try {
         const response = await fetch('/api/v1/auth/ldap/login', {
@@ -154,11 +359,16 @@ async function handleLDAPLogin() {
         if (response.ok) {
             localStorage.setItem('access_token', data.access_token)
             localStorage.setItem('refresh_token', data.refresh_token)
-            router.push('/')
+            setAnimationMode('login-success')
+            setTimeout(() => {
+                router.push('/')
+            }, 500)
         } else {
+            setAnimationMode('login-fail')
             error.value = data.detail || t('login.loginFailed')
         }
     } catch (err: any) {
+        setAnimationMode('login-fail')
         error.value = t('login.loginFailed')
     } finally {
         loading.value = false
@@ -184,6 +394,16 @@ onMounted(async () => {
     await fetchLDAPConfig()
     await loadLogo()
     
+    // 初始化眼睛跟踪
+    updateIllustrationRect()
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('resize', updateIllustrationRect)
+    
+    // 入场动画完成后标记
+    setTimeout(() => {
+        hasEntered.value = true
+    }, 2000)
+    
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
     if (code) {
@@ -204,6 +424,11 @@ onMounted(async () => {
         }
     }
 })
+
+onUnmounted(() => {
+    window.removeEventListener('mousemove', handleMouseMove)
+    window.removeEventListener('resize', updateIllustrationRect)
+})
 </script>
 
 <template>
@@ -218,7 +443,7 @@ onMounted(async () => {
         </div>
 
         <!-- 左侧动态插画区域 -->
-        <div class="login-illustration">
+        <div class="login-illustration" ref="illustrationRef">
             <div class="illustration-content">
                 <div class="logo-area">
                     <div v-if="companyLogo" class="logo-icon">
@@ -240,16 +465,16 @@ onMounted(async () => {
                 </div>
                 
                 <!-- 动态角色 -->
-                <div class="characters-container" :class="{ 'peeking': showPeek }">
-                    <div class="character character-4" :class="{ 'hide-face': showHideFace }">
-                        <div class="character-body"></div>
-                        <div class="character-face">
+                <div class="characters-container" :class="{ 'peeking': showPeek, 'entered': hasEntered }">
+                    <div class="character character-4" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[3]?.mouth === 'open', 'mouth-surprised': characterStates[3]?.mouth === 'surprised', 'mouth-smile': characterStates[3]?.mouth === 'smile', 'mouth-sad': characterStates[3]?.mouth === 'sad', 'eye-squinting': characterStates[3]?.eyeState === 'squinting', 'success-bounce': characterStates[3]?.isBouncing }">
+                        <div class="character-body" :style="{ transform: `rotate(${characterStates[3]?.bodyRotate || 0}deg)` }"></div>
+                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[3]?.headRotate || 0}deg)` }">
                             <div class="eyes">
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[3]?.pupilX || 0}px, ${characterStates[3]?.pupilY || 0}px)` }"></div>
                                 </div>
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[3]?.pupilX || 0}px, ${characterStates[3]?.pupilY || 0}px)` }"></div>
                                 </div>
                             </div>
                             <div class="mouth" :class="{ 'smile': showPeek }"></div>
@@ -261,15 +486,15 @@ onMounted(async () => {
                         <div class="character-shadow"></div>
                     </div>
                     
-                    <div class="character character-1" :class="{ 'hide-face': showHideFace }">
-                        <div class="character-body"></div>
-                        <div class="character-face">
+                    <div class="character character-1" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[0]?.mouth === 'open', 'mouth-surprised': characterStates[0]?.mouth === 'surprised', 'mouth-smile': characterStates[0]?.mouth === 'smile', 'mouth-sad': characterStates[0]?.mouth === 'sad', 'eye-squinting': characterStates[0]?.eyeState === 'squinting', 'success-bounce': characterStates[0]?.isBouncing }">
+                        <div class="character-body" :style="{ transform: `rotate(${characterStates[0]?.bodyRotate || 0}deg)` }"></div>
+                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[0]?.headRotate || 0}deg)` }">
                             <div class="eyes">
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[0]?.pupilX || 0}px, ${characterStates[0]?.pupilY || 0}px)` }"></div>
                                 </div>
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[0]?.pupilX || 0}px, ${characterStates[0]?.pupilY || 0}px)` }"></div>
                                 </div>
                             </div>
                             <div class="mouth" :class="{ 'smile': showPeek }"></div>
@@ -281,15 +506,15 @@ onMounted(async () => {
                         <div class="character-shadow"></div>
                     </div>
                     
-                    <div class="character character-2" :class="{ 'hide-face': showHideFace }">
-                        <div class="character-body"></div>
-                        <div class="character-face">
+                    <div class="character character-2" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[1]?.mouth === 'open', 'mouth-surprised': characterStates[1]?.mouth === 'surprised', 'mouth-smile': characterStates[1]?.mouth === 'smile', 'mouth-sad': characterStates[1]?.mouth === 'sad', 'eye-squinting': characterStates[1]?.eyeState === 'squinting', 'success-bounce': characterStates[1]?.isBouncing }">
+                        <div class="character-body" :style="{ transform: `rotate(${characterStates[1]?.bodyRotate || 0}deg)` }"></div>
+                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[1]?.headRotate || 0}deg)` }">
                             <div class="eyes">
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[1]?.pupilX || 0}px, ${characterStates[1]?.pupilY || 0}px)` }"></div>
                                 </div>
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[1]?.pupilX || 0}px, ${characterStates[1]?.pupilY || 0}px)` }"></div>
                                 </div>
                             </div>
                             <div class="mouth" :class="{ 'smile': showPeek }"></div>
@@ -301,15 +526,15 @@ onMounted(async () => {
                         <div class="character-shadow"></div>
                     </div>
                     
-                    <div class="character character-3" :class="{ 'hide-face': showHideFace }">
-                        <div class="character-body"></div>
-                        <div class="character-face">
+                    <div class="character character-3" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[2]?.mouth === 'open', 'mouth-surprised': characterStates[2]?.mouth === 'surprised', 'mouth-smile': characterStates[2]?.mouth === 'smile', 'mouth-sad': characterStates[2]?.mouth === 'sad', 'eye-squinting': characterStates[2]?.eyeState === 'squinting', 'success-bounce': characterStates[2]?.isBouncing }">
+                        <div class="character-body" :style="{ transform: `rotate(${characterStates[2]?.bodyRotate || 0}deg)` }"></div>
+                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[2]?.headRotate || 0}deg)` }">
                             <div class="eyes">
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[2]?.pupilX || 0}px, ${characterStates[2]?.pupilY || 0}px)` }"></div>
                                 </div>
                                 <div class="eye">
-                                    <div class="pupil"></div>
+                                    <div class="pupil" :style="{ transform: `translate(${characterStates[2]?.pupilX || 0}px, ${characterStates[2]?.pupilY || 0}px)` }"></div>
                                 </div>
                             </div>
                             <div class="mouth" :class="{ 'smile': showPeek }"></div>
@@ -397,8 +622,9 @@ onMounted(async () => {
                                 type="text" 
                                 :placeholder="t('login.username')"
                                 class="form-input"
-                                @focus="isTypingUsername = true"
-                                @blur="isTypingUsername = false"
+                                @focus="isTypingUsername = true; setAnimationMode('username')"
+                                @blur="isTypingUsername = false; setAnimationMode('default')"
+                                @input="triggerNod(); triggerYellowBounce()"
                             />
                             <span class="input-focus-ring"></span>
                         </div>
@@ -421,13 +647,14 @@ onMounted(async () => {
                                 :type="showPassword ? 'text' : 'password'" 
                                 :placeholder="t('login.password')"
                                 class="form-input"
-                                @focus="isTypingPassword = true"
-                                @blur="isTypingPassword = false"
+                                @focus="isTypingPassword = true; setAnimationMode('password')"
+                                @blur="isTypingPassword = false; setAnimationMode('default')"
+                                @input="triggerNod()"
                                 @keyup.enter="handleLogin"
                             />
                             <span 
                                 class="input-suffix password-toggle" 
-                                @click="showPassword = !showPassword"
+                                @click="showPassword = !showPassword; isTypingPassword ? setAnimationMode('password') : null"
                             >
                                 <svg v-if="showPassword" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
@@ -456,6 +683,9 @@ onMounted(async () => {
                                     type="text" 
                                     :placeholder="t('login.captchaPlaceholder')"
                                     class="form-input"
+                                    @focus="setAnimationMode('captcha')"
+                                    @blur="setAnimationMode('default')"
+                                    @input="triggerNod()"
                                     @keyup.enter="handleLogin"
                                 />
                                 <span class="input-focus-ring"></span>
@@ -497,7 +727,7 @@ onMounted(async () => {
                         class="login-btn" 
                         :class="{ 'btn-loading': loading }"
                         :disabled="loading"
-                        @click="loginMode === 'local' ? handleLogin() : handleLDAPLogin()"
+                        @click="setAnimationMode('login-click'); loginMode === 'local' ? handleLogin() : handleLDAPLogin()"
                     >
                         <span v-if="loading" class="btn-loader">
                             <svg class="loading-spinner" viewBox="0 0 24 24">
@@ -711,7 +941,11 @@ onMounted(async () => {
 }
 
 .characters-container.peeking {
-  transform: translateX(45px);
+  transform: translateX(60px);
+}
+
+.characters-container.peeking .character {
+  transform: translateY(-8px);
 }
 
 .character {
@@ -895,6 +1129,162 @@ onMounted(async () => {
   100% {
     opacity: 1;
     transform: rotate(0deg) translateX(0);
+  }
+}
+
+/* ============================================
+   新增动画效果
+   ============================================ */
+
+/* 入场动画 */
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+  70% {
+    transform: translateX(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* 点头动画 */
+@keyframes nod {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  30% {
+    transform: translateY(5px) rotate(1deg);
+  }
+  60% {
+    transform: translateY(-2px) rotate(-0.5deg);
+  }
+}
+
+/* 黄色幽灵额外蹦跳 */
+@keyframes yellowBounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-15px) scale(1.05);
+  }
+  70% {
+    transform: translateY(3px) scale(0.98);
+  }
+}
+
+/* 登录成功欢呼 */
+@keyframes successBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  25% {
+    transform: translateY(-20px);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+  75% {
+    transform: translateY(-10px);
+  }
+}
+
+/* 嘴巴状态 */
+.character .mouth {
+  width: 24px;
+  height: 3px;
+  background: #1e293b;
+  border-radius: 2px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 张嘴状态 */
+.character.mouth-open .mouth {
+  width: 18px;
+  height: 10px;
+  border-radius: 50%;
+  background: #1e293b;
+}
+
+/* 吃惊状态（圆形） */
+.character.mouth-surprised .mouth {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1e293b;
+}
+
+/* 微笑状态 */
+.character.mouth-smile .mouth {
+  height: 10px;
+  border-radius: 0 0 14px 14px;
+  background: #1e293b;
+}
+
+/* 难过状态 */
+.character.mouth-sad .mouth {
+  height: 8px;
+  border-radius: 14px 14px 0 0;
+  background: #1e293b;
+}
+
+/* 眼睛状态 */
+.character.eye-squinting .eyes {
+  transform: scaleY(0.6);
+}
+
+/* 登录成功弹跳 */
+.character.success-bounce {
+  animation: successBounce 0.6s cubic-bezier(0.4, 0, 0.2, 1) 2;
+}
+
+/* 点头动画触发 */
+.characters-container.nodding .character {
+  animation: nod 0.3s ease-out;
+}
+
+/* 黄色幽灵额外蹦跳 */
+.character.yellow-bounce {
+  animation: yellowBounce 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 入场动画应用到每个角色 */
+.character {
+  opacity: 0;
+  animation: slideIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards, characterFloat 5.5s ease-in-out infinite;
+}
+
+.characters-container.entered .character {
+  opacity: 1;
+}
+
+.character-1 {
+  animation-delay: 0s, 0s;
+}
+
+.character-2 {
+  animation-delay: 0.15s, 0.8s;
+}
+
+.character-3 {
+  animation-delay: 0.3s, 1.6s;
+}
+
+.character-4 {
+  animation-delay: 0.45s, 2.4s;
+}
+
+/* 修正浮动动画延迟 */
+@keyframes characterFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-22px) rotate(2deg);
   }
 }
 
