@@ -1,8 +1,11 @@
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
+logger = logging.getLogger("cornerstone")
 
 # 全局调度器实例
 scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
@@ -17,6 +20,8 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
         task_id: 任务ID
         trigger: 触发类型，scheduled(定时任务)/manual(手动触发)
     """
+    logger.info(f"开始执行备份任务 {task_id}, 触发类型: {trigger}")
+    
     from sqlalchemy import select
     from ..models import BackupTask, Device, Credential, Backup, IPAddress
     from ..services.backup_collector import collect_device_config, detect_config_change, \
@@ -30,12 +35,20 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
         async with async_session() as db_session:
             # 获取任务配置
             task = await db_session.get(BackupTask, task_id)
-            if not task or not task.is_enabled:
+            if not task:
+                logger.error(f"备份任务 {task_id} 不存在")
                 return
+            if not task.is_enabled:
+                logger.warning(f"备份任务 {task_id} 已禁用")
+                return
+            
+            logger.info(f"备份任务 {task_id} 配置: name={task.name}, cron_expr={task.cron_expr}, "
+                       f"device_ids={task.device_ids}, site_id={task.site_id}, credential_id={task.credential_id}")
             
             # 获取凭证
             credential = await db_session.get(Credential, task.credential_id)
             if not credential:
+                logger.error(f"备份任务 {task_id} 凭证不存在")
                 return
             
             # 解密凭证密码
@@ -88,6 +101,8 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                             ip_address = ip.address
                     devices_with_ip.append((device, ip_address))
             
+            logger.info(f"备份任务 {task_id} 共找到 {len(devices_with_ip)} 台设备")
+            
             # 并发采集（最多10台并发）
             import asyncio
             semaphore = asyncio.Semaphore(10)
@@ -96,7 +111,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                 device, ip_address = device_info
                 async with semaphore:
                     if not ip_address:
-                        # 如果没有管理IP，跳过该设备
+                        logger.warning(f"设备 {device.id} ({device.name}) 没有管理IP，跳过")
                         return device.id, None
                     
                     # 优先使用任务级别的vendor，如果任务没有设置则使用设备级别的vendor，如果都没有则使用默认值
@@ -106,6 +121,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                         "ip_address": ip_address,
                         "vendor": device_vendor,
                     }
+                    logger.debug(f"开始采集设备 {device.id} ({device.name}), IP: {ip_address}, vendor: {device_vendor}")
                     return device.id, await collect_device_config(device_dict, credential_dict)
             
             tasks = [collect_with_semaphore(d) for d in devices_with_ip]
@@ -189,6 +205,8 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                 task.last_run_status = "partial_fail"
             
             await db_session.commit()
+            
+            logger.info(f"备份任务 {task_id} 执行完成: success={success_count}, failed={failed_count}")
     finally:
         running_tasks[task_id] = False
 
@@ -221,6 +239,7 @@ async def execute_retention_policy(device_id: int, retention_count: int, retenti
 
 def add_task_to_scheduler(task_id: int, cron_expr: str):
     """添加任务到调度器"""
+    logger.info(f"添加备份任务到调度器: task_id={task_id}, cron_expr={cron_expr}")
     scheduler.add_job(
         run_backup_task,
         CronTrigger.from_crontab(cron_expr),
@@ -228,19 +247,22 @@ def add_task_to_scheduler(task_id: int, cron_expr: str):
         id=f"backup_task_{task_id}",
         replace_existing=True
     )
+    logger.info(f"调度器当前任务: {[job.id for job in scheduler.get_jobs()]}")
 
 def remove_task_from_scheduler(task_id: int):
     """从调度器移除任务"""
     try:
         scheduler.remove_job(f"backup_task_{task_id}")
-    except Exception:
-        # 如果任务不在调度器中（如禁用状态），忽略错误
-        pass
+        logger.info(f"从调度器移除任务: task_id={task_id}")
+    except Exception as e:
+        logger.warning(f"从调度器移除任务失败: task_id={task_id}, error={e}")
 
 async def reload_tasks(db_session):
     """重新从DB加载所有任务"""
     from ..models import BackupTask
     from sqlalchemy import select
+    
+    logger.info("开始重新加载备份任务")
     
     # 移除所有现有任务
     for job in scheduler.get_jobs():
@@ -250,14 +272,21 @@ async def reload_tasks(db_session):
     # 加载并注册启用的任务
     result = await db_session.execute(select(BackupTask).where(BackupTask.is_enabled))
     tasks = result.scalars().all()
+    logger.info(f"找到 {len(tasks)} 个启用的备份任务")
+    
     for task in tasks:
         if task.cron_expr:
             add_task_to_scheduler(task.id, task.cron_expr)
+    
+    logger.info(f"重新加载完成，调度器当前任务: {[job.id for job in scheduler.get_jobs()]}")
 
 def start_scheduler():
     """启动调度器"""
+    logger.info("启动备份调度器")
     scheduler.start()
+    logger.info(f"调度器状态: running={scheduler.running}, jobs={[job.id for job in scheduler.get_jobs()]}")
 
 def stop_scheduler():
     """停止调度器"""
+    logger.info("停止备份调度器")
     scheduler.shutdown()

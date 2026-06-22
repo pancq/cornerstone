@@ -259,7 +259,6 @@ async def toggle_backup_task(
 @router.post("/{task_id}/run-now")
 async def run_backup_task_now(
     task_id: int,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
@@ -269,8 +268,8 @@ async def run_backup_task_now(
     if not task:
         raise HTTPException(status_code=404, detail="Backup task not found")
     
-    # 使用BackgroundTasks确保任务正确执行
-    background_tasks.add_task(run_backup_task, task_id, "manual")
+    import asyncio
+    asyncio.create_task(run_backup_task(task_id, "manual"))
     
     await audit_log(db, current_user.id, "backup_task", task_id, "run_now", {})
     
