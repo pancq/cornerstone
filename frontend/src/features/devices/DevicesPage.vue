@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Download, Upload, Edit, Delete } from '@element-plus/icons-vue'
+import { formatDate } from '../../lib/utils'
 import type { Device, IPAddress, Site } from '../../types/domain'
 import { getIPAddresses, createIPAddress } from '../../api/ipam'
 import { getDevices, createDevice, updateDevice, deleteDevice, type DeviceResponse } from '../../api/devices'
@@ -649,7 +650,7 @@ onMounted(async () => {
         <el-table-column prop="warrantyEnd" :label="t('devices.warranty')" min-width="120">
           <template #default="{ row }">
             <div class="warranty-cell">
-              <div class="warranty-date">{{ row.warrantyEnd || '-' }}</div>
+              <div class="warranty-date">{{ formatDate(row.warrantyEnd) }}</div>
               <div v-if="row.warrantyEnd" class="warranty-status">
                 <el-tag :type="getWarrantyStatus(row.warrantyEnd).type" effect="dark" size="small">
                   {{ getWarrantyStatus(row.warrantyEnd).text }}

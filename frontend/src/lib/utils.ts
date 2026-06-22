@@ -39,6 +39,13 @@ export function money(value: number | string | undefined | null): string {
   return num.toLocaleString(getLocale() || 'zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+export function formatDate(dateText: string | null | undefined): string {
+  if (!dateText) return '-'
+  const date = new Date(dateText)
+  if (isNaN(date.getTime())) return dateText
+  return date.toISOString().split('T')[0]
+}
+
 export function statusTag(value: string): string {
   const cls =
     {

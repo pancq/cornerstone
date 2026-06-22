@@ -6,7 +6,7 @@ import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { Plus, Download, Upload, Clock, Warning, WarningFilled, ArrowDown, View, Edit, Document, Delete } from '@element-plus/icons-vue'
-import { daysUntil, money } from '../../lib/utils'
+import { daysUntil, money, formatDate } from '../../lib/utils'
 import api from '../../api/axios'
 import type { Circuit, Site } from '../../types/domain'
 import { getCircuits, createCircuit, updateCircuit, deleteCircuit, type CircuitResponse } from '../../api/circuits'
@@ -465,6 +465,11 @@ onMounted(async () => {
           <template #default="{ row }">{{ row.bandwidth }} Mbps</template>
         </el-table-column>
         <el-table-column prop="publicIp" :label="t('circuits.publicIp')" width="140" />
+        <el-table-column prop="contractStart" :label="t('circuits.contractStart')" width="120">
+          <template #default="{ row }">
+            <div class="expiry-date">{{ formatDate(row.contractStart) }}</div>
+          </template>
+        </el-table-column>
         <el-table-column prop="contractEnd" :label="t('circuits.contractEnd')" width="140">
           <template #default="{ row }">
             <div class="expiry-cell">
@@ -472,7 +477,7 @@ onMounted(async () => {
                 <el-icon><component :is="getExpiryDisplay(row.contractEnd).icon" /></el-icon>
                 {{ getExpiryDisplay(row.contractEnd).text }}
               </el-tag>
-              <div class="expiry-date">{{ row.contractEnd }}</div>
+              <div class="expiry-date">{{ formatDate(row.contractEnd) }}</div>
             </div>
           </template>
         </el-table-column>
