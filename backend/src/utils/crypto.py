@@ -58,7 +58,11 @@ def encrypt_password(plain_text: str) -> str:
 
 
 def decrypt_password(cipher_text: str) -> str:
-    """解密密码，返回明文。自动兼容新旧两种密钥格式。"""
+    """解密密码，返回明文。自动兼容新旧两种密钥格式。
+    
+    如果解密失败（如密钥不一致），记录警告并返回空字符串，
+    避免因密钥问题导致整个备份任务失败。
+    """
     if not cipher_text:
         return ""
     try:
@@ -79,4 +83,8 @@ def decrypt_password(cipher_text: str) -> str:
                 return _legacy_fernet.decrypt(cipher_text.encode()).decode()
             except Exception:
                 pass
-        raise ValueError(f"凭证解密失败，请检查密钥是否正确: {e}") from e
+        # 记录警告但不抛出异常，避免因密钥问题导致整个备份任务失败
+        import logging
+        logger = logging.getLogger("cornerstone")
+        logger.warning(f"凭证解密失败，密钥可能不一致，请检查 .env 中的 CREDENTIAL_SECRET_KEY 设置")
+        return ""
