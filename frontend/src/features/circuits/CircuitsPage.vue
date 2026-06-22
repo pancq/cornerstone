@@ -449,7 +449,7 @@ onMounted(async () => {
         :row-class-name="getRowClass"
       >
         <el-table-column type="selection" width="55" fixed="left" />
-        <el-table-column prop="name" :label="t('circuits.name')" width="240" fixed="left">
+        <el-table-column prop="name" :label="t('circuits.name')" width="180" fixed="left">
           <template #default="{ row }">
             <div class="circuit-name-cell">
               <div class="circuit-name-main" @click="viewDetail(row)">{{ row.name }}</div>
@@ -457,21 +457,21 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="siteId" :label="t('sites.title')" width="120">
+        <el-table-column prop="siteId" :label="t('sites.title')" width="100">
           <template #default="{ row }">{{ siteName(row.siteId) }}</template>
         </el-table-column>
-        <el-table-column prop="provider" :label="t('circuits.provider')" width="100" />
-        <el-table-column prop="type" :label="t('circuits.type')" width="100" />
-        <el-table-column prop="bandwidth" :label="t('circuits.bandwidth')" width="100">
+        <el-table-column prop="provider" :label="t('circuits.provider')" width="80" />
+        <el-table-column prop="type" :label="t('circuits.type')" width="80" />
+        <el-table-column prop="bandwidth" :label="t('circuits.bandwidth')" width="80">
           <template #default="{ row }">{{ row.bandwidth }} Mbps</template>
         </el-table-column>
-        <el-table-column prop="publicIp" :label="t('circuits.publicIp')" width="140" />
-        <el-table-column prop="contractStart" :label="t('circuits.contractStart')" width="120">
+        <el-table-column prop="publicIp" :label="t('circuits.publicIp')" width="120" />
+        <el-table-column prop="contractStart" :label="t('circuits.contractStart')" width="100">
           <template #default="{ row }">
             <div class="expiry-date">{{ formatDate(row.contractStart) }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="contractEnd" :label="t('circuits.contractEnd')" width="140">
+        <el-table-column prop="contractEnd" :label="t('circuits.contractEnd')" width="120">
           <template #default="{ row }">
             <div class="expiry-cell">
               <el-tag :type="getExpiryDisplay(row.contractEnd).type" size="small" effect="dark">
@@ -482,12 +482,12 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" :label="t('common.status')" width="100">
+        <el-table-column prop="status" :label="t('common.status')" width="80">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="dark">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="monthlyCost" :label="t('circuits.monthlyCost')" width="110">
+        <el-table-column prop="monthlyCost" :label="t('circuits.monthlyCost')" width="90">
           <template #default="{ row }">
             <span class="cost-value">¥{{ money(row.monthlyCost) }}</span>
           </template>
