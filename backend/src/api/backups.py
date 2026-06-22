@@ -246,6 +246,9 @@ async def read_backups(
         backup = row[0]
         backup_dict = {c.name: getattr(backup, c.name) for c in backup.__table__.columns}
         backup_dict['device_name'] = row[1]
+        # 确保时间字段序列化为 ISO 格式
+        if backup_dict.get('created_at'):
+            backup_dict['created_at'] = backup_dict['created_at'].isoformat()
         backups.append(backup_dict)
     
     return backups

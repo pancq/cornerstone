@@ -399,11 +399,20 @@ function getStatusType(status: string) {
 
 function formatDateTime(dateString: string) {
   let date: Date
-  if (dateString && !dateString.includes('Z') && !dateString.includes('+')) {
-    date = new Date(dateString + 'Z')
-  } else {
+  if (!dateString) return '-'
+  
+  // 处理 ISO 格式时间（如 2026-06-17T15:33:24.455473+08:00）
+  if (dateString.includes('T') || dateString.includes('Z')) {
     date = new Date(dateString)
+  } else if (dateString.includes('+')) {
+    // 处理 PostgreSQL 格式：2026-06-17 15:33:24.455473+08
+    // 转换为 ISO 格式
+    date = new Date(dateString.replace(' ', 'T'))
+  } else {
+    // 处理普通格式：2026-06-17 15:33:24
+    date = new Date(dateString.replace(' ', 'T'))
   }
+  
   if (isNaN(date.getTime())) {
     return dateString
   }
