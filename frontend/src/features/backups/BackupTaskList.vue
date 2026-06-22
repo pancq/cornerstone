@@ -355,11 +355,16 @@ async function loadCredentials() {
 
 function formatDateTime(dateString: string) {
   let date: Date
-  if (dateString && !dateString.includes('Z') && !dateString.includes('+')) {
-    date = new Date(dateString + 'Z')
-  } else {
+  if (!dateString) return '-'
+  
+  if (dateString.includes('T') || dateString.includes('Z')) {
     date = new Date(dateString)
+  } else if (dateString.includes('+')) {
+    date = new Date(dateString.replace(' ', 'T'))
+  } else {
+    date = new Date(dateString.replace(' ', 'T'))
   }
+  
   if (isNaN(date.getTime())) {
     return dateString
   }
