@@ -49,6 +49,9 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             credential = await db_session.get(Credential, task.credential_id)
             if not credential:
                 logger.error(f"备份任务 {task_id} 凭证不存在")
+                task.last_run_at = datetime.now(timezone.utc)
+                task.last_run_status = "failed"
+                await db_session.commit()
                 return
             
             # 解密凭证密码
@@ -65,6 +68,10 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                 "jump_username": credential.jump_username,
                 "jump_password": decrypt_password(credential.jump_password),
             }
+            
+            # 检查凭证解密是否成功
+            if not credential_dict["password"]:
+                logger.warning(f"备份任务 {task_id} 凭证解密失败，密码为空")
             
             # 获取设备列表（包含管理IP）
             devices_with_ip = []
@@ -103,6 +110,14 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             
             logger.info(f"备份任务 {task_id} 共找到 {len(devices_with_ip)} 台设备")
             
+            # 如果没有设备，更新任务状态
+            if not devices_with_ip:
+                logger.warning(f"备份任务 {task_id} 没有找到可备份的设备")
+                task.last_run_at = datetime.now(timezone.utc)
+                task.last_run_status = "failed"
+                await db_session.commit()
+                return
+            
             # 并发采集（最多10台并发）
             import asyncio
             semaphore = asyncio.Semaphore(10)
@@ -122,7 +137,16 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                         "vendor": device_vendor,
                     }
                     logger.debug(f"开始采集设备 {device.id} ({device.name}), IP: {ip_address}, vendor: {device_vendor}")
-                    return device.id, await collect_device_config(device_dict, credential_dict)
+                    try:
+                        return device.id, await collect_device_config(device_dict, credential_dict)
+                    except Exception as e:
+                        logger.error(f"采集设备 {device.id} ({device.name}) 时发生异常: {str(e)}")
+                        from ..services.backup_collector import CollectResult
+                        return device.id, CollectResult(
+                            success=False,
+                            error_message=f"采集异常: {str(e)}",
+                            duration_ms=0
+                        )
             
             tasks = [collect_with_semaphore(d) for d in devices_with_ip]
             results = await asyncio.gather(*tasks)

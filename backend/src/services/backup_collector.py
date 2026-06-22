@@ -307,7 +307,8 @@ async def collect_device_config(device: Dict, credential: Dict) -> CollectResult
     
     try:
         # 1. Ping检测设备可达性
-        if not await ping_host(device.get("ip_address", ""), timeout=3.0):
+        ip_address = device.get("ip_address", "")
+        if not await ping_host(ip_address, timeout=3.0):
             return CollectResult(
                 success=False,
                 error_message="设备不可达",
