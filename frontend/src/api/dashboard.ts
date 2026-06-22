@@ -62,8 +62,10 @@ export interface CircuitTypeItem {
   color: string
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const response = await request.get('/dashboard/stats')
+export async function getDashboardStats(timeRange?: string): Promise<DashboardStats> {
+  const response = await request.get('/dashboard/stats', {
+    params: timeRange ? { time_range: timeRange } : {}
+  })
   return response.data
 }
 

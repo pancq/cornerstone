@@ -17,8 +17,28 @@ router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/stats")
-async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
+async def get_dashboard_stats(
+    time_range: str = "all",
+    db: AsyncSession = Depends(get_db)
+):
     """获取仪表盘统计数据"""
+    
+    # 解析时间范围参数
+    now = datetime.now()
+    start_time = None
+    
+    if time_range == "24h":
+        start_time = now - timedelta(hours=24)
+    elif time_range == "7d":
+        start_time = now - timedelta(days=7)
+    elif time_range == "15d":
+        start_time = now - timedelta(days=15)
+    elif time_range == "30d":
+        start_time = now - timedelta(days=30)
+    elif time_range == "all":
+        start_time = None
+    else:
+        start_time = None
     
     # 1. 站点统计
     total_sites_result = await db.execute(select(func.count(Site.id)))
@@ -78,18 +98,23 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     
     ip_usage_percent = round((ip_used / ip_total * 100), 1) if ip_total > 0 else 0
     
-    # 6. 备份统计（全部历史）
-    total_backups_result = await db.execute(select(func.count(Backup.id)))
+    # 6. 备份统计
+    backup_query = select(func.count(Backup.id))
+    if start_time:
+        backup_query = backup_query.where(Backup.created_at >= start_time)
+    total_backups_result = await db.execute(backup_query)
     total_backups = total_backups_result.scalar() or 0
     
-    successful_backups_result = await db.execute(
-        select(func.count(Backup.id)).where(Backup.status == 'success')
-    )
+    successful_backup_query = select(func.count(Backup.id)).where(Backup.status == 'success')
+    if start_time:
+        successful_backup_query = successful_backup_query.where(Backup.created_at >= start_time)
+    successful_backups_result = await db.execute(successful_backup_query)
     successful_backups = successful_backups_result.scalar() or 0
     
-    failed_backups_result = await db.execute(
-        select(func.count(Backup.id)).where(Backup.status == 'failed')
-    )
+    failed_backup_query = select(func.count(Backup.id)).where(Backup.status == 'failed')
+    if start_time:
+        failed_backup_query = failed_backup_query.where(Backup.created_at >= start_time)
+    failed_backups_result = await db.execute(failed_backup_query)
     failed_backups = failed_backups_result.scalar() or 0
     
     # 7. 系统健康度计算

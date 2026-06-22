@@ -118,7 +118,13 @@
     "cpuUsage": "CPU Usage",
     "memoryUsage": "Memory Usage",
     "diskUsage": "Disk Usage",
-    "networkTraffic": "Network Traffic"
+    "networkTraffic": "Network Traffic",
+    "allTime": "All Time",
+    "last24h": "Last 24h",
+    "last7d": "Last 7 Days",
+    "last15d": "Last 15 Days",
+    "last30d": "Last 30 Days",
+    "selectTimeRange": "Select Time Range"
   },
   "devices": {
     "title": "Devices",

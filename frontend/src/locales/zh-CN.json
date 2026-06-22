@@ -143,7 +143,13 @@
     "cpuUsage": "CPU 使用率",
     "memoryUsage": "内存使用率",
     "diskUsage": "磁盘使用率",
-    "networkTraffic": "网络流量"
+    "networkTraffic": "网络流量",
+    "allTime": "全部时间",
+    "last24h": "最近24小时",
+    "last7d": "最近7天",
+    "last15d": "最近15天",
+    "last30d": "最近30天",
+    "selectTimeRange": "选择时间范围"
   },
   "devices": {
     "title": "设备",

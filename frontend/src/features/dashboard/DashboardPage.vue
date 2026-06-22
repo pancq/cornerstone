@@ -35,6 +35,15 @@ const deviceTypes = ref<DeviceTypeItem[]>([])
 const circuitTypes = ref<CircuitTypeItem[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
+const backupTimeRange = ref('all')
+
+const timeRangeOptions = [
+  { label: t('dashboard.allTime'), value: 'all' },
+  { label: t('dashboard.last24h'), value: '24h' },
+  { label: t('dashboard.last7d'), value: '7d' },
+  { label: t('dashboard.last15d'), value: '15d' },
+  { label: t('dashboard.last30d'), value: '30d' }
+]
 
 // 设备类型颜色映射
 const deviceTypeColors: Record<string, string> = {
@@ -142,7 +151,7 @@ async function loadDashboardData() {
   loading.value = true
   try {
     const [stats, prefixes, logs, deviceTypesData, circuitTypesData] = await Promise.all([
-      getDashboardStats(),
+      getDashboardStats(backupTimeRange.value),
       getPrefixesUsage(),
       getRecentLogs(8),
       getDeviceTypes(),
@@ -158,6 +167,10 @@ async function loadDashboardData() {
   } finally {
     loading.value = false
   }
+}
+
+function handleTimeRangeChange() {
+  loadDashboardData()
 }
 
 onMounted(() => {
@@ -194,7 +207,23 @@ onMounted(() => {
       </div>
       <!-- 备份统计 - 工程师和管理员可见 -->
       <div v-if="visibleCards.includes('backups')" class="overview-card overview-card-warning">
-        <div class="overview-card-label">{{ t('backups.title') }}</div>
+        <div class="overview-card-header">
+          <div class="overview-card-label">{{ t('backups.title') }}</div>
+          <el-select 
+            v-model="backupTimeRange" 
+            @change="handleTimeRangeChange"
+            size="small" 
+            class="time-range-select"
+            :placeholder="t('dashboard.selectTimeRange')"
+          >
+            <el-option 
+              v-for="option in timeRangeOptions" 
+              :key="option.value" 
+              :label="option.label" 
+              :value="option.value" 
+            />
+          </el-select>
+        </div>
         <div class="overview-card-value">{{ dashboardStats?.backups.successful || 0 }}/{{ dashboardStats?.backups.failed || 0 }}</div>
         <div class="overview-card-trend">{{ t('backups.backupSuccess') }} / {{ t('backups.backupFailed') }}</div>
       </div>
@@ -357,6 +386,17 @@ onMounted(() => {
   font-size: 13px;
   color: #8c8c8c;
   margin-bottom: 6px;
+}
+
+.overview-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.time-range-select {
+  width: 110px;
 }
 
 .overview-card-value {
