@@ -25,7 +25,8 @@ export function daysUntil(dateText: string | null | undefined): number {
   if (!dateText) return -999
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const date = new Date(`${dateText}T00:00:00+08:00`)
+  const dateStr = dateText.includes('T') ? dateText.split('T')[0] : dateText
+  const date = new Date(`${dateStr}T00:00:00+08:00`)
   if (isNaN(date.getTime())) return -999
   return Math.ceil((date.getTime() - today.getTime()) / 86400000)
 }
@@ -43,7 +44,10 @@ export function formatDate(dateText: string | null | undefined): string {
   if (!dateText) return '-'
   const date = new Date(dateText)
   if (isNaN(date.getTime())) return dateText
-  return date.toISOString().split('T')[0]
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export function statusTag(value: string): string {
