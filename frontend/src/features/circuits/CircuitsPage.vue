@@ -461,6 +461,7 @@ onMounted(async () => {
           <template #default="{ row }">{{ siteName(row.siteId) }}</template>
         </el-table-column>
         <el-table-column prop="provider" :label="t('circuits.provider')" width="100" />
+        <el-table-column prop="type" :label="t('circuits.type')" width="100" />
         <el-table-column prop="bandwidth" :label="t('circuits.bandwidth')" width="100">
           <template #default="{ row }">{{ row.bandwidth }} Mbps</template>
         </el-table-column>
