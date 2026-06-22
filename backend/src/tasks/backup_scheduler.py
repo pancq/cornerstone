@@ -219,16 +219,17 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             
             await db_session.commit()
             
-            # 更新任务状态
-            task.last_run_at = datetime.now(timezone.utc)
-            if failed_count == 0:
-                task.last_run_status = "success"
-            elif success_count == 0:
-                task.last_run_status = "failed"
-            else:
-                task.last_run_status = "partial_fail"
-            
-            await db_session.commit()
+            # 更新任务状态（需要重新关联 session，因为 commit 后对象可能已脱离跟踪）
+            task = await db_session.get(BackupTask, task_id)
+            if task:
+                task.last_run_at = datetime.now(timezone.utc)
+                if failed_count == 0:
+                    task.last_run_status = "success"
+                elif success_count == 0:
+                    task.last_run_status = "failed"
+                else:
+                    task.last_run_status = "partial_fail"
+                await db_session.commit()
             
             logger.info(f"备份任务 {task_id} 执行完成: success={success_count}, failed={failed_count}")
     finally:
