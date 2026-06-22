@@ -195,7 +195,7 @@ onMounted(() => {
       <!-- 备份统计 - 工程师和管理员可见 -->
       <div v-if="visibleCards.includes('backups')" class="overview-card overview-card-warning">
         <div class="overview-card-label">{{ t('backups.title') }}</div>
-        <div class="overview-card-value">{{ dashboardStats?.backups.today_successful || 0 }}/{{ dashboardStats?.backups.today_failed || 0 }}</div>
+        <div class="overview-card-value">{{ dashboardStats?.backups.successful || 0 }}/{{ dashboardStats?.backups.failed || 0 }}</div>
         <div class="overview-card-trend">{{ t('backups.backupSuccess') }} / {{ t('backups.backupFailed') }}</div>
       </div>
       <!-- 系统健康 - 仅管理员可见 -->

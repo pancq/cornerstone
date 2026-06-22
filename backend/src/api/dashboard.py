@@ -72,47 +72,25 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     ip_total = sum(calculate_usable_ips(prefix) for prefix in prefixes) if prefixes else 0
     
     ip_used_result = await db.execute(
-        select(func.count(IPAddress.id)).where(IPAddress.status == '已分配')
+        select(func.count(IPAddress.id)).where(IPAddress.status == 'assigned')
     )
     ip_used = ip_used_result.scalar() or 0
     
     ip_usage_percent = round((ip_used / ip_total * 100), 1) if ip_total > 0 else 0
     
-    # 6. 今日备份统计
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end = today_start + timedelta(days=1)
+    # 6. 备份统计（全部历史）
+    total_backups_result = await db.execute(select(func.count(Backup.id)))
+    total_backups = total_backups_result.scalar() or 0
     
-    today_backups_result = await db.execute(
-        select(func.count(Backup.id)).where(
-            and_(
-                Backup.created_at >= today_start,
-                Backup.created_at < today_end
-            )
-        )
+    successful_backups_result = await db.execute(
+        select(func.count(Backup.id)).where(Backup.status == 'success')
     )
-    today_backups = today_backups_result.scalar() or 0
+    successful_backups = successful_backups_result.scalar() or 0
     
-    today_successful_result = await db.execute(
-        select(func.count(Backup.id)).where(
-            and_(
-                Backup.created_at >= today_start,
-                Backup.created_at < today_end,
-                Backup.status == 'success'
-            )
-        )
+    failed_backups_result = await db.execute(
+        select(func.count(Backup.id)).where(Backup.status == 'failed')
     )
-    today_successful = today_successful_result.scalar() or 0
-    
-    today_failed_result = await db.execute(
-        select(func.count(Backup.id)).where(
-            and_(
-                Backup.created_at >= today_start,
-                Backup.created_at < today_end,
-                Backup.status == 'failed'
-            )
-        )
-    )
-    today_failed = today_failed_result.scalar() or 0
+    failed_backups = failed_backups_result.scalar() or 0
     
     # 7. 系统健康度计算
     # 基于设备监控状态计算健康度
@@ -160,9 +138,9 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             "percent": ip_usage_percent
         },
         "backups": {
-            "today_total": today_backups,
-            "today_successful": today_successful,
-            "today_failed": today_failed
+            "total": total_backups,
+            "successful": successful_backups,
+            "failed": failed_backups
         },
         "health": {
             "score": health_score,

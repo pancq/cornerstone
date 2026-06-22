@@ -20,9 +20,9 @@ export interface DashboardStats {
     percent: number
   }
   backups: {
-    today_total: number
-    today_successful: number
-    today_failed: number
+    total: number
+    successful: number
+    failed: number
   }
   health: {
     score: number
