@@ -209,7 +209,6 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
                     change_summary=change_summary,
                     duration_ms=result.duration_ms,
                     size=len(result.config_content) if result.success else 0,
-                    created_at=datetime.now(timezone.utc),
                 )
                 db_session.add(backup)
                 
