@@ -196,8 +196,8 @@
                 stroke="#1a2035"
                 stroke-width="1.5"
               />
-              <!-- 图标区域：左侧居中（纯 SVG 路径内联，支持 html2canvas 导出） -->
-              <g :transform="`translate(${-nodeWidth / 2 + 6}, ${-24})`">
+              <!-- 图标区域：居中显示（纯 SVG 路径内联，支持 html2canvas 导出） -->
+              <g :transform="`translate(0, ${-28})`">
                 <svg width="48" height="48" viewBox="0 0 24 24"
                      :color="getDeviceIconColor(getIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name))">
                   <g v-html="getDeviceIconSvg(getIconType((node as DeviceNode).type, (node as DeviceNode).vendor, node.name))"
@@ -208,12 +208,12 @@
                      stroke-linejoin="round" />
                 </svg>
               </g>
-              <!-- 文本区域 -->
-              <g :transform="`translate(0, ${-nodeHeight / 2 + 12})`">
-                <text x="0" y="16" text-anchor="middle" class="node-name">{{ node.name }}</text>
-                <text v-if="!isCircuitNode(node)" x="0" y="34" text-anchor="middle" class="node-ip">{{ (node as DeviceNode).ip_address }}</text>
-                <text v-if="isCircuitNode(node) && (node as DeviceNode).bandwidth" x="0" y="34" text-anchor="middle" class="node-ip">{{ (node as DeviceNode).bandwidth }} Mbps</text>
-                <text v-if="!isCircuitNode(node)" x="0" y="52" text-anchor="middle" class="node-status" :class="getStatusClass(node.status)">
+              <!-- 文本区域：图标下方居中 -->
+              <g :transform="`translate(0, ${16})`">
+                <text x="0" y="0" text-anchor="middle" class="node-name">{{ node.name }}</text>
+                <text v-if="!isCircuitNode(node)" x="0" y="18" text-anchor="middle" class="node-ip">{{ (node as DeviceNode).ip_address }}</text>
+                <text v-if="isCircuitNode(node) && (node as DeviceNode).bandwidth" x="0" y="18" text-anchor="middle" class="node-ip">{{ (node as DeviceNode).bandwidth }} Mbps</text>
+                <text v-if="!isCircuitNode(node)" x="0" y="36" text-anchor="middle" class="node-status" :class="getStatusClass(node.status)">
                   {{ getStatusSummary(node as DeviceNode) }}
                 </text>
               </g>
