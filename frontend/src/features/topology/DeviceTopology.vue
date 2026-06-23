@@ -208,12 +208,12 @@
                      stroke-linejoin="round" />
                 </svg>
               </g>
-              <!-- 文本区域：居中显示 -->
-              <g :transform="`translate(0, ${-nodeHeight / 2 + 12})`">
-                <text x="0" y="16" text-anchor="middle" class="node-name">{{ node.name }}</text>
-                <text v-if="!isCircuitNode(node)" x="0" y="34" text-anchor="middle" class="node-ip">{{ (node as DeviceNode).ip_address }}</text>
-                <text v-if="isCircuitNode(node) && (node as DeviceNode).bandwidth" x="0" y="34" text-anchor="middle" class="node-ip">{{ (node as DeviceNode).bandwidth }} Mbps</text>
-                <text v-if="!isCircuitNode(node)" x="0" y="52" text-anchor="middle" class="node-status" :class="getStatusClass(node.status)">
+              <!-- 文本区域：图标右侧，左对齐 -->
+              <g :transform="`translate(${-nodeWidth / 2 + 56}, ${-nodeHeight / 2 + 12})`">
+                <text x="0" y="16" text-anchor="start" class="node-name">{{ node.name }}</text>
+                <text v-if="!isCircuitNode(node)" x="0" y="34" text-anchor="start" class="node-ip">{{ (node as DeviceNode).ip_address }}</text>
+                <text v-if="isCircuitNode(node) && (node as DeviceNode).bandwidth" x="0" y="34" text-anchor="start" class="node-ip">{{ (node as DeviceNode).bandwidth }} Mbps</text>
+                <text v-if="!isCircuitNode(node)" x="0" y="52" text-anchor="start" class="node-status" :class="getStatusClass(node.status)">
                   {{ getStatusSummary(node as DeviceNode) }}
                 </text>
               </g>
