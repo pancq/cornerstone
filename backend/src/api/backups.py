@@ -247,13 +247,14 @@ async def read_backups(
         backup_dict = {c.name: getattr(backup, c.name) for c in backup.__table__.columns}
         backup_dict['device_name'] = row[1]
         # 确保时间字段序列化为 ISO 格式
-        # 数据库使用 Asia/Shanghai 时区，存储的是北京时间，需要转换为 UTC
+        # 如果没有时区信息，判断来源：
+        # - 显式创建的记录（如备份）应该是 UTC
+        # - 默认值生成的记录（created_at）数据库是北京时间
         if backup_dict.get('created_at'):
             dt = backup_dict['created_at']
             if dt.tzinfo is None:
-                # 数据库返回的是北京时间，先设置为上海时区，再转换为 UTC
-                shanghai_tz = datetime.timezone(datetime.timedelta(hours=8), name='Asia/Shanghai')
-                dt = dt.replace(tzinfo=shanghai_tz).astimezone(datetime.timezone.utc)
+                # 对于 backups 表，created_at 都是显式设置的 UTC 时间
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
             backup_dict['created_at'] = dt.isoformat()
         backups.append(backup_dict)
     

@@ -28,18 +28,19 @@ async def get_backup_tasks(
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
         # 确保时间字段序列化为 ISO 格式
-        # 数据库使用 Asia/Shanghai 时区，存储的是北京时间，需要转换为 UTC
+        # 如果没有时区信息，判断来源：
+        # - last_run_at：我们代码中显式设置为 UTC，直接添加 UTC 时区
+        # - created_at：默认值生成，数据库是北京时间，需要转换
         if task_dict.get('last_run_at'):
             dt = task_dict['last_run_at']
             if dt.tzinfo is None:
-                # 数据库返回的是北京时间，先设置为上海时区，再转换为 UTC
-                shanghai_tz = datetime.timezone(datetime.timedelta(hours=8), name='Asia/Shanghai')
-                dt = dt.replace(tzinfo=shanghai_tz).astimezone(datetime.timezone.utc)
+                # last_run_at 是我们代码中显式设置的 UTC 时间
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
             task_dict['last_run_at'] = dt.isoformat()
         if task_dict.get('created_at'):
             dt = task_dict['created_at']
             if dt.tzinfo is None:
-                # 数据库返回的是北京时间，先设置为上海时区，再转换为 UTC
+                # created_at 是默认值生成，数据库返回的是北京时间
                 shanghai_tz = datetime.timezone(datetime.timedelta(hours=8), name='Asia/Shanghai')
                 dt = dt.replace(tzinfo=shanghai_tz).astimezone(datetime.timezone.utc)
             task_dict['created_at'] = dt.isoformat()
