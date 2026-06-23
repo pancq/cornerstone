@@ -56,8 +56,8 @@ services:
         condition: service_healthy
     environment:
       # 数据库
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cornerstone}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cornerstone}
-      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-cornerstone}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cornerstone}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cornerstone}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cornerstone}?timezone=Asia/Shanghai
+      DATABASE_URL_SYNC: postgresql://${POSTGRES_USER:-cornerstone}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cornerstone}?timezone=Asia/Shanghai
       # Redis
       REDIS_URL: redis://redis:6379/0
       # 应用
