@@ -49,7 +49,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             credential = await db_session.get(Credential, task.credential_id)
             if not credential:
                 logger.error(f"备份任务 {task_id} 凭证不存在")
-                task.last_run_at = datetime.now(timezone.utc)
+                task.last_run_at = datetime.now()
                 task.last_run_status = "failed"
                 await db_session.commit()
                 return
@@ -113,7 +113,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             # 如果没有设备，更新任务状态
             if not devices_with_ip:
                 logger.warning(f"备份任务 {task_id} 没有找到可备份的设备")
-                task.last_run_at = datetime.now(timezone.utc)
+                task.last_run_at = datetime.now()
                 task.last_run_status = "failed"
                 await db_session.commit()
                 return
