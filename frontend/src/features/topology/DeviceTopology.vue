@@ -584,13 +584,13 @@ function getDeviceTypeText(type: string): string {
 function getStatusSummary(node: DeviceNode): string {
   const mappedStatus = mapStatus(node.status)
   if (mappedStatus === 'offline') {
-    return `${t('topology.statusOffline')} · 2小时前`
+    return t('topology.statusOffline')
   }
   if (mappedStatus === 'warning') {
-    return `${t('topology.statusWarning')} · 1条未处理`
+    return t('topology.statusWarning')
   }
   if (mappedStatus === 'online') {
-    return `${t('topology.statusOnline')} · 备份3h前`
+    return t('topology.statusOnline')
   }
   return t('topology.statusUnknown')
 }
