@@ -115,6 +115,7 @@ export interface Backup {
   durationMs?: number
   size?: number
   note?: string
+  created_at: string
   createdAt: string
 }
 
@@ -133,9 +134,12 @@ export interface BackupTask {
   retentionDays: number
   notifyOnChange: boolean
   notifyOnFail: boolean
+  last_run_at?: string
   lastRunAt?: string
   lastRunStatus?: string
   deviceCount?: number
+  created_at?: string
+  createdAt?: string
 }
 
 export interface User {

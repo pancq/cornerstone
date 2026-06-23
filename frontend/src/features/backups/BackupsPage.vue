@@ -268,7 +268,7 @@ function downloadBackup(backup: Backup) {
   // 使用设备名称（如果有）或设备ID，加上版本号生成文件名
   const deviceName = backup.deviceName || `device_${backup.deviceId}`
   const safeDeviceName = deviceName.replace(/[^a-zA-Z0-9_\u4e00-\u9fa5]/g, '_')
-  a.download = `${safeDeviceName}_v${backup.version}_${backup.createdAt.replace(/[:\s]/g, '-')}.cfg`
+  a.download = `${safeDeviceName}_v${backup.version}_${backup.created_at.replace(/[:\s]/g, '-')}.cfg`
   
   a.click()
   URL.revokeObjectURL(url)
@@ -295,7 +295,7 @@ async function handleRestore(backup: Backup) {
   
   try {
     await ElMessageBox.confirm(
-      `确定要将此配置还原到设备吗？\n\n设备: ${backup.deviceId}\n版本: v${backup.version}\n备份时间: ${formatDateTime(backup.createdAt)}\n\n⚠️ 警告：此操作将覆盖设备当前配置，请确保已备份最新配置！`,
+      `确定要将此配置还原到设备吗？\n\n设备: ${backup.deviceId}\n版本: v${backup.version}\n备份时间: ${formatDateTime(backup.created_at)}\n\n⚠️ 警告：此操作将覆盖设备当前配置，请确保已备份最新配置！`,
       '确认还原配置',
       { 
         confirmButtonText: '确认还原', 
@@ -553,9 +553,9 @@ onMounted(() => {
             {{ getIpAddress(getDeviceInfo(row.deviceId)?.mgmt_ip_id) }}
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="备份时间" min-width="140">
+        <el-table-column prop="created_at" label="备份时间" min-width="140">
           <template #default="{ row }">
-            {{ formatDateTime(row.createdAt) }}
+            {{ formatDateTime(row.created_at) }}
           </template>
         </el-table-column>
         <el-table-column prop="trigger" label="触发" min-width="80" align="center">
@@ -648,7 +648,7 @@ onMounted(() => {
           </div>
           <div class="meta-item">
             <span class="meta-label">时间：</span>
-            <span class="meta-value">{{ formatDateTime(viewingBackup.createdAt) }}</span>
+            <span class="meta-value">{{ formatDateTime(viewingBackup.created_at) }}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">状态：</span>
