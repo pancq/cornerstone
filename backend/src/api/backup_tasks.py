@@ -27,11 +27,17 @@ async def get_backup_tasks(
     for task in tasks:
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
-        # 确保时间字段序列化为 ISO 格式
+        # 确保时间字段序列化为 ISO 格式（强制 UTC 时区）
         if task_dict.get('last_run_at'):
-            task_dict['last_run_at'] = task_dict['last_run_at'].isoformat()
+            dt = task_dict['last_run_at']
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            task_dict['last_run_at'] = dt.isoformat()
         if task_dict.get('created_at'):
-            task_dict['created_at'] = task_dict['created_at'].isoformat()
+            dt = task_dict['created_at']
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            task_dict['created_at'] = dt.isoformat()
         
         # 获取凭证名称
         if task.credential_id:

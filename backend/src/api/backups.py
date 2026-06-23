@@ -246,9 +246,13 @@ async def read_backups(
         backup = row[0]
         backup_dict = {c.name: getattr(backup, c.name) for c in backup.__table__.columns}
         backup_dict['device_name'] = row[1]
-        # 确保时间字段序列化为 ISO 格式
+        # 确保时间字段序列化为 ISO 格式（强制 UTC 时区）
         if backup_dict.get('created_at'):
-            backup_dict['created_at'] = backup_dict['created_at'].isoformat()
+            dt = backup_dict['created_at']
+            # 如果 dt 没有时区信息，强制添加 UTC 时区
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            backup_dict['created_at'] = dt.isoformat()
         backups.append(backup_dict)
     
     return backups
