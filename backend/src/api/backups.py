@@ -246,12 +246,14 @@ async def read_backups(
         backup = row[0]
         backup_dict = {c.name: getattr(backup, c.name) for c in backup.__table__.columns}
         backup_dict['device_name'] = row[1]
-        # 确保时间字段序列化为 ISO 格式（强制 UTC 时区）
+        # 确保时间字段序列化为 ISO 格式
+        # 数据库使用 Asia/Shanghai 时区，存储的是北京时间，需要转换为 UTC
         if backup_dict.get('created_at'):
             dt = backup_dict['created_at']
-            # 如果 dt 没有时区信息，强制添加 UTC 时区
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=datetime.timezone.utc)
+                # 数据库返回的是北京时间，先设置为上海时区，再转换为 UTC
+                shanghai_tz = datetime.timezone(datetime.timedelta(hours=8), name='Asia/Shanghai')
+                dt = dt.replace(tzinfo=shanghai_tz).astimezone(datetime.timezone.utc)
             backup_dict['created_at'] = dt.isoformat()
         backups.append(backup_dict)
     
