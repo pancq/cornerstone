@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, delete, update, desc, func
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
+
+BJT = timezone(timedelta(hours=8))  # 北京时间
 
 from ..database import get_db
 from ..models import BackupTask, Backup, Credential, Device, Site
@@ -27,15 +29,19 @@ async def get_backup_tasks(
     for task in tasks:
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
-        # 直接返回时间的 ISO 格式，前端处理时区转换
+        # 将 UTC 时间转换为北京时间后返回
         if task_dict.get('last_run_at') is not None:
             dt = task_dict['last_run_at']
             if dt is not None:
-                task_dict['last_run_at'] = dt.isoformat()
+                if dt.tzinfo is not None:
+                    dt = dt.astimezone(BJT)
+                task_dict['last_run_at'] = dt.strftime("%Y-%m-%d %H:%M:%S")
         if task_dict.get('created_at') is not None:
             dt = task_dict['created_at']
             if dt is not None:
-                task_dict['created_at'] = dt.isoformat()
+                if dt.tzinfo is not None:
+                    dt = dt.astimezone(BJT)
+                task_dict['created_at'] = dt.strftime("%Y-%m-%d %H:%M:%S")
         
         # 获取凭证名称
         if task.credential_id:
@@ -335,8 +341,11 @@ async def get_task_history(
     # 按日期分组统计
     history = {}
     for backup in backups:
-        # 数据库存储的是北京时间，直接格式化输出
-        date_str = backup.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        # 将 UTC 时间转换为北京时间后格式化输出
+        dt = backup.created_at
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(BJT)
+        date_str = dt.strftime("%Y-%m-%d %H:%M:%S")
         if date_str not in history:
             history[date_str] = {"success": 0, "failed": 0, "total": 0, "backups": []}
         history[date_str]["total"] += 1

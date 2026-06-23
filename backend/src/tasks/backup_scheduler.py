@@ -1,6 +1,8 @@
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+
+BJT = timezone(timedelta(hours=8))  # 北京时间
 from typing import Dict, List
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -49,7 +51,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             credential = await db_session.get(Credential, task.credential_id)
             if not credential:
                 logger.error(f"备份任务 {task_id} 凭证不存在")
-                task.last_run_at = datetime.now()
+                task.last_run_at = datetime.now(BJT)
                 task.last_run_status = "failed"
                 await db_session.commit()
                 return
@@ -113,7 +115,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             # 如果没有设备，更新任务状态
             if not devices_with_ip:
                 logger.warning(f"备份任务 {task_id} 没有找到可备份的设备")
-                task.last_run_at = datetime.now()
+                task.last_run_at = datetime.now(BJT)
                 task.last_run_status = "failed"
                 await db_session.commit()
                 return
@@ -222,7 +224,7 @@ async def run_backup_task(task_id: int, trigger: str = "scheduled"):
             # 更新任务状态（需要重新关联 session，因为 commit 后对象可能已脱离跟踪）
             task = await db_session.get(BackupTask, task_id)
             if task:
-                task.last_run_at = datetime.now()
+                task.last_run_at = datetime.now(BJT)
                 if failed_count == 0:
                     task.last_run_status = "success"
                 elif success_count == 0:
