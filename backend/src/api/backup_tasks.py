@@ -28,17 +28,17 @@ async def get_backup_tasks(
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
         # 直接返回格式化的北京时间，前端直接显示
-        if task_dict.get('last_run_at'):
+        if task_dict.get('last_run_at') is not None:
             dt = task_dict['last_run_at']
-            if dt:
+            if dt is not None:
                 if dt.tzinfo is None:
                     # last_run_at 由代码设置为 UTC，转换为北京时间输出
                     dt = dt.replace(tzinfo=timezone.utc)
                 dt_shanghai = dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
                 task_dict['last_run_at'] = dt_shanghai.strftime('%Y-%m-%d %H:%M:%S')
-        if task_dict.get('created_at'):
+        if task_dict.get('created_at') is not None:
             dt = task_dict['created_at']
-            if dt:
+            if dt is not None:
                 # 数据库已经是北京时间，直接格式化输出
                 task_dict['created_at'] = dt.strftime('%Y-%m-%d %H:%M:%S')
         
