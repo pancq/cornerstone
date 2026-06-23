@@ -23,7 +23,7 @@ async def get_backup_tasks(
     tasks = result.scalars().all()
     
     # 添加关联信息
-    result = []
+    tasks_list = []
     for task in tasks:
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
@@ -68,9 +68,9 @@ async def get_backup_tasks(
             dev_result = await db.execute(select(func.count(Device.id)))
             task_dict["device_count"] = dev_result.scalar_one()
         
-        result.append(task_dict)
+        tasks_list.append(task_dict)
     
-    return result
+    return tasks_list
 
 # 获取单个任务
 @router.get("/{task_id}")
