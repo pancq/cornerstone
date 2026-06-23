@@ -398,9 +398,33 @@ function getStatusType(status: string) {
 }
 
 function formatDateTime(dateString: string) {
-  if (!dateString) return '-'
-  // 后端已经格式化好北京时间：YYYY-MM-DD HH:MM:SS，直接显示
-  return dateString
+    let date: Date
+    if (!dateString) return '-'
+    
+    // 处理 ISO 格式时间（如 2026-06-17T15:33:24.455473+08:00）
+    if (dateString.includes('T') || dateString.includes('Z')) {
+        date = new Date(dateString)
+    } else if (dateString.includes('+')) {
+        // 处理 PostgreSQL 格式：2026-06-17 15:33:24.455473+08
+        date = new Date(dateString.replace(' ', 'T'))
+    } else {
+        // 如果没有时区信息，假设是 UTC 时间
+        date = new Date(dateString.replace(' ', 'T') + 'Z')
+    }
+    
+    if (isNaN(date.getTime())) {
+        return dateString
+    }
+    return date.toLocaleString(locale?.value || navigator.language || 'zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    })
 }
 
 function formatDuration(ms?: number) {

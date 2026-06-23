@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, delete, update, desc, func
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 from ..database import get_db
@@ -27,15 +27,15 @@ async def get_backup_tasks(
     for task in tasks:
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
-        # 数据库已经是北京时间，直接格式化输出
+        # 直接返回时间的 ISO 格式，前端处理时区转换
         if task_dict.get('last_run_at') is not None:
             dt = task_dict['last_run_at']
             if dt is not None:
-                task_dict['last_run_at'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                task_dict['last_run_at'] = dt.isoformat()
         if task_dict.get('created_at') is not None:
             dt = task_dict['created_at']
             if dt is not None:
-                task_dict['created_at'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                task_dict['created_at'] = dt.isoformat()
         
         # 获取凭证名称
         if task.credential_id:

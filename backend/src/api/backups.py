@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, delete, update, desc, func
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import uuid
 
@@ -246,12 +246,11 @@ async def read_backups(
         backup = row[0]
         backup_dict = {c.name: getattr(backup, c.name) for c in backup.__table__.columns}
         backup_dict['device_name'] = row[1]
-        # 直接返回格式化的北京时间，前端直接显示
+        # 直接返回时间的 ISO 格式，前端处理时区转换
         if backup_dict.get('created_at'):
             dt = backup_dict['created_at']
             if dt:
-                # 数据库已经是北京时间，直接格式化输出
-                backup_dict['created_at'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+                backup_dict['created_at'] = dt.isoformat()
         backups.append(backup_dict)
     
     return backups

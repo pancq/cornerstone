@@ -334,7 +334,25 @@ async function openHistoryDialog(task: BackupTask) {
 async function loadTasks() {
   loading.value = true
   try {
-    tasks.value = await getBackupTasks()
+    const rawTasks = await getBackupTasks()
+    // 把下划线字段名转换成驼峰
+    tasks.value = rawTasks.map((task: any) => ({
+      ...task,
+      lastRunAt: task.last_run_at || task.lastRunAt,
+      lastRunStatus: task.last_run_status || task.lastRunStatus,
+      credentialId: task.credential_id || task.credentialId,
+      credentialName: task.credential_name || task.credentialName,
+      siteId: task.site_id || task.siteId,
+      siteName: task.site_name || task.siteName,
+      deviceCount: task.device_count || task.deviceCount,
+      cronExpr: task.cron_expr || task.cronExpr,
+      retentionCount: task.retention_count || task.retentionCount,
+      retentionDays: task.retention_days || task.retentionDays,
+      notifyOnChange: task.notify_on_change || task.notifyOnChange,
+      notifyOnFail: task.notify_on_fail || task.notifyOnFail,
+      isEnabled: task.is_enabled || task.isEnabled,
+      createdAt: task.created_at || task.createdAt,
+    }))
   } catch (error) {
     console.error('Failed to load tasks:', error)
     ElMessage.error(t('backups.loadTasksFailed'))
@@ -354,9 +372,31 @@ async function loadCredentials() {
 
 
 function formatDateTime(dateString: string) {
-  if (!dateString) return '-'
-  // 后端已经格式化好北京时间：YYYY-MM-DD HH:MM:SS，直接显示
-  return dateString
+    let date: Date
+    if (!dateString) return '-'
+    
+    if (dateString.includes('T') || dateString.includes('Z')) {
+        date = new Date(dateString)
+    } else if (dateString.includes('+')) {
+        date = new Date(dateString.replace(' ', 'T'))
+    } else {
+        // 如果没有时区信息，假设是 UTC 时间
+        date = new Date(dateString.replace(' ', 'T') + 'Z')
+    }
+    
+    if (isNaN(date.getTime())) {
+        return dateString
+    }
+    return date.toLocaleString(locale?.value || 'zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    })
 }
 
 function getStatusType(status?: string) {
