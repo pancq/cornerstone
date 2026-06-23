@@ -362,7 +362,8 @@ function formatDateTime(dateString: string) {
   } else if (dateString.includes('+')) {
     date = new Date(dateString.replace(' ', 'T'))
   } else {
-    date = new Date(dateString.replace(' ', 'T'))
+    // 如果没有时区信息，假设是 UTC 时间，在转换为北京时间时会自动+8小时
+    date = new Date(dateString.replace(' ', 'T') + 'Z')
   }
   
   if (isNaN(date.getTime())) {

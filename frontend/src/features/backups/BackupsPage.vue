@@ -410,7 +410,8 @@ function formatDateTime(dateString: string) {
     date = new Date(dateString.replace(' ', 'T'))
   } else {
     // 处理普通格式：2026-06-17 15:33:24
-    date = new Date(dateString.replace(' ', 'T'))
+    // 如果没有时区信息，假设是 UTC 时间，在转换为北京时间时会自动+8小时
+    date = new Date(dateString.replace(' ', 'T') + 'Z')
   }
   
   if (isNaN(date.getTime())) {
