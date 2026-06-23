@@ -27,20 +27,25 @@ async def get_backup_tasks(
     for task in tasks:
         task_dict = {c.name: getattr(task, c.name) for c in task.__table__.columns}
         
-        # 直接返回格式化的北京时间，前端不需要转换时区
-        if task_dict.get('last_run_at') is not None:
+        # 确保时间字段序列化为 ISO 格式（带时区）
+        # 如果没有时区信息，判断来源：
+        # - last_run_at：我们代码中显式设置为 UTC，直接添加 UTC 时区
+        # - created_at：默认值生成，数据库是北京时间，需要转换为 UTC
+        if task_dict.get('last_run_at'):
             dt = task_dict['last_run_at']
-            # last_run_at 由代码设置为 UTC，转换为北京时间输出
-            if dt is not None:
-                if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=datetime.timezone.utc)
-                dt_shanghai = dt.astimezone(datetime.timezone(datetime.timedelta(hours=8)))
-                task_dict['last_run_at'] = dt_shanghai.strftime('%Y-%m-%d %H:%M:%S')
-        if task_dict.get('created_at') is not None:
+            if dt and dt.tzinfo is None:
+                # last_run_at 是我们代码中显式设置的 UTC 时间
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt:
+                task_dict['last_run_at'] = dt.isoformat()
+        if task_dict.get('created_at'):
             dt = task_dict['created_at']
-            # 数据库已经是北京时间，直接格式化输出
-            if dt is not None:
-                task_dict['created_at'] = dt.strftime('%Y-%m-%d %H:%M:%S')
+            if dt and dt.tzinfo is None:
+                # created_at 是默认值生成，数据库返回的是北京时间
+                shanghai_tz = datetime.timezone(datetime.timedelta(hours=8), name='Asia/Shanghai')
+                dt = dt.replace(tzinfo=shanghai_tz).astimezone(timezone.utc)
+            if dt:
+                task_dict['created_at'] = dt.isoformat()
         
         # 获取凭证名称
         if task.credential_id:

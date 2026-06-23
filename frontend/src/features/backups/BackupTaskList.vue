@@ -354,9 +354,31 @@ async function loadCredentials() {
 
 
 function formatDateTime(dateString: string) {
+  let date: Date
   if (!dateString) return '-'
-  // 后端已经格式化好北京时间：YYYY-MM-DD HH:MM:SS，直接返回
-  return dateString
+  
+  if (dateString.includes('T') || dateString.includes('Z')) {
+    date = new Date(dateString)
+  } else if (dateString.includes('+')) {
+    date = new Date(dateString.replace(' ', 'T'))
+  } else {
+    // 如果没有时区信息，假设是 UTC 时间，添加 Z 后缀
+    date = new Date(dateString.replace(' ', 'T') + 'Z')
+  }
+  
+  if (isNaN(date.getTime())) {
+    return dateString
+  }
+  return date.toLocaleString(locale?.value || 'zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 }
 
 function getStatusType(status?: string) {
