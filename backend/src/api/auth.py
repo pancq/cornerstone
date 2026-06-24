@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update
 from captcha.image import ImageCaptcha
+import redis.asyncio as aioredis
 
 from ..database import get_db
 from ..models import User, AuditLog, UserSession, Role
@@ -42,10 +43,14 @@ class CaptchaLoginRequest(BaseModel):
     captcha_id: str
     captcha_code: str
 
-# 验证码存储（内存存储，生产环境建议用Redis）
-captcha_store = {}
-
 # SSO相关路由
+
+async def get_redis():
+    client = aioredis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        yield client
+    finally:
+        await client.aclose()
 @router.get("/sso/config")
 async def get_sso_config():
     """获取SSO配置信息"""
@@ -435,23 +440,16 @@ async def refresh_token(
     }
 
 @router.get("/captcha")
-async def get_captcha():
+async def get_captcha(redis=Depends(get_redis)):
     """获取图形验证码"""
-    # 生成验证码和会话ID
     captcha_id = generate_jti()
     captcha_code = generate_random_code()
     
-    # 存储验证码，有效期5分钟
-    captcha_store[captcha_id] = {
-        "code": captcha_code.lower(),
-        "expire_at": datetime.now() + timedelta(minutes=5)
-    }
+    await redis.setex(f"captcha:{captcha_id}", 300, captcha_code.lower())
     
-    # 生成验证码图片
     image = ImageCaptcha(width=200, height=80)
     data = image.generate(captcha_code)
     
-    # 返回图片和会话ID
     return StreamingResponse(
         io.BytesIO(data.getvalue()),
         media_type="image/png",
@@ -462,21 +460,18 @@ async def get_captcha():
 async def login_with_captcha(
     request: Request,
     body: CaptchaLoginRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    redis=Depends(get_redis)
 ):
     """带验证码的登录接口"""
-    if body.captcha_id not in captcha_store:
+    stored_code = await redis.get(f"captcha:{body.captcha_id}")
+    if not stored_code:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请刷新")
 
-    captcha_data = captcha_store[body.captcha_id]
-    if datetime.now() > captcha_data["expire_at"]:
-        del captcha_store[body.captcha_id]
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码已过期，请刷新")
-
-    if body.captcha_code.lower() != captcha_data["code"]:
+    if body.captcha_code.lower() != stored_code:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="验证码错误")
 
-    del captcha_store[body.captcha_id]
+    await redis.delete(f"captcha:{body.captcha_id}")
 
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("User-Agent", "")

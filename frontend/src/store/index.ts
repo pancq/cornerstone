@@ -3,9 +3,26 @@ import type { AppState, Circuit, Site, Device, Prefix, IPAddress, Backup, User, 
 import { seedState, STORE_KEY } from './seed'
 import { uid } from '../lib/utils'
 
+function getEmptyState(): AppState {
+  return {
+    sites: [],
+    circuits: [],
+    aggregates: [],
+    prefixes: [],
+    ipAddresses: [],
+    devices: [],
+    credentials: [],
+    backups: [],
+    users: [],
+    auditLogs: [],
+    vlanGroups: [],
+    vlans: [],
+  }
+}
+
 function loadState(): AppState {
   const saved = localStorage.getItem(STORE_KEY)
-  return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(seedState))
+  return saved ? JSON.parse(saved) : getEmptyState()
 }
 
 function saveState(state: AppState): void {

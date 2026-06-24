@@ -36,6 +36,7 @@
           inline-prompt
           size="small"
         />
+        <el-button :icon="Refresh" :title="t('topology.refreshData')" @click="loadDeviceData" class="toolbar-btn" />
         <el-button :icon="Refresh" :title="t('topology.forceLayout')" @click="runForceLayout" :loading="isLayoutRunning" class="toolbar-btn" />
         <el-button :icon="Grid" :title="t('topology.gridLayout')" @click="resetLayout" class="toolbar-btn" />
         <el-button :icon="ZoomIn" :title="t('topology.zoomIn')" @click="zoomIn" class="toolbar-btn" />
@@ -880,7 +881,7 @@ function startRefreshTimer() {
     } catch (error) {
       console.error('Auto refresh failed:', error)
     }
-  }, 30000)
+  }, 120000)
 }
 
 function stopRefreshTimer() {

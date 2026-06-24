@@ -520,6 +520,7 @@
     "notConfigured": "Not Configured",
     "hideIsolated": "Hide Isolated",
     "showIsolated": "Show Isolated",
+    "refreshData": "Refresh Data",
     "forceLayout": "Force Layout",
     "gridLayout": "Grid Layout",
     "tooltipTitle": "Name",

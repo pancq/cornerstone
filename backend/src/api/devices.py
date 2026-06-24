@@ -99,18 +99,30 @@ async def backup_device_config(
     device = result.scalar_one_or_none()
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
+
+    if not device.mgmt_ip_id:
+        raise HTTPException(status_code=400, detail="设备未配置管理IP")
+
+    ip_result = await db.execute(
+        select(IPAddress).where(IPAddress.id == device.mgmt_ip_id)
+    )
+    mgmt_ip = ip_result.scalar_one_or_none()
+    if not mgmt_ip:
+        raise HTTPException(status_code=400, detail="管理IP记录不存在")
     
     cred_result = await db.execute(select(Credential).where(Credential.device_id == device_id))
     credential = cred_result.scalar_one_or_none()
     if credential is None:
         raise HTTPException(status_code=400, detail="No credential found for device")
     
+    from ..utils.crypto import decrypt_password
+    
     device_info = {
-        "ip": device.mgmt_ip_id,
+        "ip": mgmt_ip.address,
         "username": credential.username,
-        "password": credential.password,
-        "device_type": "cisco_ios",
-        "port": credential.port
+        "password": decrypt_password(credential.password),
+        "device_type": device.vendor or "cisco_ios",
+        "port": credential.port or 22,
     }
     
     config = backup_config(device_info)
@@ -143,6 +155,17 @@ async def create_credential(
     
     data = credential.model_dump()
     data["device_id"] = device_id
+
+    from ..utils.crypto import encrypt_password
+    if data.get("password"):
+        data["password"] = encrypt_password(data["password"])
+    if data.get("enable_password"):
+        data["enable_password"] = encrypt_password(data["enable_password"])
+    if data.get("private_key"):
+        data["private_key"] = encrypt_password(data["private_key"])
+    if data.get("jump_password"):
+        data["jump_password"] = encrypt_password(data["jump_password"])
+
     stmt = insert(Credential).values(**data).returning(Credential)
     result = await db.execute(stmt)
     await db.commit()
@@ -155,7 +178,19 @@ async def update_credential(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(Credential).where(Credential.id == credential_id).values(**credential.model_dump(exclude_unset=True)).returning(Credential)
+    data = credential.model_dump(exclude_unset=True)
+
+    from ..utils.crypto import encrypt_password
+    if data.get("password") and data["password"] != "********":
+        data["password"] = encrypt_password(data["password"])
+    if data.get("enable_password") and data["enable_password"] != "********":
+        data["enable_password"] = encrypt_password(data["enable_password"])
+    if data.get("private_key") and data["private_key"] != "********":
+        data["private_key"] = encrypt_password(data["private_key"])
+    if data.get("jump_password") and data["jump_password"] != "********":
+        data["jump_password"] = encrypt_password(data["jump_password"])
+
+    stmt = update(Credential).where(Credential.id == credential_id).values(**data).returning(Credential)
     result = await db.execute(stmt)
     credential = result.scalar_one_or_none()
     if credential is None:

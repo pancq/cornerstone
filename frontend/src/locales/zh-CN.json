@@ -756,6 +756,7 @@
     "notConfigured": "未配置",
     "hideIsolated": "隐藏孤立节点",
     "showIsolated": "显示孤立节点",
+    "refreshData": "刷新数据",
     "forceLayout": "力导布局",
     "gridLayout": "网格布局",
     "tooltipTitle": "名称",
