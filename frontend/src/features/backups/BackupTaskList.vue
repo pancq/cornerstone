@@ -380,8 +380,7 @@ function formatDateTime(dateString: string) {
     } else if (dateString.includes('+')) {
         date = new Date(dateString.replace(' ', 'T'))
     } else {
-        // 如果没有时区信息，假设是 UTC 时间
-        date = new Date(dateString.replace(' ', 'T') + 'Z')
+        date = new Date(dateString.replace(' ', 'T'))
     }
     
     if (isNaN(date.getTime())) {

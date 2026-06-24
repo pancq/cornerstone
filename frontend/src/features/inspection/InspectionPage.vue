@@ -61,9 +61,13 @@ function formatTime(dateString: string) {
  if (!dateString || dateString === 'None' || dateString === 'null') {
  return '-';
  }
- const date = new Date(dateString);
- // 检查是否为Unix时间戳0（1970年）
- if (date.getTime() < 86400000) { // 小于一天的毫秒数
+ let date: Date;
+ if (dateString.includes('T') && !dateString.includes('Z') && !dateString.includes('+')) {
+ date = new Date(dateString.replace('T', ' '));
+ } else {
+ date = new Date(dateString);
+ }
+ if (date.getTime() < 86400000) {
  return '-';
  }
  return date.toLocaleString(locale.value || 'zh-CN', {
