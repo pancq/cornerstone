@@ -28,6 +28,9 @@ export interface DashboardStats {
     score: number
     status: 'excellent' | 'good' | 'warning' | 'critical'
   }
+  alerts: {
+    pending: number
+  }
 }
 
 export interface PrefixUsage {

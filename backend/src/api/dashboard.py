@@ -13,6 +13,7 @@ from src.models.audit_log import AuditLog
 from src.models.site import Site
 from src.models.link_monitor import LinkMonitor
 from src.models.circuit_incident import CircuitIncident
+from src.models.alert import AlertRecord
 from src.api.auth import get_current_active_user
 from src.models.user import User
 
@@ -152,6 +153,13 @@ async def get_dashboard_stats(
     
     health_score = max(0, min(100, round(health_score)))
     
+    # 8. 活跃告警计数（主动告警记录）
+    pending_alerts_result = await db.execute(
+        select(func.count(AlertRecord.id))
+        .where(AlertRecord.status == 'active')
+    )
+    pending_alerts = pending_alerts_result.scalar() or 0
+    
     return {
         "sites": {
             "total": total_sites
@@ -179,6 +187,9 @@ async def get_dashboard_stats(
         "health": {
             "score": health_score,
             "status": "excellent" if health_score >= 90 else "good" if health_score >= 70 else "warning" if health_score >= 50 else "critical"
+        },
+        "alerts": {
+            "pending": pending_alerts
         }
     }
 

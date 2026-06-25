@@ -14,15 +14,6 @@ function getOnlineDevicesColor(online: number, total: number): string {
   return '#67C23A' // 全部在线，绿色
 }
 
-function getAlertStatus(score: number): string {
-  if (score === 0) return '全部已处理'
-  return `${score} 条待处理`
-}
-
-function getAlertColor(score: number): string {
-  return score === 0 ? '#67C23A' : '#F56C6C'
-}
-
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const router = useRouter()
@@ -305,11 +296,11 @@ onMounted(() => {
         <div class="overview-card-trend">{{ t('backups.backupSuccess') }} / {{ t('backups.backupFailed') }}</div>
         <div class="overview-card-arrow">›</div>
       </div>
-      <div v-if="visibleCards.includes('health')" class="overview-card" :style="{ borderLeftColor: getAlertColor(dashboardStats?.health.score || 0) }" @click="navigateTo('/alerts?status=pending')">
+      <div v-if="visibleCards.includes('health')" class="overview-card" :style="{ borderLeftColor: dashboardStats?.alerts.pending ? '#F56C6C' : '#67C23A' }" @click="navigateTo('/alerts?status=pending')">
         <div class="overview-card-label">未处理告警</div>
-        <div class="overview-card-value" :style="{ color: getAlertColor(dashboardStats?.health.score || 0) }">{{ dashboardStats?.health.score || 0 }}</div>
-        <div class="overview-card-trend" :style="{ color: getAlertColor(dashboardStats?.health.score || 0) }">
-          {{ getAlertStatus(dashboardStats?.health.score || 0) }}
+        <div class="overview-card-value" :style="{ color: dashboardStats?.alerts.pending ? '#F56C6C' : '#67C23A' }">{{ dashboardStats?.alerts.pending || 0 }}</div>
+        <div class="overview-card-trend" :style="{ color: dashboardStats?.alerts.pending ? '#F56C6C' : '#67C23A' }">
+          {{ dashboardStats?.alerts.pending ? '有待处理告警' : '一切正常' }}
         </div>
         <div class="overview-card-arrow">›</div>
       </div>
