@@ -541,7 +541,7 @@ async def get_manager_stats(
             "type": "专线合同",
             "name": c.name,
             "expire_date": c.contract_end.strftime("%Y-%m-%d"),
-            "days_left": (c.contract_end - now_dt.date()).days,
+            "days_left": (c.contract_end.date() - now_dt.date()).days,
             "detail": c.provider or ""
         }
         for c in urgent_circuits_result.all()
@@ -561,7 +561,7 @@ async def get_manager_stats(
             "type": "设备保修",
             "name": d.name,
             "expire_date": d.warranty_end.strftime("%Y-%m-%d"),
-            "days_left": (d.warranty_end - now_dt.date()).days,
+            "days_left": (d.warranty_end.date() - now_dt.date()).days,
             "detail": d.model or ""
         }
         for d in urgent_warranties_result.all()
@@ -581,7 +581,7 @@ async def get_manager_stats(
             "type": "专线合同",
             "name": c.name,
             "expire_date": c.contract_end.strftime("%Y-%m-%d"),
-            "days_left": (c.contract_end - now_dt.date()).days,
+            "days_left": (c.contract_end.date() - now_dt.date()).days,
             "detail": c.provider or ""
         }
         for c in warning_circuits_result.all()
@@ -601,7 +601,7 @@ async def get_manager_stats(
             "type": "设备保修",
             "name": d.name,
             "expire_date": d.warranty_end.strftime("%Y-%m-%d"),
-            "days_left": (d.warranty_end - now_dt.date()).days,
+            "days_left": (d.warranty_end.date() - now_dt.date()).days,
             "detail": d.model or ""
         }
         for d in warning_warranties_result.all()
