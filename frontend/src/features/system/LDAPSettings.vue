@@ -69,8 +69,10 @@ const fetchConfig = async () => {
       config.value = { ...config.value, ...data }
       originalConfig.value = { ...config.value }
     }
+    // 接口不存在时保持默认值（enabled: false）
   } catch (error) {
-    console.error('获取LDAP配置失败:', error)
+    console.debug('LDAP not configured, using defaults')
+    // 保持默认值 enabled: false
   }
 }
 

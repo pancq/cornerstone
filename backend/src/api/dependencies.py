@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
@@ -46,8 +47,8 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 使用 select 查询用户
-    stmt = select(User).where(User.username == username)
+    # 使用 select 查询用户，预加载role关系避免懒加载
+    stmt = select(User).options(joinedload(User.role)).where(User.username == username)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
     

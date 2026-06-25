@@ -73,3 +73,20 @@ export async function updateIPAddress(id: string | number, data: Partial<IPAddre
 export async function deleteIPAddress(id: string | number): Promise<void> {
   await api.delete(`/ipam/addresses/${id}`)
 }
+
+export interface NextAvailableIPResponse {
+  code: number
+  message: string
+  data: {
+    ip_address: string
+    total_ips: number
+    used_count: number
+    available_count: number
+    usage_rate: number
+  } | null
+}
+
+export async function getNextAvailableIP(prefixId: number): Promise<NextAvailableIPResponse> {
+  const response = await api.get(`/ipam/prefixes/${prefixId}/next-available`)
+  return response.data
+}

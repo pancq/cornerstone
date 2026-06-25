@@ -7,7 +7,7 @@ import api from '../../api/axios'
 import type { Prefix, IPAddress } from '../../types/domain'
 import IpMatrix from './components/IpMatrix.vue'
 import ScanProgress from './components/ScanProgress.vue'
-import { getPrefixes, createPrefix, updatePrefix, deletePrefix, getIPAddresses, createIPAddress, updateIPAddress, deleteIPAddress } from '../../api/ipam'
+import { getPrefixes, createPrefix, updatePrefix, deletePrefix, getIPAddresses, createIPAddress, updateIPAddress, deleteIPAddress, getNextAvailableIP } from '../../api/ipam'
 import { getSites } from '../../api/sites'
 import { getDevices } from '../../api/devices'
 import { getVlans } from '../../api/vlans'
@@ -108,6 +108,13 @@ const ipForm = ref<{
   owner: '',
   status: '已分配',
 })
+
+const currentPrefixInfo = ref<{
+  total_ips: number
+  used_count: number
+  available_count: number
+  usage_rate: number
+} | null>(null)
 
 // 选中子网的IP列表
 const selectedPrefixIPs = computed(() => {
@@ -268,6 +275,22 @@ function resetIPForm() {
     status: '已分配',
   }
   editingIP.value = null
+  currentPrefixInfo.value = null
+}
+
+async function loadPrefixInfo(prefixId: number) {
+  try {
+    const result = await getNextAvailableIP(prefixId)
+    if (result.code === 0 && result.data) {
+      currentPrefixInfo.value = result.data
+      ipForm.value.address = result.data.ip_address
+    } else {
+      currentPrefixInfo.value = null
+    }
+  } catch (error) {
+    console.error('Failed to load prefix info:', error)
+    currentPrefixInfo.value = null
+  }
 }
 
 function handleEditPrefix(prefix: Prefix) {
@@ -888,12 +911,46 @@ const handleDeleteIP = async (ip: IPAddress) => {
           </el-col>
           <el-col :span="12">
             <el-form-item label="所属子网">
-              <el-select v-model="ipForm.prefixId" style="width: 100%" placeholder="请选择子网">
+              <el-select 
+                v-model="ipForm.prefixId" 
+                style="width: 100%" 
+                placeholder="请选择子网"
+                @change="(val) => val && loadPrefixInfo(Number(val))"
+              >
                 <el-option v-for="prefix in prefixes" :key="prefix.id" :label="prefix.network" :value="prefix.id" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
+        
+        <div v-if="currentPrefixInfo && !editingIP" class="prefix-info-bar">
+          <el-alert
+            type="info"
+            :closable="false"
+            style="padding: 12px;"
+          >
+            <div class="prefix-info-row">
+              <span>子网使用情况:</span>
+              <span class="usage-text">{{ currentPrefixInfo.used_count }}/{{ currentPrefixInfo.total_ips }}</span>
+              <span class="usage-percent">({{ currentPrefixInfo.usage_rate }}%)</span>
+            </div>
+            <div class="usage-progress">
+              <div 
+                class="usage-bar-fill" 
+                :class="{ 'warning': currentPrefixInfo.usage_rate > 80 }"
+                :style="{ width: currentPrefixInfo.usage_rate + '%' }"
+              ></div>
+            </div>
+            <div class="prefix-info-row" style="margin-top: 8px;">
+              <span>可用IP:</span>
+              <span class="available-count">{{ currentPrefixInfo.available_count }}个</span>
+              <el-button size="small" type="primary" plain @click="loadPrefixInfo(Number(ipForm.prefixId))">
+                重新选择
+              </el-button>
+            </div>
+          </el-alert>
+        </div>
+
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="绑定设备">
@@ -1265,5 +1322,49 @@ const handleDeleteIP = async (ip: IPAddress) => {
   .overview-cards {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.prefix-info-bar {
+  margin-bottom: 16px;
+}
+
+.prefix-info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.usage-text {
+  font-weight: 600;
+  color: #262626;
+}
+
+.usage-percent {
+  color: #8c8c8c;
+}
+
+.usage-progress {
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.usage-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1890ff, #36cfc9);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.usage-bar-fill.warning {
+  background: linear-gradient(90deg, #ff4d4f, #faad14);
+}
+
+.available-count {
+  color: #67c23a;
+  font-weight: 600;
 }
 </style>

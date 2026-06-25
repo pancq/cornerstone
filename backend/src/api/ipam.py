@@ -389,7 +389,6 @@ async def release_address(
     if not address:
         raise HTTPException(status_code=404, detail="IP Address not found")
     
-    # 释放IP：清空设备、负责人、用途，状态改为available，expire_at置空
     stmt = update(IPAddress).where(IPAddress.id == address_id).values(
         device_id=None,
         usage=None,
@@ -403,3 +402,55 @@ async def release_address(
     await db.commit()
     
     return {"code": 0, "message": "IP地址已成功释放", "data": result.scalar_one()}
+
+
+@router.get("/prefixes/{prefix_id}/next-available")
+async def get_next_available_ip(
+    prefix_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """获取子网下下一个可用的IP地址"""
+    result = await db.execute(select(Prefix).where(Prefix.id == prefix_id))
+    prefix = result.scalar_one_or_none()
+    
+    if not prefix:
+        raise HTTPException(status_code=404, detail="Prefix not found")
+    
+    import ipaddress
+    network = ipaddress.IPv4Network(prefix.network, strict=False)
+    
+    assigned_result = await db.execute(
+        select(IPAddress.address).where(
+            IPAddress.prefix_id == prefix_id,
+            IPAddress.status != "available"
+        )
+    )
+    assigned_ips = set(assigned_result.scalars().all())
+    
+    next_ip = None
+    for ip in network.hosts():
+        ip_str = str(ip)
+        if ip_str not in assigned_ips:
+            next_ip = ip_str
+            break
+    
+    if not next_ip:
+        return {"code": 1, "message": "子网已无可用IP", "data": None}
+    
+    total_ips = network.num_addresses - 2
+    used_count = len(assigned_ips)
+    available_count = total_ips - used_count
+    usage_rate = (used_count / total_ips) * 100 if total_ips > 0 else 0
+    
+    return {
+        "code": 0,
+        "message": "ok",
+        "data": {
+            "ip_address": next_ip,
+            "total_ips": total_ips,
+            "used_count": used_count,
+            "available_count": available_count,
+            "usage_rate": round(usage_rate, 1)
+        }
+    }

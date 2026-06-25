@@ -9,7 +9,7 @@ from .dependencies import get_current_active_user
 
 router = APIRouter()
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 @router.get("/")
 async def read_logs(
@@ -36,8 +36,8 @@ async def read_logs(
         if created_at:
             # 确保时间带时区信息
             if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            created_at_str = created_at.isoformat().replace("+00:00", "Z")
+                created_at = created_at.replace(tzinfo=timezone(timedelta(hours=8)))
+            created_at_str = created_at.isoformat().replace("+08:00", "Z")
         else:
             created_at_str = None
         

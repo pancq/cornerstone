@@ -59,6 +59,9 @@ PERMISSIONS = [
     # 操作日志
     {"module": "logs", "action": "read", "display_name": "日志管理-查看", "description": "查看操作日志"},
     
+    # 首页仪表盘
+    {"module": "dashboard", "action": "read", "display_name": "仪表盘-查看", "description": "查看仪表盘数据"},
+    
     # 用户管理
     {"module": "users", "action": "read", "display_name": "用户管理-查看", "description": "查看用户列表"},
     {"module": "users", "action": "write", "display_name": "用户管理-新增编辑", "description": "新增和编辑用户"},
@@ -92,16 +95,12 @@ ROLES = [
     },
     {
         "name": "viewer",
-        "display_name": "只读查看者",
-        "description": "所有业务模块只读权限，不可进行任何新增/编辑/删除操作",
+        "display_name": "IT负责人",
+        "description": "管理看板、审批操作、月报下载",
         "is_builtin": True,
         "permissions": [
-            "sites:read",
+            "dashboard:read",
             "circuits:read",
-            "ipam:read",
-            "devices:read",
-            "backups:read",
-            "topology:read",
             "alerts:read",
             "logs:read"
         ]

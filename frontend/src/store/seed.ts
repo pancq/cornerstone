@@ -169,7 +169,7 @@ export const seedState: AppState = {
   users: [
     { id: 'user-001', username: 'admin', email: 'admin@example.com', role: '超级管理员', isActive: true },
     { id: 'user-002', username: 'ops', email: 'ops@example.com', role: 'IT运维工程师', isActive: true },
-    { id: 'user-003', username: 'viewer', email: 'viewer@example.com', role: '只读查看者', isActive: true },
+    { id: 'user-003', username: 'viewer', email: 'viewer@example.com', role: 'IT负责人', isActive: true },
   ],
   auditLogs: [
     { id: 'log-001', user: 'ops', action: '更新专线状态', resource: '演示实验室SD-WAN备份', detail: '状态由 正常 改为 故障', createdAt: '2026-05-21 09:06', ipAddress: '192.0.2.200', success: 'true' },

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Download, Upload, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Download, Upload, Edit, Delete, MagicStick } from '@element-plus/icons-vue'
 import { formatDate } from '../../lib/utils'
 import type { Device, IPAddress, Site } from '../../types/domain'
 import { getIPAddresses, createIPAddress } from '../../api/ipam'
@@ -12,6 +12,7 @@ import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/auth'
 import api from '../../api/axios'
 import { DEVICE_TYPE_CONFIG } from '../../constants/deviceIcons'
+import QuickAddDeviceWizard from './QuickAddDeviceWizard.vue'
 
 const { t } = useI18n()
 const store = useAppStore()
@@ -33,6 +34,7 @@ const ipAddresses = ref<IPAddress[]>([])
 const searchQuery = ref('')
 const selectedSiteId = ref<number | null>(null)
 const showDialog = ref(false)
+const showQuickAddWizard = ref(false)
 const editingDevice = ref<Device | null>(null)
 const loading = ref(false)
 const form = ref({
@@ -556,6 +558,10 @@ onMounted(async () => {
               <el-icon><Plus /></el-icon>
               {{ t('devices.create') }}
             </el-button>
+            <el-button type="success" @click="showQuickAddWizard = true">
+              <el-icon><MagicStick /></el-icon>
+              快速添加
+            </el-button>
             <el-button type="success" @click="handleImportClick">
               <el-icon><Upload /></el-icon>
               {{ t('devices.import') }}
@@ -886,6 +892,8 @@ onMounted(async () => {
         </el-button>
       </template>
     </el-dialog>
+    
+    <QuickAddDeviceWizard v-model:visible="showQuickAddWizard" />
   </div>
 </template>
 

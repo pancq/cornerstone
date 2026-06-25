@@ -217,3 +217,25 @@ export async function getAlertCount(): Promise<AlertCount> {
   const response = await api.get('/inspection/alerts/count')
   return response.data
 }
+
+export interface InspectionCategory {
+  name: string
+  label: string
+  count: number
+  color: string
+  icon: string
+}
+
+export interface InspectionCategoryResponse {
+  categories: InspectionCategory[]
+}
+
+export async function getInspectionCategories(resultId: number): Promise<InspectionCategoryResponse> {
+  const response = await api.get(`/inspection/results/${resultId}/categories`)
+  return response.data
+}
+
+export async function getDevicesByCategory(resultId: number, category: string, limit = 100): Promise<InspectionDeviceResult[]> {
+  const response = await api.get(`/inspection/results/${resultId}/devices/category/${category}`, { params: { limit } })
+  return response.data
+}

@@ -270,6 +270,117 @@ async def get_device_fingerprint(
     return fingerprint
 
 
+# 巡检结果智能分类
+@router.get("/results/{result_id}/categories")
+async def get_inspection_categories(
+    result_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """获取巡检结果的分类统计"""
+    result = await db.execute(select(InspectionResult).where(InspectionResult.id == result_id))
+    inspection_result = result.scalar_one_or_none()
+    if not inspection_result:
+        raise HTTPException(status_code=404, detail="巡检记录不存在")
+    
+    offline_result = await db.execute(
+        select(InspectionDeviceResult)
+        .where(InspectionDeviceResult.result_id == result_id)
+        .where(InspectionDeviceResult.is_online == False)
+    )
+    offline_count = len(offline_result.scalars().all())
+    
+    new_device_result = await db.execute(
+        select(InspectionDeviceResult)
+        .where(InspectionDeviceResult.result_id == result_id)
+        .where(InspectionDeviceResult.is_new_device == True)
+    )
+    new_device_count = len(new_device_result.scalars().all())
+    
+    change_result = await db.execute(
+        select(InspectionDeviceResult)
+        .where(InspectionDeviceResult.result_id == result_id)
+        .where(InspectionDeviceResult.has_fingerprint_change == True)
+    )
+    change_count = len(change_result.scalars().all())
+    
+    high_cpu_result = await db.execute(
+        select(InspectionDeviceResult)
+        .where(InspectionDeviceResult.result_id == result_id)
+        .where(InspectionDeviceResult.is_online == True)
+        .where(InspectionDeviceResult.cpu_usage > 80)
+    )
+    high_cpu_count = len(high_cpu_result.scalars().all())
+    
+    high_memory_result = await db.execute(
+        select(InspectionDeviceResult)
+        .where(InspectionDeviceResult.result_id == result_id)
+        .where(InspectionDeviceResult.is_online == True)
+        .where(InspectionDeviceResult.memory_usage > 80)
+    )
+    high_memory_count = len(high_memory_result.scalars().all())
+    
+    error_result = await db.execute(
+        select(InspectionDeviceResult)
+        .where(InspectionDeviceResult.result_id == result_id)
+        .where(InspectionDeviceResult.error_message.is_not(None))
+        .where(InspectionDeviceResult.error_message != "")
+    )
+    error_count = len(error_result.scalars().all())
+    
+    normal_count = (inspection_result.total_targets or 0) - offline_count - new_device_count - change_count - high_cpu_count - high_memory_count - error_count
+    
+    categories = [
+        {"name": "offline", "label": "离线设备", "count": offline_count, "color": "#F56C6C", "icon": "offline"},
+        {"name": "new_device", "label": "新发现设备", "count": new_device_count, "color": "#409EFF", "icon": "plus"},
+        {"name": "change", "label": "配置变更", "count": change_count, "color": "#E6A23C", "icon": "refresh"},
+        {"name": "high_cpu", "label": "高CPU使用率", "count": high_cpu_count, "color": "#9C27B0", "icon": "cpu"},
+        {"name": "high_memory", "label": "高内存使用率", "count": high_memory_count, "color": "#67C23A", "icon": "harddisk"},
+        {"name": "error", "label": "采集异常", "count": error_count, "color": "#FA541C", "icon": "alert"},
+        {"name": "normal", "label": "正常设备", "count": normal_count, "color": "#67C23A", "icon": "check"},
+    ]
+    
+    return {"categories": categories}
+
+
+@router.get("/results/{result_id}/devices/category/{category}")
+async def get_inspection_devices_by_category(
+    result_id: int,
+    category: str,
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """按分类获取设备巡检结果"""
+    query = select(InspectionDeviceResult).where(InspectionDeviceResult.result_id == result_id)
+    
+    if category == "offline":
+        query = query.where(InspectionDeviceResult.is_online == False)
+    elif category == "new_device":
+        query = query.where(InspectionDeviceResult.is_new_device == True)
+    elif category == "change":
+        query = query.where(InspectionDeviceResult.has_fingerprint_change == True)
+    elif category == "high_cpu":
+        query = query.where(InspectionDeviceResult.is_online == True).where(InspectionDeviceResult.cpu_usage > 80)
+    elif category == "high_memory":
+        query = query.where(InspectionDeviceResult.is_online == True).where(InspectionDeviceResult.memory_usage > 80)
+    elif category == "error":
+        query = query.where(InspectionDeviceResult.error_message.is_not(None)).where(InspectionDeviceResult.error_message != "")
+    elif category == "normal":
+        query = query.where(InspectionDeviceResult.is_online == True)
+        query = query.where(InspectionDeviceResult.is_new_device == False)
+        query = query.where(InspectionDeviceResult.has_fingerprint_change == False)
+        query = query.where((InspectionDeviceResult.cpu_usage <= 80) | (InspectionDeviceResult.cpu_usage.is_(None)))
+        query = query.where((InspectionDeviceResult.memory_usage <= 80) | (InspectionDeviceResult.memory_usage.is_(None)))
+        query = query.where((InspectionDeviceResult.error_message == "") | (InspectionDeviceResult.error_message.is_(None)))
+    else:
+        raise HTTPException(status_code=400, detail="无效的分类类型")
+    
+    query = query.limit(limit)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
 # 告警统计
 @router.get("/alerts/count", response_model=AlertCountResponse)
 async def get_alert_count(

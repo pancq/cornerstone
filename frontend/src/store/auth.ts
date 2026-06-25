@@ -271,7 +271,7 @@ export const useAuthStore = defineStore('auth', () => {
       ssoConfig.value = response.data
       return response.data
     } catch (error) {
-      console.error('Fetch SSO config failed:', error)
+      console.debug('Fetch SSO config failed, using defaults', error)
       ssoConfig.value = {
         enabled: false,
         login_methods: ['local'],

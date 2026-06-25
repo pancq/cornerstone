@@ -88,3 +88,122 @@ export async function getCircuitTypes(): Promise<CircuitTypeItem[]> {
   const response = await request.get('/dashboard/circuit-types')
   return response.data
 }
+
+// ==================== IT负责人管理看板接口 ====================
+
+export interface ManagerStats {
+  availability: {
+    current: number | null
+    last_month: number | null
+    trend: 'up' | 'down' | 'stable' | null
+  }
+  circuit_cost: {
+    current: number
+    last_month: number
+    trend: 'up' | 'down' | 'stable' | null
+  }
+  open_incidents: {
+    count: number
+    max_duration_hours: number
+  }
+  expiring_soon: {
+    count: number
+    circuits: number
+    warranties: number
+  }
+}
+
+export interface RiskItem {
+  severity: 'high' | 'medium' | 'low'
+  category: string
+  title: string
+  description: string
+  count: number
+  resource_ids: number[]
+  action_url: string
+}
+
+export interface RisksResponse {
+  risks: RiskItem[]
+  high_count: number
+  medium_count: number
+  low_count: number
+}
+
+export interface CircuitCostTrend {
+  months: string[]
+  total_costs: number[]
+  by_type: {
+    '互联网专线': number[]
+    'MPLS': number[]
+    'SD-WAN': number[]
+    '其他': number[]
+  }
+}
+
+export interface AgeDistribution {
+  range: string
+  count: number
+  color: string
+}
+
+export interface OldDevice {
+  id: number
+  name: string
+  model: string
+  purchase_date: string
+  age_years: number
+  site: string
+}
+
+export interface DeviceLifecycle {
+  age_distribution: AgeDistribution[]
+  old_devices: OldDevice[]
+}
+
+export interface Incident {
+  id: number
+  title: string
+  circuit_name: string
+  severity: string
+  started_at: string
+  duration_hours: number
+  status: string
+}
+
+export interface MonthlyIncidents {
+  total: number
+  last_month_total: number
+  avg_recovery_hours: number
+  max_duration: {
+    hours: number
+    circuit: string
+    date: string
+  } | null
+  incidents: Incident[]
+}
+
+export async function getManagerStats(): Promise<ManagerStats> {
+  const response = await request.get('/dashboard/manager-stats')
+  return response.data
+}
+
+export async function getRisks(): Promise<RisksResponse> {
+  const response = await request.get('/dashboard/risks')
+  return response.data
+}
+
+export async function getCircuitCostTrend(): Promise<CircuitCostTrend> {
+  const response = await request.get('/dashboard/circuit-cost-trend')
+  return response.data
+}
+
+export async function getDeviceLifecycle(): Promise<DeviceLifecycle> {
+  const response = await request.get('/dashboard/device-lifecycle')
+  return response.data
+}
+
+export async function getMonthlyIncidents(): Promise<MonthlyIncidents> {
+  const response = await request.get('/dashboard/monthly-incidents')
+  return response.data
+}

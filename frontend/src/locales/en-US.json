@@ -611,11 +611,11 @@
     "roles": {
       "superAdmin": "Super Admin",
       "admin": "Admin",
-      "engineer": "Engineer",
-      "viewer": "Viewer",
+      "engineer": "IT Engineer",
+      "viewer": "IT Manager",
       "superAdminDesc": "Full system access, manage users, roles, configs and all resources",
-      "engineerDesc": "Daily operations, manage devices, circuits, alerts and backups",
-      "viewerDesc": "Read-only access, no write operations allowed",
+      "engineerDesc": "All business module read/write permissions, cannot manage users or system settings",
+      "viewerDesc": "Management dashboard, approval operations, monthly report download",
       "unknownRole": "Unknown Role"
     },
     "perm": {

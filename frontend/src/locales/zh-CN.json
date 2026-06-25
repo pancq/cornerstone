@@ -928,11 +928,11 @@
     "roles": {
       "superAdmin": "超级管理员",
       "admin": "管理员",
-      "engineer": "运维工程师",
-      "viewer": "只读用户",
-      "superAdminDesc": "拥有系统所有权限，可管理用户、角色、配置及所有资源",
-      "engineerDesc": "可进行日常运维操作，管理设备、专线、告警及备份",
-      "viewerDesc": "仅可查看数据，不可进行任何写操作",
+      "engineer": "IT运维工程师",
+      "viewer": "IT负责人",
+      "superAdminDesc": "拥有所有权限，包括用户管理、系统设置，唯一可以管理其他用户角色的账号",
+      "engineerDesc": "所有业务模块读写权限，不可操作用户管理和系统设置",
+      "viewerDesc": "管理看板、审批操作、月报下载",
       "unknownRole": "未知角色"
     },
     "perm": {
@@ -1073,7 +1073,7 @@
     "selectRole": "请选择角色",
     "admin": "管理员",
     "editor": "编辑用户",
-    "viewer": "只读用户",
+    "viewer": "IT负责人",
     "action": {
       "createUser": "创建用户",
       "updateUser": "更新用户",

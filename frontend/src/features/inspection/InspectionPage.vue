@@ -1,7 +1,7 @@
 <script setup lang="ts">import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox, ElIcon } from 'element-plus';
 import { Warning, Clock, Cpu, TrendCharts, Promotion } from '@element-plus/icons-vue';
-import { getTasks, getRecords, getFingerprints, getAlertCount, createTask, updateTask, deleteTask, executeTask, toggleTask, type InspectionTask, type InspectionTaskCreate, type InspectionRecord, type DeviceFingerprint, type AlertCount, type ExecuteResponse } from '@/api/inspection';
+import { getTasks, getRecords, getFingerprints, getAlertCount, createTask, updateTask, deleteTask, executeTask, toggleTask, getInspectionCategories, getDevicesByCategory, type InspectionTask, type InspectionTaskCreate, type InspectionRecord, type DeviceFingerprint, type AlertCount, type ExecuteResponse, type InspectionCategory, type InspectionDeviceResult } from '@/api/inspection';
 import { getSites, type SiteResponse } from '@/api/sites';
 import { useI18n } from 'vue-i18n'
 const { locale, t } = useI18n();
@@ -46,6 +46,42 @@ const taskForm = ref<InspectionTaskCreate>({
 });
 // 执行状态
 const executingTaskId = ref<number | null>(null);
+
+// 智能分类相关
+const selectedResultId = ref<number | null>(null);
+const categories = ref<InspectionCategory[]>([]);
+const selectedCategory = ref<string>('');
+const categoryDevices = ref<InspectionDeviceResult[]>([]);
+const categoryLoading = ref(false);
+
+async function loadCategories(recordId: number) {
+  try {
+    selectedResultId.value = recordId;
+    const result = await getInspectionCategories(recordId);
+    categories.value = result.categories;
+    selectedCategory.value = '';
+    categoryDevices.value = [];
+  } catch (error) {
+    console.error('Failed to load categories:', error);
+    categories.value = [];
+  }
+}
+
+async function loadDevicesByCategory(categoryName: string) {
+  if (!selectedResultId.value) return;
+  
+  categoryLoading.value = true;
+  try {
+    selectedCategory.value = categoryName;
+    categoryDevices.value = await getDevicesByCategory(selectedResultId.value, categoryName);
+  } catch (error) {
+    console.error('Failed to load devices:', error);
+    categoryDevices.value = [];
+  } finally {
+    categoryLoading.value = false;
+  }
+}
+
 // 统计数据
 const latestRecord = computed(() => records.value[0] || null);
 const onlineRate = computed(() => {
@@ -562,6 +598,55 @@ onMounted(() => {
         <!-- 巡检记录 -->
         <el-tab-pane :label="t('inspection.records')" name="records">
           <div class="tab-content">
+            <div v-if="categories.length > 0" class="smart-categories-section">
+              <div class="section-header">
+                <span>智能分类</span>
+                <el-button size="small" @click="selectedResultId = null; categories = []; selectedCategory = ''; categoryDevices = []">关闭</el-button>
+              </div>
+              
+              <div class="category-tabs">
+                <button 
+                  v-for="cat in categories" 
+                  :key="cat.name"
+                  class="category-tab"
+                  :class="{ active: selectedCategory === cat.name }"
+                  :style="{ '--category-color': cat.color }"
+                  @click="loadDevicesByCategory(cat.name)"
+                >
+                  <span class="category-dot" :style="{ backgroundColor: cat.color }"></span>
+                  <span>{{ cat.label }}</span>
+                  <span class="category-count">{{ cat.count }}</span>
+                </button>
+              </div>
+              
+              <div v-if="selectedCategory && categoryDevices.length > 0" class="category-devices">
+                <el-table :data="categoryDevices" v-loading="categoryLoading">
+                  <el-table-column prop="ip_address" label="IP地址" min-width="120" />
+                  <el-table-column prop="sys_name" label="设备名称" min-width="150" />
+                  <el-table-column prop="vendor" label="厂商" min-width="100" />
+                  <el-table-column prop="cpu_usage" label="CPU使用率" min-width="100">
+                    <template #default="{ row }">{{ row.cpu_usage ? row.cpu_usage.toFixed(1) + '%' : '-' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="memory_usage" label="内存使用率" min-width="100">
+                    <template #default="{ row }">{{ row.memory_usage ? row.memory_usage.toFixed(1) + '%' : '-' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="is_online" label="状态" min-width="80">
+                    <template #default="{ row }">
+                      <el-tag :type="row.is_online ? 'success' : 'danger'" size="small">
+                        {{ row.is_online ? '在线' : '离线' }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="error_message" label="错误信息" min-width="200">
+                    <template #default="{ row }">{{ row.error_message || '-' }}</template>
+                  </el-table-column>
+                </el-table>
+              </div>
+              <div v-if="selectedCategory && categoryDevices.length === 0" class="empty-category">
+                <el-empty description="该分类下无设备" />
+              </div>
+            </div>
+            
             <el-table :data="records" v-loading="loading">
               <el-table-column prop="id" :label="t('inspection.recordId')" min-width="80" />
               <el-table-column prop="scan_type" :label="t('inspection.scanType')" min-width="100">
@@ -587,6 +672,11 @@ onMounted(() => {
               </el-table-column>
               <el-table-column prop="started_at" :label="t('inspection.executeTime')" min-width="140">
                 <template #default="{ row }">{{ formatTime(row.started_at) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="100">
+                <template #default="{ row }">
+                  <el-button size="small" type="primary" @click="loadCategories(row.id)">查看分类</el-button>
+                </template>
               </el-table-column>
             </el-table>
           </div>
@@ -853,5 +943,85 @@ onMounted(() => {
 
 .inspection-tabs {
   margin-top: 16px;
+}
+
+.smart-categories-section {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #e8e8e8;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.category-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: #fff;
+  border: 2px solid #e8e8e8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.category-tab:hover {
+  border-color: var(--category-color);
+  transform: translateY(-2px);
+}
+
+.category-tab.active {
+  background: var(--category-color);
+  border-color: var(--category-color);
+  color: #fff;
+}
+
+.category-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.category-tab.active .category-dot {
+  background: #fff;
+}
+
+.category-count {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.category-tab.active .category-count {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.category-devices {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.empty-category {
+  text-align: center;
+  padding: 40px;
 }
 </style>

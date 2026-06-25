@@ -2,6 +2,7 @@ from .user import User, Role, Permission, RolePermission, UserSession
 from .site import Site
 from .circuit import Circuit
 from .circuit_change import CircuitChange
+from .circuit_incident import CircuitIncident, CircuitIncidentLog
 from .aggregate import Aggregate
 from .prefix import Prefix
 from .ip_address import IPAddress
@@ -20,7 +21,8 @@ from .alert import AlertRule, AlertRecord, AlertNotification
 
 __all__ = [
     'User', 'Role', 'Permission', 'RolePermission', 'UserSession',
-    'Site', 'Circuit', 'CircuitChange', 'Aggregate', 'Prefix', 'IPAddress',
+    'Site', 'Circuit', 'CircuitChange', 'CircuitIncident', 'CircuitIncidentLog',
+    'Aggregate', 'Prefix', 'IPAddress',
     'Device', 'DeviceLink', 'Credential', 'Backup', 'BackupTask', 'AuditLog',
     'VlanGroup', 'Vlan', 'LinkMonitor', 'SystemConfig', 'BackupAnalysis',
     'InspectionTask', 'InspectionResult', 'InspectionDeviceResult', 'DeviceFingerprint',
