@@ -44,6 +44,7 @@ const router = createRouter({
     { path: '/ipam', name: 'ipam', component: IpamPage, meta: { requiresAuth: true, permission: 'ipam:read', titleKey: 'ipam.title' } },
     { path: '/ipam/vlans', name: 'ipam-vlans', component: VlanList, meta: { requiresAuth: true, permission: 'ipam:read', titleKey: 'ipam.vlans' } },
     { path: '/devices', name: 'devices', component: DevicesPage, meta: { requiresAuth: true, permission: 'devices:read', titleKey: 'devices.title' } },
+    { path: '/devices/:id(\\d+)', redirect: to => ({ path: '/devices', query: { id: to.params.id } }) },
     { path: '/devices/links', name: 'device-links', component: DeviceLinksList, meta: { requiresAuth: true, permission: 'devices:read', titleKey: 'devices.title' } },
     { path: '/backups', name: 'backups', component: BackupsPage, meta: { requiresAuth: true, permission: 'backups:read', titleKey: 'backups.title' } },
     { path: '/backups/credentials', name: 'backup-credentials', component: CredentialList, meta: { requiresAuth: true, permission: 'backups:read', titleKey: 'backups.credentials' } },

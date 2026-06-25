@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Download, Upload, Edit, Delete, MagicStick } from '@element-plus/icons-vue'
 import { formatDate } from '../../lib/utils'
@@ -17,6 +18,9 @@ import QuickAddDeviceWizard from './QuickAddDeviceWizard.vue'
 const { t } = useI18n()
 const store = useAppStore()
 const authStore = useAuthStore()
+const route = useRoute()
+
+const highlightedDeviceId = ref<number | null>(null)
 
 // 从后端获取的站点数据
 const sites = ref<Site[]>([])
@@ -401,6 +405,14 @@ const loadSites = async () => {
   }
 }
 
+// 高亮表格行
+function tableRowClassName({ row }: { row: Device }) {
+  if (highlightedDeviceId.value === row.id) {
+    return 'highlighted-row'
+  }
+  return ''
+}
+
 // 加载设备数据
 const loadDevices = async () => {
   loading.value = true
@@ -514,6 +526,19 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load IP addresses:', error)
   }
+  
+  // 如果有 ?id= 参数，高亮并滚动到对应设备
+  const targetId = route.query.id
+  if (targetId) {
+    highlightedDeviceId.value = Number(targetId)
+    await nextTick()
+    setTimeout(() => {
+      const el = document.querySelector('.highlighted-row')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 500)
+  }
 })
 </script>
 
@@ -604,6 +629,7 @@ onMounted(async () => {
         stripe
         border
         max-height="calc(100vh - 420px)"
+        :row-class-name="tableRowClassName"
       >
         <el-table-column prop="name" :label="t('devices.device')" min-width="200">
           <template #default="{ row }">
@@ -1147,5 +1173,15 @@ onMounted(async () => {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* 高亮从事件时间线跳转过来的设备行 */
+.highlighted-row {
+  animation: row-highlight 3s ease-out;
+}
+
+@keyframes row-highlight {
+  0% { background-color: #e6f7ff; }
+  100% { background-color: transparent; }
 }
 </style>
