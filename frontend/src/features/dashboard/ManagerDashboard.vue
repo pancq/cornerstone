@@ -235,7 +235,7 @@ function initLifecycleChart() {
         data: (data || []).map(d => ({
           value: d.count,
           itemStyle: {
-            color: d.color === 'green' ? '#67C23A' : d.color === 'yellow' ? '#E6A23C' : '#F56C6C'
+            color: d.range === '未设置' ? '#C0C4CC' : (d.color === 'green' ? '#67C23A' : d.color === 'yellow' ? '#E6A23C' : '#F56C6C')
           }
         })),
         barWidth: 30,
