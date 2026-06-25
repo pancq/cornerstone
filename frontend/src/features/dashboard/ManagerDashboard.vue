@@ -8,6 +8,7 @@ import {
   getCircuitCostTrend,
   getDeviceLifecycle,
   getMonthlyIncidents,
+  downloadMonthlyReport,
   type ManagerStats,
   type RisksResponse,
   type CircuitCostTrend,
@@ -266,6 +267,27 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+async function downloadReport(month: string) {
+  try {
+    const blob = await downloadMonthlyReport(month)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `report_${month}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to download report:', error)
+  }
+}
+
+function getCurrentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 function getSeverityRisks(severity: string): RiskItem[] {
@@ -590,32 +612,32 @@ onMounted(() => {
             <div class="report-item">
               <el-icon><Document /></el-icon>
               <span class="report-name">2026年6月报告</span>
-              <el-button type="primary" plain size="small">
+              <el-button type="primary" plain size="small" @click="downloadReport('2026-06')">
                 <el-icon><Download /></el-icon>
-                下载PDF
+                下载CSV
               </el-button>
             </div>
             <div class="report-item">
               <el-icon><Document /></el-icon>
               <span class="report-name">2026年5月报告</span>
-              <el-button type="primary" plain size="small">
+              <el-button type="primary" plain size="small" @click="downloadReport('2026-05')">
                 <el-icon><Download /></el-icon>
-                下载PDF
+                下载CSV
               </el-button>
             </div>
             <div class="report-item">
               <el-icon><Document /></el-icon>
               <span class="report-name">2026年4月报告</span>
-              <el-button type="primary" plain size="small">
+              <el-button type="primary" plain size="small" @click="downloadReport('2026-04')">
                 <el-icon><Download /></el-icon>
-                下载PDF
+                下载CSV
               </el-button>
             </div>
           </div>
           <div class="report-actions">
-            <el-button type="primary">
+            <el-button type="primary" @click="downloadReport(getCurrentMonth())">
               <el-icon><Document /></el-icon>
-              生成本月报告
+              下载本月报告
             </el-button>
           </div>
         </div>

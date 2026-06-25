@@ -220,3 +220,11 @@ export async function getMonthlyIncidents(): Promise<MonthlyIncidents> {
   const response = await request.get('/dashboard/monthly-incidents')
   return response.data
 }
+
+export async function downloadMonthlyReport(month: string): Promise<Blob> {
+  const response = await request.get('/dashboard/monthly-report', {
+    params: { month },
+    responseType: 'blob'
+  })
+  return response.data
+}

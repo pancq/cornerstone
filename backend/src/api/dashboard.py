@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import StreamingResponse
+import io
+import csv
 
 from src.database import get_db
 from src.models.circuit import Circuit
@@ -972,161 +975,49 @@ async def get_circuit_cost_trend(
     }
 
 
-@router.get("/device-lifecycle")
-async def get_device_lifecycle(
+@router.get("/monthly-report")
+async def download_monthly_report(
+    month: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """获取设备生命周期分析"""
+    """下载运营月报（简化版 CSV）"""
     require_manager_or_admin(current_user)
     
     now = datetime.now()
+    if not month:
+        month = now.strftime("%Y-%m")
+    year, mon = [int(x) for x in month.split("-")]
+    month_start = datetime(year, mon, 1)
+    next_month = datetime(year + (1 if mon == 12 else 0), 1 if mon == 12 else mon + 1, 1)
     
-    # 获取所有有购买日期的设备
-    devices_result = await db.execute(
-        select(Device.id, Device.name, Device.model, Device.purchase_date, Site.name)
-        .join(Site, Device.site_id == Site.id, isouter=True)
-        .where(Device.purchase_date != None)
+    # 汇总：可用性、费用、本月故障数
+    availability = None
+    # 简化：按当前 active/正常 专线的费用求和
+    cost_result = await db.execute(
+        select(func.coalesce(func.sum(Circuit.monthly_cost), 0))
+        .where(or_(Circuit.status == 'active', Circuit.status == '正常'))
     )
-    devices = devices_result.all()
+    total_cost = int(cost_result.scalar() or 0)
     
-    age_distribution = [
-        {"range": "< 1年", "count": 0, "color": "green"},
-        {"range": "1-3年", "count": 0, "color": "green"},
-        {"range": "3-5年", "count": 0, "color": "yellow"},
-        {"range": "> 5年", "count": 0, "color": "red"}
-    ]
-    
-    old_devices = []
-    
-    for device in devices:
-        age_days = (now - device.purchase_date).days
-        age_years = round(age_days / 365, 1)
-        
-        if age_years < 1:
-            age_distribution[0]["count"] += 1
-        elif age_years < 3:
-            age_distribution[1]["count"] += 1
-        elif age_years < 5:
-            age_distribution[2]["count"] += 1
-        else:
-            age_distribution[3]["count"] += 1
-            old_devices.append({
-                "id": device.id,
-                "name": device.name,
-                "model": device.model or "未知",
-                "purchase_date": device.purchase_date.strftime("%Y-%m-%d"),
-                "age_years": age_years,
-                "site": device.name or "未知"
-            })
-    
-    return {
-        "age_distribution": age_distribution,
-        "old_devices": old_devices
-    }
-
-
-@router.get("/monthly-incidents")
-async def get_monthly_incidents(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """获取本月故障汇总"""
-    require_manager_or_admin(current_user)
-    
-    now = datetime.now()
-    month_start = datetime(now.year, now.month, 1)
-    
-    # 上月时间范围
-    if now.month == 1:
-        last_month_start = datetime(now.year - 1, 12, 1)
-        last_month_end = datetime(now.year - 1, 12, 31)
-    else:
-        last_month_start = datetime(now.year, now.month - 1, 1)
-        last_month_end = datetime(now.year, now.month, 1) - timedelta(days=1)
-    
-    # 本月故障总数
-    total_result = await db.execute(
-        select(func.count(CircuitIncident.id))
-        .where(CircuitIncident.created_at >= month_start)
-    )
-    total = total_result.scalar() or 0
-    
-    # 上月故障总数
-    last_month_total_result = await db.execute(
-        select(func.count(CircuitIncident.id))
-        .where(and_(
-            CircuitIncident.created_at >= last_month_start,
-            CircuitIncident.created_at <= last_month_end
-        ))
-    )
-    last_month_total = last_month_total_result.scalar() or 0
-    
-    # 平均恢复时长
-    resolved_result = await db.execute(
-        select(CircuitIncident.duration_minutes)
-        .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.duration_minutes != None
-        ))
-    )
-    durations = [r.duration_minutes for r in resolved_result.all()]
-    avg_recovery_minutes = sum(durations) / len(durations) if durations else 0
-    avg_recovery_hours = round(avg_recovery_minutes / 60, 1)
-    
-    # 最长中断
-    longest_result = await db.execute(
-        select(CircuitIncident.duration_minutes, CircuitIncident.started_at, Circuit.name)
-        .join(Circuit, CircuitIncident.circuit_id == Circuit.id)
-        .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.duration_minutes != None
-        ))
-        .order_by(CircuitIncident.duration_minutes.desc())
-        .limit(1)
-    )
-    longest = longest_result.first()
-    max_duration_info = None
-    if longest:
-        max_duration_info = {
-            "hours": round(longest.duration_minutes / 60, 1),
-            "circuit": longest.name,
-            "date": longest.started_at.strftime("%Y-%m-%d")
-        }
-    
-    # 最近5条故障记录
     incidents_result = await db.execute(
-        select(
-            CircuitIncident.id,
-            CircuitIncident.title,
-            Circuit.name,
-            CircuitIncident.severity,
-            CircuitIncident.started_at,
-            CircuitIncident.duration_minutes,
-            CircuitIncident.status
-        )
-        .join(Circuit, CircuitIncident.circuit_id == Circuit.id)
-        .where(CircuitIncident.created_at >= month_start)
-        .order_by(CircuitIncident.started_at.desc())
-        .limit(5)
+        select(func.count(CircuitIncident.id))
+        .where(and_(
+            CircuitIncident.created_at >= month_start,
+            CircuitIncident.created_at < next_month
+        ))
     )
-    incidents = []
-    for inc in incidents_result.all():
-        hours = round(inc.duration_minutes / 60, 1) if inc.duration_minutes else 0
-        incidents.append({
-            "id": inc.id,
-            "title": inc.title,
-            "circuit_name": inc.name,
-            "severity": inc.severity,
-            "started_at": inc.started_at.strftime("%Y-%m-%d %H:%M"),
-            "duration_hours": hours,
-            "status": inc.status
-        })
+    incidents = incidents_result.scalar() or 0
     
-    return {
-        "total": total,
-        "last_month_total": last_month_total,
-        "avg_recovery_hours": avg_recovery_hours,
-        "max_duration": max_duration_info,
-        "incidents": incidents
-    }
+    # 生成 CSV
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["指标", "数值"])
+    writer.writerow(["月份", month])
+    writer.writerow(["专线总费用", total_cost])
+    writer.writerow(["本月故障次数", incidents])
+    
+    content = buf.getvalue().encode("utf-8-sig")
+    return StreamingResponse(io.BytesIO(content), media_type="text/csv", headers={
+        "Content-Disposition": f"attachment; filename=report_{month}.csv"
+    })
