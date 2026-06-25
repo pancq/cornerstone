@@ -994,16 +994,16 @@ async def get_device_lifecycle_stats(
     three_years_ago = now - timedelta(days=365 * 3)
     five_years_ago = now - timedelta(days=365 * 5)
     
-    # 统计各年龄段设备数量
+    # 统计各年龄段设备数量（未设置采购时间单独统计，不计入任一年龄段）
     under_3y_result = await db.execute(
         select(func.count(Device.id))
-        .where(or_(
-            Device.purchase_date == None,
+        .where(and_(
+            Device.purchase_date != None,
             Device.purchase_date >= three_years_ago
         ))
     )
     under_3y = under_3y_result.scalar() or 0
-    
+
     three_to_five_result = await db.execute(
         select(func.count(Device.id))
         .where(and_(
@@ -1013,7 +1013,7 @@ async def get_device_lifecycle_stats(
         ))
     )
     three_to_five = three_to_five_result.scalar() or 0
-    
+
     over_five_result = await db.execute(
         select(func.count(Device.id))
         .where(and_(
@@ -1022,7 +1022,12 @@ async def get_device_lifecycle_stats(
         ))
     )
     over_five = over_five_result.scalar() or 0
-    
+
+    unset_count_result = await db.execute(
+        select(func.count(Device.id)).where(Device.purchase_date == None)
+    )
+    unset_count = unset_count_result.scalar() or 0
+
     # 旧设备列表
     old_devices = []
     try:
@@ -1055,11 +1060,13 @@ async def get_device_lifecycle_stats(
     except Exception:
         old_devices = []
     
+    # 显示顺序：旧 → 新（5年以上 → 3-5年 → 3年以内），未设置单列在最后
     return {
         "age_distribution": [
-            {"range": "3年以内", "count": under_3y, "color": "#67C23A"},
+            {"range": "5年以上", "count": over_five, "color": "#F56C6C"},
             {"range": "3-5年", "count": three_to_five, "color": "#E6A23C"},
-            {"range": "5年以上", "count": over_five, "color": "#F56C6C"}
+            {"range": "3年以内", "count": under_3y, "color": "#67C23A"},
+            {"range": "未设置", "count": unset_count, "color": "#909399"}
         ],
         "old_devices": old_devices
     }
