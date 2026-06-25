@@ -485,7 +485,7 @@ async def get_manager_stats(
     # 2. 专线月租费用
     current_cost_result = await db.execute(
         select(func.coalesce(func.sum(Circuit.monthly_cost), 0))
-        .where(Circuit.status == 'active')
+        .where(or_(Circuit.status == 'active', Circuit.status == '正常'))
     )
     current_cost = current_cost_result.scalar() or 0
     
@@ -941,7 +941,7 @@ async def get_circuit_cost_trend(
         # 获取该月所有active的专线
         circuits_result = await db.execute(
             select(Circuit.monthly_cost, Circuit.type)
-            .where(Circuit.status == 'active')
+            .where(or_(Circuit.status == 'active', Circuit.status == '正常'))
         )
         circuits = circuits_result.all()
         
