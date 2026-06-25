@@ -522,30 +522,93 @@ async def get_manager_stats(
         if oldest:
             max_duration_hours = round((now - oldest).total_seconds() / 3600, 1)
     
-    # 4. 即将到期事项（30天内）
-    thirty_days_later = now + timedelta(days=30)
+    # 4. 即将到期事项（两级预警）
+    now_dt = now
+    thirty_days_later = now_dt + timedelta(days=30)
+    sixty_days_later = now_dt + timedelta(days=60)
     
-    # 专线合同到期
-    expiring_circuits_result = await db.execute(
-        select(func.count(Circuit.id))
+    # 🔴 紧急（30天内到期的专线合同）
+    urgent_circuits_result = await db.execute(
+        select(Circuit.id, Circuit.name, Circuit.contract_end, Circuit.provider)
         .where(and_(
             Circuit.contract_end != None,
             Circuit.contract_end <= thirty_days_later,
-            Circuit.contract_end >= now
+            Circuit.contract_end >= now_dt
         ))
     )
-    expiring_circuits = expiring_circuits_result.scalar() or 0
+    urgent_circuits = [
+        {
+            "type": "专线合同",
+            "name": c.name,
+            "expire_date": c.contract_end.strftime("%Y-%m-%d"),
+            "days_left": (c.contract_end - now_dt.date()).days,
+            "detail": c.provider or ""
+        }
+        for c in urgent_circuits_result.all()
+    ]
     
-    # 设备保修到期
-    expiring_warranties_result = await db.execute(
-        select(func.count(Device.id))
+    # 🔴 紧急（30天内到期的设备保修）
+    urgent_warranties_result = await db.execute(
+        select(Device.id, Device.name, Device.warranty_end, Device.model)
         .where(and_(
             Device.warranty_end != None,
             Device.warranty_end <= thirty_days_later,
-            Device.warranty_end >= now
+            Device.warranty_end >= now_dt
         ))
     )
-    expiring_warranties = expiring_warranties_result.scalar() or 0
+    urgent_warranties = [
+        {
+            "type": "设备保修",
+            "name": d.name,
+            "expire_date": d.warranty_end.strftime("%Y-%m-%d"),
+            "days_left": (d.warranty_end - now_dt.date()).days,
+            "detail": d.model or ""
+        }
+        for d in urgent_warranties_result.all()
+    ]
+    
+    # 🟡 即将到期（31-60天内到期的专线合同）
+    warning_circuits_result = await db.execute(
+        select(Circuit.id, Circuit.name, Circuit.contract_end, Circuit.provider)
+        .where(and_(
+            Circuit.contract_end != None,
+            Circuit.contract_end <= sixty_days_later,
+            Circuit.contract_end > thirty_days_later
+        ))
+    )
+    warning_circuits = [
+        {
+            "type": "专线合同",
+            "name": c.name,
+            "expire_date": c.contract_end.strftime("%Y-%m-%d"),
+            "days_left": (c.contract_end - now_dt.date()).days,
+            "detail": c.provider or ""
+        }
+        for c in warning_circuits_result.all()
+    ]
+    
+    # 🟡 即将到期（31-60天内到期的设备保修）
+    warning_warranties_result = await db.execute(
+        select(Device.id, Device.name, Device.warranty_end, Device.model)
+        .where(and_(
+            Device.warranty_end != None,
+            Device.warranty_end <= sixty_days_later,
+            Device.warranty_end > thirty_days_later
+        ))
+    )
+    warning_warranties = [
+        {
+            "type": "设备保修",
+            "name": d.name,
+            "expire_date": d.warranty_end.strftime("%Y-%m-%d"),
+            "days_left": (d.warranty_end - now_dt.date()).days,
+            "detail": d.model or ""
+        }
+        for d in warning_warranties_result.all()
+    ]
+    
+    urgent_items = urgent_circuits + urgent_warranties
+    warning_items = warning_circuits + warning_warranties
     
     return {
         "availability": {
@@ -563,9 +626,11 @@ async def get_manager_stats(
             "max_duration_hours": max_duration_hours
         },
         "expiring_soon": {
-            "count": expiring_circuits + expiring_warranties,
-            "circuits": expiring_circuits,
-            "warranties": expiring_warranties
+            "urgent_count": len(urgent_items),
+            "warning_count": len(warning_items),
+            "total_count": len(urgent_items) + len(warning_items),
+            "urgent_items": sorted(urgent_items, key=lambda x: x["days_left"]),
+            "warning_items": sorted(warning_items, key=lambda x: x["days_left"])
         }
     }
 

@@ -110,10 +110,20 @@ export interface ManagerStats {
     max_duration_hours: number
   }
   expiring_soon: {
-    count: number
-    circuits: number
-    warranties: number
+    urgent_count: number
+    warning_count: number
+    total_count: number
+    urgent_items: ExpiringItem[]
+    warning_items: ExpiringItem[]
   }
+}
+
+export interface ExpiringItem {
+  type: string
+  name: string
+  expire_date: string
+  days_left: number
+  detail: string
 }
 
 export interface RiskItem {

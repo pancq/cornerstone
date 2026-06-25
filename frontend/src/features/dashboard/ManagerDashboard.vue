@@ -16,7 +16,8 @@ import {
   type RiskItem,
   type Incident,
   type AgeDistribution,
-  type OldDevice
+  type OldDevice,
+  type ExpiringItem
 } from '@/api/dashboard'
 import {
   TrendCharts,
@@ -44,6 +45,7 @@ const risksData = ref<RisksResponse | null>(null)
 const costTrendData = ref<CircuitCostTrend | null>(null)
 const lifecycleData = ref<DeviceLifecycle | null>(null)
 const monthlyIncidents = ref<MonthlyIncidents | null>(null)
+const showExpiringDialog = ref(false)
 
 const isAdmin = computed(() => authStore.user?.role === 'super_admin')
 
@@ -286,6 +288,39 @@ function getOldDevicesWarning(): string | null {
   return null
 }
 
+function getExpiringDisplayCount(): number {
+  const stats = managerStats.value?.expiring_soon
+  if (!stats) return 0
+  return stats.urgent_count > 0 ? stats.urgent_count : stats.warning_count
+}
+
+function getExpiringIconStyle(): Record<string, string> {
+  const stats = managerStats.value?.expiring_soon
+  if (!stats || stats.total_count === 0) {
+    return { background: '#f6ffed', color: '#52c41a' }
+  }
+  if (stats.urgent_count > 0) {
+    return { background: '#fff2f0', color: '#F56C6C' }
+  }
+  return { background: '#fff7e6', color: '#E6A23C' }
+}
+
+function getExpiringTrendColor(): string {
+  const stats = managerStats.value?.expiring_soon
+  if (!stats || stats.total_count === 0) return '#67C23A'
+  if (stats.urgent_count > 0) return '#F56C6C'
+  return '#E6A23C'
+}
+
+function getExpiringTrendText(): string {
+  const stats = managerStats.value?.expiring_soon
+  if (!stats || stats.total_count === 0) return '无到期事项 ✓'
+  const parts = []
+  if (stats.urgent_count > 0) parts.push(`🔴${stats.urgent_count}项紧急`)
+  if (stats.warning_count > 0) parts.push(`🟡${stats.warning_count}项即将到期`)
+  return parts.join(' ')
+}
+
 onMounted(() => {
   loadData()
 })
@@ -349,21 +384,65 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 即将到期事项 -->
-      <div class="overview-card" :class="{ 'has-warning': (managerStats?.expiring_soon.count || 0) > 0 }" @click="navigateTo('/circuits')">
-        <div class="card-icon" :style="{ background: (managerStats?.expiring_soon.count || 0) > 0 ? '#fff7e6' : '#f6ffed', color: (managerStats?.expiring_soon.count || 0) > 0 ? '#E6A23C' : '#52c41a' }">
+      <!-- 即将到期事项（两级预警） -->
+      <div class="overview-card" :class="{ 'has-alert': (managerStats?.expiring_soon.urgent_count || 0) > 0, 'has-warning': (managerStats?.expiring_soon.urgent_count || 0) === 0 && (managerStats?.expiring_soon.warning_count || 0) > 0 }" @click="showExpiringDialog = true">
+        <div class="card-icon" :style="getExpiringIconStyle()">
           <el-icon><Clock /></el-icon>
         </div>
         <div class="card-content">
           <div class="card-label">即将到期事项</div>
-          <div class="card-value" :style="{ color: (managerStats?.expiring_soon.count || 0) > 0 ? '#E6A23C' : '#67C23A' }">
-            {{ managerStats?.expiring_soon.count || 0 }}
+          <div class="card-value" :style="{ color: (managerStats?.expiring_soon.urgent_count || 0) > 0 ? '#F56C6C' : (managerStats?.expiring_soon.warning_count || 0) > 0 ? '#E6A23C' : '#67C23A' }">
+            {{ getExpiringDisplayCount() }}
             <span class="unit">项</span>
           </div>
-          <div class="card-trend">30天内到期</div>
+          <div class="card-trend" :style="{ color: getExpiringTrendColor() }">
+            {{ getExpiringTrendText() }}
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 🔴🟡 到期预警详情弹窗 -->
+    <el-dialog v-model="showExpiringDialog" title="到期事项预警" width="600px" :close-on-click-modal="false">
+      <div class="expiring-dialog-body">
+        <!-- 🔴 紧急 -->
+        <div v-if="(managerStats?.expiring_soon.urgent_items?.length || 0) > 0" class="expiring-section">
+          <div class="expiring-section-title urgent">
+            🔴 紧急（30天内）
+          </div>
+          <div v-for="item in managerStats?.expiring_soon.urgent_items" :key="item.name" class="expiring-item urgent-item">
+            <div class="expiring-item-main">
+              <span class="expiring-item-name">{{ item.name }}</span>
+              <span class="expiring-item-type">{{ item.type }}</span>
+            </div>
+            <div class="expiring-item-meta">
+              <span class="expiring-item-date">{{ item.expire_date }} 到期</span>
+              <span class="expiring-item-days">还有 {{ item.days_left }} 天</span>
+            </div>
+          </div>
+        </div>
+        <!-- 🟡 即将到期 -->
+        <div v-if="(managerStats?.expiring_soon.warning_items?.length || 0) > 0" class="expiring-section">
+          <div class="expiring-section-title warning">
+            🟡 即将到期（31-60天）
+          </div>
+          <div v-for="item in managerStats?.expiring_soon.warning_items" :key="item.name" class="expiring-item warning-item">
+            <div class="expiring-item-main">
+              <span class="expiring-item-name">{{ item.name }}</span>
+              <span class="expiring-item-type">{{ item.type }}</span>
+            </div>
+            <div class="expiring-item-meta">
+              <span class="expiring-item-date">{{ item.expire_date }} 到期</span>
+              <span class="expiring-item-days">还有 {{ item.days_left }} 天</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="(managerStats?.expiring_soon.total_count || 0) === 0" class="expiring-empty">
+          <el-icon><CircleCheck /></el-icon>
+          <span>暂无到期事项，一切正常 ✓</span>
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- 第二行：IT风险看板 + 专线费用趋势 -->
     <div class="main-grid">
@@ -814,6 +893,109 @@ onMounted(() => {
   color: #8c8c8c;
   padding-top: 12px;
   border-top: 1px solid #f0f0f0;
+}
+
+/* 到期预警弹窗 */
+.expiring-dialog-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.expiring-section {
+  margin-bottom: 20px;
+}
+
+.expiring-section:last-child {
+  margin-bottom: 0;
+}
+
+.expiring-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.expiring-section-title.urgent {
+  background: #fff2f0;
+  color: #F56C6C;
+}
+
+.expiring-section-title.warning {
+  background: #fff7e6;
+  color: #E6A23C;
+}
+
+.expiring-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.expiring-item:last-child {
+  margin-bottom: 0;
+}
+
+.urgent-item {
+  background: #fff2f0;
+  border-left: 3px solid #F56C6C;
+}
+
+.warning-item {
+  background: #fffbe6;
+  border-left: 3px solid #E6A23C;
+}
+
+.expiring-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.expiring-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.expiring-item-type {
+  font-size: 11px;
+  color: #8c8c8c;
+  background: rgba(0,0,0,0.04);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.expiring-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.expiring-item-date {
+  font-size: 13px;
+  color: #595959;
+}
+
+.expiring-item-days {
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.expiring-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 8px;
+  color: #67C23A;
+  font-size: 14px;
 }
 
 /* 生命周期图表 */
