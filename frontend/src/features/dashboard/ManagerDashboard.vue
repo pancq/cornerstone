@@ -123,6 +123,36 @@ function initCostChart() {
   
   const months = costTrendData.value.months.map(m => m.slice(5) + '月')
   
+  const series = [
+    {
+      name: '总费用',
+      type: 'line',
+      data: costTrendData.value.total_costs,
+      smooth: true,
+      lineStyle: { width: 3 },
+      itemStyle: { color: '#409EFF' }
+    }
+  ]
+
+  const typeList = [
+    { name: '互联网专线', key: '互联网专线' },
+    { name: 'MPLS', key: 'MPLS' },
+    { name: 'SD-WAN', key: 'SD-WAN' }
+  ]
+
+  typeList.forEach(({ name, key }) => {
+    const typeData = costTrendData.value.by_type[key]
+    if (typeData) {
+      series.push({
+        name,
+        type: 'line',
+        data: typeData,
+        smooth: true,
+        lineStyle: { width: 2 }
+      })
+    }
+  })
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -135,7 +165,7 @@ function initCostChart() {
       }
     },
     legend: {
-      data: ['总费用', '互联网专线', 'MPLS', 'SD-WAN'],
+      data: series.map(s => s.name),
       bottom: 0
     },
     grid: {
@@ -159,37 +189,7 @@ function initCostChart() {
         }
       }
     },
-    series: [
-      {
-        name: '总费用',
-        type: 'line',
-        data: costTrendData.value.total_costs,
-        smooth: true,
-        lineStyle: { width: 3 },
-        itemStyle: { color: '#409EFF' }
-      },
-      {
-        name: '互联网专线',
-        type: 'line',
-        data: costTrendData.value.by_type['互联网专线'],
-        smooth: true,
-        lineStyle: { width: 2 }
-      },
-      {
-        name: 'MPLS',
-        type: 'line',
-        data: costTrendData.value.by_type['MPLS'],
-        smooth: true,
-        lineStyle: { width: 2 }
-      },
-      {
-        name: 'SD-WAN',
-        type: 'line',
-        data: costTrendData.value.by_type['SD-WAN'],
-        smooth: true,
-        lineStyle: { width: 2 }
-      }
-    ]
+    series: series
   }
   
   myChart.setOption(option)
@@ -201,7 +201,11 @@ function initLifecycleChart() {
   const chartDom = document.getElementById('lifecycle-chart')
   if (!chartDom) return
   
-  const myChart = echarts.init(chartDom)
+  // 确保DOM存在再初始化图表
+  const myChart = echarts.init(chartDom);
+  
+  // 添加窗口大小变化监听，自动适配图表大小
+  window.addEventListener('resize', () => myChart.resize());
   
   const data = lifecycleData.value.age_distribution
   
