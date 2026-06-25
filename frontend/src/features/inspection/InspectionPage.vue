@@ -273,21 +273,33 @@ async function saveTask() {
  ElMessage.error(t('inspection.ipRangeRequired'));
  return;
  }
+ 
+ // 兼容：将 tcp_ports 文本输入转为 number[]
+ const payload: any = { ...taskForm.value };
+ if (typeof payload.tcp_ports === 'string') {
+   payload.tcp_ports = payload.tcp_ports
+     .split(/[,，\s]+/)
+     .map((s: string) => parseInt(s, 10))
+     .filter((n: number) => Number.isFinite(n) && n > 0);
+ }
+ 
  loading.value = true;
  try {
- if (editingTask.value) {
- await updateTask(editingTask.value.id, taskForm.value);
+ const hasId = editingTask.value && typeof (editingTask.value as any).id === 'number';
+ if (hasId) {
+ await updateTask((editingTask.value as any).id, payload);
  ElMessage.success(t('inspection.taskUpdated'));
  }
  else {
- await createTask(taskForm.value);
+ await createTask(payload);
  ElMessage.success(t('inspection.taskCreated'));
  }
  await loadTasks();
  closeTaskForm();
  }
- catch (error) {
- ElMessage.error(t('inspection.saveFailed'));
+ catch (error: any) {
+   const detail = error?.response?.data?.detail;
+   ElMessage.error(detail ? `${t('inspection.saveFailed')}: ${detail}` : t('inspection.saveFailed'));
  }
  finally {
  loading.value = false;
