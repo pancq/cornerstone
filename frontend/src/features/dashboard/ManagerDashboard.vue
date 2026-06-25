@@ -212,7 +212,15 @@ function initLifecycleChart() {
   const option = {
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' }
+      axisPointer: { type: 'shadow' },
+      formatter: (params: any[]) => {
+        // 只显示“台”计数，未设置段统一灰色说明
+        const p = params[0]
+        const name = p && p.name ? p.name : ''
+        const value = p && p.value != null ? p.value : 0
+        const color = name === '未设置' ? '#C0C4CC' : p.color
+        return `<span style="display:inline-block;width:10px;height:10px;background:${color};margin-right:6px;border-radius:2px"></span>${name}：${value}台`
+      }
     },
     grid: {
       left: '3%',
