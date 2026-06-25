@@ -1024,30 +1024,36 @@ async def get_device_lifecycle_stats(
     over_five = over_five_result.scalar() or 0
     
     # 旧设备列表
-    old_devices_result = await db.execute(
-        select(
-            Device.id,
-            Device.name,
-            Device.model,
-            Device.purchase_date,
-            Site.name.label('site_name')
-        )
-        .join(Site, Device.site_id == Site.id)
-        .where(Device.purchase_date < three_years_ago)
-        .order_by(Device.purchase_date)
-        .limit(10)
-    )
     old_devices = []
-    for row in old_devices_result.all():
-        age_years = ((now - (row.purchase_date or now)).days) / 365
-        old_devices.append({
-            "id": row.id,
-            "name": row.name,
-            "model": row.model or "",
-            "purchase_date": row.purchase_date.strftime("%Y-%m-%d") if row.purchase_date else "",
-            "age_years": round(age_years, 1),
-            "site": row.site_name or ""
-        })
+    try:
+        old_devices_result = await db.execute(
+            select(
+                Device.id,
+                Device.name,
+                Device.model,
+                Device.purchase_date,
+                Site.name.label('site_name')
+            )
+            .outerjoin(Site, Device.site_id == Site.id)
+            .where(and_(
+                Device.purchase_date != None,
+                Device.purchase_date < three_years_ago
+            ))
+            .order_by(Device.purchase_date)
+            .limit(10)
+        )
+        for row in old_devices_result.all():
+            age_years = ((now - row.purchase_date).days / 365)
+            old_devices.append({
+                "id": row.id,
+                "name": row.name,
+                "model": row.model or "",
+                "purchase_date": row.purchase_date.strftime("%Y-%m-%d") if row.purchase_date else "",
+                "age_years": round(age_years, 1),
+                "site": row.site_name or ""
+            })
+    except Exception:
+        old_devices = []
     
     return {
         "age_distribution": [
@@ -1067,107 +1073,126 @@ async def get_monthly_incidents_trend(
     """获取本月故障信息"""
     require_manager_or_admin(current_user)
     
-    now = datetime.now()
-    month_start = datetime(now.year, now.month, 1)
-    next_month = datetime(now.year + (1 if now.month == 12 else 0), 1 if now.month == 12 else now.month + 1, 1)
-    
-    # 本月故障总数
-    total_result = await db.execute(
-        select(func.count(CircuitIncident.id))
-        .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month
-        ))
-    )
-    total_incidents = total_result.scalar() or 0
-    
-    # 上月故障总数
-    last_month_start = datetime(now.year, now.month - 1 if now.month > 1 else 1, 1)
-    last_month_result = await db.execute(
-        select(func.count(CircuitIncident.id))
-        .where(and_(
-            CircuitIncident.created_at >= last_month_start,
-            CircuitIncident.created_at < month_start
-        ))
-    )
-    last_month_total = last_month_result.scalar() or 0
-    
-    # 平均恢复时长
-    avg_recovery_result = await db.execute(
-        select(func.coalesce(func.avg(CircuitIncident.duration_hours), 0))
-        .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month,
-            CircuitIncident.duration_hours > 0
-        ))
-    )
-    avg_recovery = float(avg_recovery_result.scalar() or 0)
-    
-    # 最长中断
-    max_duration = 0
-    max_duration_circuit = ""
-    max_duration_date = ""
-    max_result = await db.execute(
-        select(
-            CircuitIncident.duration_hours,
-            Circuit.name.label('circuit_name'),
-            CircuitIncident.created_at
+    try:
+        now = datetime.now()
+        month_start = datetime(now.year, now.month, 1)
+        next_month = datetime(now.year + (1 if now.month == 12 else 0), 1 if now.month == 12 else now.month + 1, 1)
+        
+        # 本月故障总数
+        total_result = await db.execute(
+            select(func.count(CircuitIncident.id))
+            .where(and_(
+                CircuitIncident.created_at >= month_start,
+                CircuitIncident.created_at < next_month
+            ))
         )
-        .join(Circuit, CircuitIncident.circuit_id == Circuit.id)
-        .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month
-        ))
-        .order_by(func.coalesce(CircuitIncident.duration_hours, 0).desc())
-        .limit(1)
-    )
-    max_row = max_result.first()
-    if max_row:
-        max_duration = float(max_row.duration_hours or 0)
-        max_duration_circuit = max_row.circuit_name or ""
-        max_duration_date = max_row.created_at.strftime("%Y-%m-%d") if max_row.created_at else ""
-    
-    # 故障列表
-    incidents_list = []
-    incidents_result = await db.execute(
-        select(
-            CircuitIncident.id,
-            CircuitIncident.title,
-            Circuit.name.label('circuit_name'),
-            CircuitIncident.severity,
-            CircuitIncident.started_at,
-            CircuitIncident.duration_hours,
-            CircuitIncident.status
+        total_incidents = total_result.scalar() or 0
+        
+        # 上月故障总数
+        last_month_start = datetime(now.year, now.month - 1 if now.month > 1 else 1, 1)
+        last_month_result = await db.execute(
+            select(func.count(CircuitIncident.id))
+            .where(and_(
+                CircuitIncident.created_at >= last_month_start,
+                CircuitIncident.created_at < month_start
+            ))
         )
-        .join(Circuit, CircuitIncident.circuit_id == Circuit.id)
-        .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month
-        ))
-        .order_by(CircuitIncident.created_at.desc())
-    )
-    for row in incidents_result.all():
-        incidents_list.append({
-            "id": row.id,
-            "title": row.title or "",
-            "circuit_name": row.circuit_name or "",
-            "severity": row.severity or "low",
-            "started_at": row.started_at.strftime("%Y-%m-%d %H:%M:%S") if row.started_at else "",
-            "duration_hours": float(row.duration_hours or 0),
-            "status": row.status or "open"
-        })
-    
-    return {
-        "total": total_incidents,
-        "last_month_total": last_month_total,
-        "avg_recovery_hours": avg_recovery,
-        "max_duration": {
-            "hours": max_duration,
-            "circuit": max_duration_circuit,
-            "date": max_duration_date
-        } if max_duration > 0 else None,
-        "incidents": incidents_list
-    }
+        last_month_total = last_month_result.scalar() or 0
+        
+        # 平均恢复时长
+        avg_recovery = 0.0
+        try:
+            avg_recovery_result = await db.execute(
+                select(func.coalesce(func.avg(CircuitIncident.duration_hours), 0))
+                .where(and_(
+                    CircuitIncident.created_at >= month_start,
+                    CircuitIncident.created_at < next_month,
+                    CircuitIncident.duration_hours > 0
+                ))
+            )
+            avg_recovery = float(avg_recovery_result.scalar() or 0)
+        except Exception:
+            avg_recovery = 0.0
+        
+        # 最长中断
+        max_duration = 0
+        max_duration_circuit = ""
+        max_duration_date = ""
+        try:
+            max_result = await db.execute(
+                select(
+                    CircuitIncident.duration_hours,
+                    Circuit.name.label('circuit_name'),
+                    CircuitIncident.created_at
+                )
+                .outerjoin(Circuit, CircuitIncident.circuit_id == Circuit.id)
+                .where(and_(
+                    CircuitIncident.created_at >= month_start,
+                    CircuitIncident.created_at < next_month
+                ))
+                .order_by(func.coalesce(CircuitIncident.duration_hours, 0).desc())
+                .limit(1)
+            )
+            max_row = max_result.first()
+            if max_row:
+                max_duration = float(max_row.duration_hours or 0)
+                max_duration_circuit = max_row.circuit_name or ""
+                max_duration_date = max_row.created_at.strftime("%Y-%m-%d") if max_row.created_at else ""
+        except Exception:
+            pass
+        
+        # 故障列表
+        incidents_list = []
+        try:
+            incidents_result = await db.execute(
+                select(
+                    CircuitIncident.id,
+                    CircuitIncident.title,
+                    Circuit.name.label('circuit_name'),
+                    CircuitIncident.severity,
+                    CircuitIncident.started_at,
+                    CircuitIncident.duration_hours,
+                    CircuitIncident.status
+                )
+                .outerjoin(Circuit, CircuitIncident.circuit_id == Circuit.id)
+                .where(and_(
+                    CircuitIncident.created_at >= month_start,
+                    CircuitIncident.created_at < next_month
+                ))
+                .order_by(CircuitIncident.created_at.desc())
+            )
+            for row in incidents_result.all():
+                incidents_list.append({
+                    "id": row.id,
+                    "title": row.title or "",
+                    "circuit_name": row.circuit_name or "",
+                    "severity": row.severity or "low",
+                    "started_at": row.started_at.strftime("%Y-%m-%d %H:%M:%S") if row.started_at else "",
+                    "duration_hours": float(row.duration_hours or 0),
+                    "status": row.status or "open"
+                })
+        except Exception:
+            pass
+        
+        return {
+            "total": total_incidents,
+            "last_month_total": last_month_total,
+            "avg_recovery_hours": avg_recovery,
+            "max_duration": {
+                "hours": max_duration,
+                "circuit": max_duration_circuit,
+                "date": max_duration_date
+            } if max_duration > 0 else None,
+            "incidents": incidents_list
+        }
+    except Exception:
+        return {
+            "total": 0,
+            "last_month_total": 0,
+            "avg_recovery_hours": 0,
+            "max_duration": None,
+            "incidents": []
+        }
 
 
 @router.get("/monthly-report")
