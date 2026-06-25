@@ -165,7 +165,7 @@ function initCostChart() {
       }
     },
     legend: {
-      data: series.map(s => s.name),
+      data: (series || []).map(s => s.name),
       bottom: 0
     },
     grid: {
@@ -226,13 +226,13 @@ function initLifecycleChart() {
     },
     yAxis: {
       type: 'category',
-      data: data.map(d => d.range),
+      data: (data || []).map(d => d.range),
       axisLabel: { fontSize: 12 }
     },
     series: [
       {
         type: 'bar',
-        data: data.map(d => ({
+        data: (data || []).map(d => ({
           value: d.count,
           itemStyle: {
             color: d.color === 'green' ? '#67C23A' : d.color === 'yellow' ? '#E6A23C' : '#F56C6C'
