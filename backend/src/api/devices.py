@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete
+from datetime import datetime, timezone
 
 from ..database import get_db
 from ..models import Device, Credential, LinkMonitor, DeviceLink, Backup, AlertRecord, AlertRule, IPAddress, InspectionDeviceResult, DeviceFingerprint
@@ -42,7 +43,14 @@ async def create_device(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = insert(Device).values(**device.model_dump()).returning(Device)
+    payload = device.model_dump()
+    # 统一将日期字段转换为 naive datetime（PostgreSQL TIMESTAMP WITHOUT TIME ZONE）
+    if payload.get('purchase_date') and hasattr(payload['purchase_date'], 'astimezone'):
+        payload['purchase_date'] = payload['purchase_date'].replace(tzinfo=None)
+    if payload.get('warranty_end') and hasattr(payload['warranty_end'], 'astimezone'):
+        payload['warranty_end'] = payload['warranty_end'].replace(tzinfo=None)
+    
+    stmt = insert(Device).values(**payload).returning(Device)
     result = await db.execute(stmt)
     await db.commit()
     return result.scalar_one()
@@ -54,7 +62,13 @@ async def update_device(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
-    stmt = update(Device).where(Device.id == device_id).values(**device.model_dump(exclude_unset=True)).returning(Device)
+    payload = device.model_dump(exclude_unset=True)
+    if payload.get('purchase_date') and hasattr(payload['purchase_date'], 'astimezone'):
+        payload['purchase_date'] = payload['purchase_date'].replace(tzinfo=None)
+    if payload.get('warranty_end') and hasattr(payload['warranty_end'], 'astimezone'):
+        payload['warranty_end'] = payload['warranty_end'].replace(tzinfo=None)
+    
+    stmt = update(Device).where(Device.id == device_id).values(**payload).returning(Device)
     result = await db.execute(stmt)
     device = result.scalar_one_or_none()
     if device is None:
