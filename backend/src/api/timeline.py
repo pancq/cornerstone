@@ -40,10 +40,11 @@ async def get_timeline_events(
             InspectionDeviceResult.error_message.label("description"),
             literal_column("'device'").label("resource_type"),
             InspectionDeviceResult.device_id.label("resource_id"),
-            InspectionDeviceResult.sys_name.label("resource_name"),
+            Device.name.label("resource_name"),
             InspectionDeviceResult.scanned_at.label("occurred_at"),
             literal_column("'/devices/' || CAST(inspection_device_results.device_id AS TEXT)").label("detail_url")
         )
+        .join(Device, InspectionDeviceResult.device_id == Device.id)
         .where(
             and_(
                 InspectionDeviceResult.is_online == False,
@@ -55,16 +56,17 @@ async def get_timeline_events(
     
     insp_result = await db.execute(insp_query)
     for row in insp_result.all():
+        resource_name = row.sys_name if row.sys_name else row.resource_name
         if not type_filter or "device_offline" in type_filter:
             events.append({
                 "id": f"insp_{row.event_id}",
                 "event_type": row.event_type,
                 "severity": row.severity,
-                "title": f"{row.resource_name} 设备离线",
+                "title": f"{resource_name} 设备离线",
                 "description": row.description or "设备无响应",
                 "resource_type": row.resource_type,
                 "resource_id": row.resource_id,
-                "resource_name": row.resource_name,
+                "resource_name": resource_name,
                 "occurred_at": row.occurred_at.isoformat() if row.occurred_at else None,
                 "detail_url": row.detail_url if row.resource_id else None,
                 "source": "巡检"
@@ -79,10 +81,11 @@ async def get_timeline_events(
             literal_column("'设备恢复在线'").label("description"),
             literal_column("'device'").label("resource_type"),
             InspectionDeviceResult.device_id.label("resource_id"),
-            InspectionDeviceResult.sys_name.label("resource_name"),
+            Device.name.label("resource_name"),
             InspectionDeviceResult.scanned_at.label("occurred_at"),
             literal_column("'/devices/' || CAST(inspection_device_results.device_id AS TEXT)").label("detail_url")
         )
+        .join(Device, InspectionDeviceResult.device_id == Device.id)
         .where(
             and_(
                 InspectionDeviceResult.is_online == True,
@@ -94,16 +97,17 @@ async def get_timeline_events(
     
     insp_online_result = await db.execute(insp_online_query)
     for row in insp_online_result.all():
+        resource_name = row.sys_name if row.sys_name else row.resource_name
         if not type_filter or "device_online" in type_filter:
             events.append({
                 "id": f"insp_online_{row.event_id}",
                 "event_type": row.event_type,
                 "severity": row.severity,
-                "title": f"{row.resource_name} 设备恢复在线",
+                "title": f"{resource_name} 设备恢复在线",
                 "description": row.description,
                 "resource_type": row.resource_type,
                 "resource_id": row.resource_id,
-                "resource_name": row.resource_name,
+                "resource_name": resource_name,
                 "occurred_at": row.occurred_at.isoformat() if row.occurred_at else None,
                 "detail_url": row.detail_url if row.resource_id else None,
                 "source": "巡检"
