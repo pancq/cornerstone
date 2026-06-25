@@ -96,24 +96,24 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     )
     incident_count = incidents_result.scalar() or 0
 
-    max_duration_result = await db.execute(
-        select(func.coalesce(func.max(CircuitIncident.duration_hours), 0))
+    max_duration_min_result = await db.execute(
+        select(func.coalesce(func.max(CircuitIncident.duration_minutes), 0))
         .where(and_(
             CircuitIncident.created_at >= month_start,
             CircuitIncident.created_at < next_month
         ))
     )
-    max_duration = float(max_duration_result.scalar() or 0)
+    max_duration = float(max_duration_min_result.scalar() or 0) / 60.0
 
-    avg_recovery_result = await db.execute(
-        select(func.coalesce(func.avg(CircuitIncident.duration_hours), 0))
+    avg_recovery_min_result = await db.execute(
+        select(func.coalesce(func.avg(CircuitIncident.duration_minutes), 0))
         .where(and_(
             CircuitIncident.created_at >= month_start,
             CircuitIncident.created_at < next_month,
-            CircuitIncident.duration_hours > 0
+            CircuitIncident.duration_minutes > 0
         ))
     )
-    avg_recovery = float(avg_recovery_result.scalar() or 0)
+    avg_recovery = float(avg_recovery_min_result.scalar() or 0) / 60.0
 
     # 故障明细
     incidents_list_result = await db.execute(
@@ -121,7 +121,7 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
             CircuitIncident.title,
             CircuitIncident.severity,
             CircuitIncident.started_at,
-            CircuitIncident.duration_hours,
+            CircuitIncident.duration_minutes,
             CircuitIncident.status,
             CircuitIncident.id
         )
@@ -228,7 +228,7 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
             "title": i.title or "-",
             "severity": i.severity or "low",
             "started_at": i.started_at.strftime("%m-%d %H:%M") if i.started_at else "-",
-            "duration": f"{i.duration_hours:.1f}" if i.duration_hours else "-",
+            "duration": f"{(i.duration_minutes or 0)/60.0:.1f}" if i.duration_minutes else "-",
             "status": "已恢复" if i.status == "resolved" else "处理中"
         } for i in incidents_list]
     )
