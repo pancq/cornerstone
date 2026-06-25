@@ -106,7 +106,7 @@ router.beforeEach(async (to, _from) => {
     
     // 检查权限
     if (to.meta.permission && !authStore.hasPermission(to.meta.permission as string)) {
-      return '/403'
+      return { name: 'forbidden' }
     }
   }
   
