@@ -196,7 +196,7 @@ function initCostChart() {
 }
 
 function initLifecycleChart() {
-  if (!lifecycleData.value) return
+  if (!lifecycleData.value || !lifecycleData.value.age_distribution) return
   
   const chartDom = document.getElementById('lifecycle-chart')
   if (!chartDom) return
