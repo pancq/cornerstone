@@ -208,6 +208,7 @@ function initLifecycleChart() {
   window.addEventListener('resize', () => myChart.resize());
   
   const data = lifecycleData.value.age_distribution
+  const maxCount = Math.max(1, ...((data || []).map(d => d.count || 0)))
   
   const option = {
     tooltip: {
@@ -218,7 +219,7 @@ function initLifecycleChart() {
         const p = params[0]
         const name = p && p.name ? p.name : ''
         const value = p && p.value != null ? p.value : 0
-        const color = name === '未设置' ? '#C0C4CC' : p.color
+        const color = name === '未设置' ? '#909399' : (name.includes('5年以上') || name.includes('> 5年') ? '#E24B4A' : name.includes('3-5') ? '#EF9F27' : '#1D9E75')
         return `<span style="display:inline-block;width:10px;height:10px;background:${color};margin-right:6px;border-radius:2px"></span>${name}：${value}台`
       }
     },
@@ -230,7 +231,11 @@ function initLifecycleChart() {
       containLabel: true
     },
     xAxis: {
-      type: 'value'
+      type: 'value',
+      min: 0,
+      max: Math.max(3, maxCount),
+      interval: 1,
+      axisLabel: { formatter: (val: number) => Math.round(val) }
     },
     yAxis: {
       type: 'category',
