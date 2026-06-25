@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture, Refresh } from '@element-plus/icons-vue'
+import { Picture, Refresh, OfficeBuilding } from '@element-plus/icons-vue'
 import api from '../../api/axios'
+import { getCompanyInfo, updateCompanyInfo, type CompanyInfo } from '../../api/reports'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -10,9 +11,41 @@ const currentLogo = ref<string>('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isLoading = ref(false)
 
+const companyForm = reactive<CompanyInfo>({
+  company_name: '',
+  company_short_name: '',
+  it_department_name: '信息技术部',
+  it_contact_name: '',
+  it_contact_email: '',
+})
+const companyLoading = ref(false)
+
 onMounted(() => {
   fetchLogo()
+  fetchCompanyInfo()
 })
+
+const fetchCompanyInfo = async () => {
+  try {
+    const data = await getCompanyInfo()
+    Object.assign(companyForm, data)
+  } catch (error: any) {
+    console.error('Failed to load company info:', error)
+  }
+}
+
+const saveCompanyInfo = async () => {
+  companyLoading.value = true
+  try {
+    await updateCompanyInfo({ ...companyForm })
+    ElMessage.success('公司信息已更新')
+  } catch (error: any) {
+    console.error('Failed to save company info:', error)
+    ElMessage.error(error.response?.data?.detail || '保存失败')
+  } finally {
+    companyLoading.value = false
+  }
+}
 
 const fetchLogo = async (retries = 3) => {
   for (let i = 0; i < retries; i++) {
@@ -150,6 +183,37 @@ const handleLogoRemove = async () => {
 
     <div class="settings-section">
       <div class="section-header">
+        <el-icon class="section-icon"><OfficeBuilding /></el-icon>
+        <h2 class="section-title">公司信息</h2>
+        <p class="section-desc">公司信息将用于运营月报封面、邮件通知落款等场景，请确保信息准确</p>
+      </div>
+
+      <div class="company-form">
+        <el-form :model="companyForm" label-width="120px" size="large">
+          <el-form-item label="公司全称" required>
+            <el-input v-model="companyForm.company_name" placeholder="如「简一致远科技有限公司」" />
+          </el-form-item>
+          <el-form-item label="公司简称" required>
+            <el-input v-model="companyForm.company_short_name" placeholder="如「简一致远」" />
+          </el-form-item>
+          <el-form-item label="IT部门名称">
+            <el-input v-model="companyForm.it_department_name" placeholder="信息技术部" />
+          </el-form-item>
+          <el-form-item label="IT负责人姓名">
+            <el-input v-model="companyForm.it_contact_name" placeholder="" />
+          </el-form-item>
+          <el-form-item label="IT负责人邮箱">
+            <el-input v-model="companyForm.it_contact_email" placeholder="" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="saveCompanyInfo" :loading="companyLoading">保存</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="section-header">
         <h2 class="section-title">{{ t('settings.operationTips') }}</h2>
       </div>
       <ul class="tips-list">
@@ -196,6 +260,10 @@ const handleLogoRemove = async () => {
 .section-desc {
   font-size: 13px;
   color: #8c8c8c;
+}
+
+.company-form {
+  max-width: 500px;
 }
 
 .logo-upload-area {

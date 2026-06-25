@@ -18,6 +18,7 @@ from .system_config import SystemConfig
 from .backup_analysis import BackupAnalysis
 from .inspection import InspectionTask, InspectionResult, InspectionDeviceResult, DeviceFingerprint
 from .alert import AlertRule, AlertRecord, AlertNotification
+from .report import MonthlyReport
 
 __all__ = [
     'User', 'Role', 'Permission', 'RolePermission', 'UserSession',
@@ -26,5 +27,6 @@ __all__ = [
     'Device', 'DeviceLink', 'Credential', 'Backup', 'BackupTask', 'AuditLog',
     'VlanGroup', 'Vlan', 'LinkMonitor', 'SystemConfig', 'BackupAnalysis',
     'InspectionTask', 'InspectionResult', 'InspectionDeviceResult', 'DeviceFingerprint',
-    'AlertRule', 'AlertRecord', 'AlertNotification'
+    'AlertRule', 'AlertRecord', 'AlertNotification',
+    'MonthlyReport'
 ]

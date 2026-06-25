@@ -18,6 +18,15 @@ router = APIRouter()
 
 NOTIFICATION_SETTINGS_KEY = "notification_settings"
 LOG_SETTINGS_KEY = "log_settings"
+COMPANY_INFO_KEY = "company_info"
+
+
+class CompanyInfoRequest(BaseModel):
+    company_name: str = ""
+    company_short_name: str = ""
+    it_department_name: str = "信息技术部"
+    it_contact_name: str = ""
+    it_contact_email: str = ""
 
 
 class TestNotificationRequest(BaseModel):
@@ -351,3 +360,54 @@ async def cleanup_logs(
     await db.commit()
     
     return CleanupResponse(deleted_count=deleted_count, duration_ms=duration_ms)
+
+
+# ============ 公司信息 API ============
+
+@router.get("/company")
+async def get_company_info(
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_super_admin)
+):
+    """获取公司信息配置"""
+    result = await db.execute(select(Setting).filter(Setting.key == COMPANY_INFO_KEY))
+    setting = result.scalars().first()
+    
+    if setting:
+        try:
+            config = json.loads(setting.value)
+            return config
+        except json.JSONDecodeError:
+            pass
+    
+    return {
+        "company_name": "",
+        "company_short_name": "",
+        "it_department_name": "信息技术部",
+        "it_contact_name": "",
+        "it_contact_email": ""
+    }
+
+
+@router.put("/company")
+async def update_company_info(
+    request: CompanyInfoRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_super_admin)
+):
+    """保存公司信息配置"""
+    config_dict = request.model_dump()
+    config_json = json.dumps(config_dict, ensure_ascii=False)
+    
+    result = await db.execute(select(Setting).filter(Setting.key == COMPANY_INFO_KEY))
+    setting = result.scalars().first()
+    
+    if setting:
+        setting.value = config_json
+    else:
+        setting = Setting(key=COMPANY_INFO_KEY, value=config_json)
+        db.add(setting)
+    
+    await db.commit()
+    
+    return {"message": "公司信息已更新"}

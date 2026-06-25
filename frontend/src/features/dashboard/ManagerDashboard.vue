@@ -8,7 +8,6 @@ import {
   getCircuitCostTrend,
   getDeviceLifecycle,
   getMonthlyIncidents,
-  downloadMonthlyReport,
   type ManagerStats,
   type RisksResponse,
   type CircuitCostTrend,
@@ -20,6 +19,12 @@ import {
   type OldDevice,
   type ExpiringItem
 } from '@/api/dashboard'
+import {
+  listMonthlyReports,
+  generateMonthlyReport,
+  downloadMonthlyReport,
+  type ReportItem
+} from '@/api/reports'
 import {
   TrendCharts,
   Warning,
@@ -36,6 +41,7 @@ import {
   ArrowRight
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -262,6 +268,7 @@ async function loadData() {
       initCostChart()
       initLifecycleChart()
     }, 100)
+    fetchReports()
   } catch (error) {
     console.error('Failed to load manager dashboard data:', error)
   } finally {
@@ -269,20 +276,54 @@ async function loadData() {
   }
 }
 
-async function downloadReport(month: string) {
+const reports = ref<ReportItem[]>([])
+const reportsLoading = ref(false)
+const generatingReport = ref(false)
+
+async function fetchReports() {
   try {
-    const blob = await downloadMonthlyReport(month)
+    reports.value = await listMonthlyReports()
+  } catch (error) {
+    console.error('Failed to load reports:', error)
+  }
+}
+
+async function handleGenerateReport() {
+  generatingReport.value = true
+  try {
+    const now = new Date()
+    await generateMonthlyReport(now.getFullYear(), now.getMonth() + 1)
+    ElMessage.success('月报生成成功')
+    await fetchReports()
+  } catch (error: any) {
+    console.error('Failed to generate report:', error)
+    ElMessage.error(error.response?.data?.detail || '月报生成失败')
+  } finally {
+    generatingReport.value = false
+  }
+}
+
+async function handleDownloadReport(item: ReportItem) {
+  try {
+    const blob = await downloadMonthlyReport(item.year, item.month)
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `report_${month}.pdf`
+    link.download = item.filename || `report_${item.year}_${item.month}.pdf`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
   } catch (error) {
     console.error('Failed to download report:', error)
+    ElMessage.error('下载失败')
   }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function getCurrentMonth(): string {
@@ -609,35 +650,23 @@ onMounted(() => {
         </div>
         <div class="report-content">
           <div class="report-list">
-            <div class="report-item">
+            <div class="report-item" v-for="item in reports" :key="item.id">
               <el-icon><Document /></el-icon>
-              <span class="report-name">2026年6月报告</span>
-              <el-button type="primary" plain size="small" @click="downloadReport('2026-06')">
+              <span class="report-name">{{ item.year }}年{{ item.month }}月运营报告</span>
+              <span class="report-meta">{{ formatFileSize(item.file_size) }} · {{ item.generated_at }}</span>
+              <el-button type="primary" plain size="small" @click="handleDownloadReport(item)">
                 <el-icon><Download /></el-icon>
                 下载PDF
               </el-button>
             </div>
-            <div class="report-item">
-              <el-icon><Document /></el-icon>
-              <span class="report-name">2026年5月报告</span>
-              <el-button type="primary" plain size="small" @click="downloadReport('2026-05')">
-                <el-icon><Download /></el-icon>
-                下载PDF
-              </el-button>
-            </div>
-            <div class="report-item">
-              <el-icon><Document /></el-icon>
-              <span class="report-name">2026年4月报告</span>
-              <el-button type="primary" plain size="small" @click="downloadReport('2026-04')">
-                <el-icon><Download /></el-icon>
-                下载PDF
-              </el-button>
+            <div v-if="reports.length === 0" class="report-empty">
+              暂无已生成的月报，请点击下方按钮生成
             </div>
           </div>
           <div class="report-actions">
-            <el-button type="primary" @click="downloadReport(getCurrentMonth())">
+            <el-button type="primary" @click="handleGenerateReport" :loading="generatingReport">
               <el-icon><Document /></el-icon>
-              下载本月报告
+              生成本月报告
             </el-button>
           </div>
         </div>
@@ -1074,6 +1103,19 @@ onMounted(() => {
   flex: 1;
   font-size: 14px;
   color: #262626;
+}
+
+.report-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-right: 16px;
+}
+
+.report-empty {
+  text-align: center;
+  padding: 32px;
+  color: #8c8c8c;
+  font-size: 13px;
 }
 
 .report-actions {
