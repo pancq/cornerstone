@@ -348,7 +348,7 @@ function getAgeColor(range: string): string {
 
 function getOldDevicesWarning(): string | null {
   if (!lifecycleData.value) return null
-  const oldCount = lifecycleData.value.age_distribution.find(d => d.range === '> 5年')?.count || 0
+  const oldCount = lifecycleData.value.age_distribution.find(d => (d.range && (d.range.includes('5年以上') || d.range.includes('> 5年'))))?.count || 0
   if (oldCount > 0) {
     return `当前有 ${oldCount} 台设备使用年限超过5年，建议制定更换计划`
   }
