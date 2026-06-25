@@ -275,7 +275,7 @@ async function downloadReport(month: string) {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `report_${month}.csv`
+    link.download = `report_${month}.pdf`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -614,7 +614,7 @@ onMounted(() => {
               <span class="report-name">2026年6月报告</span>
               <el-button type="primary" plain size="small" @click="downloadReport('2026-06')">
                 <el-icon><Download /></el-icon>
-                下载CSV
+                下载PDF
               </el-button>
             </div>
             <div class="report-item">
@@ -622,7 +622,7 @@ onMounted(() => {
               <span class="report-name">2026年5月报告</span>
               <el-button type="primary" plain size="small" @click="downloadReport('2026-05')">
                 <el-icon><Download /></el-icon>
-                下载CSV
+                下载PDF
               </el-button>
             </div>
             <div class="report-item">
@@ -630,7 +630,7 @@ onMounted(() => {
               <span class="report-name">2026年4月报告</span>
               <el-button type="primary" plain size="small" @click="downloadReport('2026-04')">
                 <el-icon><Download /></el-icon>
-                下载CSV
+                下载PDF
               </el-button>
             </div>
           </div>
