@@ -982,6 +982,94 @@ async def get_circuit_cost_trend(
     }
 
 
+@router.get("/device-lifecycle")
+async def get_device_lifecycle_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """获取设备生命周期统计"""
+    require_manager_or_admin(current_user)
+    
+    now = datetime.now()
+    three_years_ago = now - timedelta(days=365 * 3)
+    five_years_ago = now - timedelta(days=365 * 5)
+    
+    # 统计各年龄段设备数量
+    under_3y_result = await db.execute(
+        select(func.count(Device.id))
+        .where(or_(
+            Device.purchase_date == None,
+            Device.purchase_date >= three_years_ago
+        ))
+    )
+    under_3y = under_3y_result.scalar() or 0
+    
+    three_to_five_result = await db.execute(
+        select(func.count(Device.id))
+        .where(and_(
+            Device.purchase_date != None,
+            Device.purchase_date >= five_years_ago,
+            Device.purchase_date < three_years_ago
+        ))
+    )
+    three_to_five = three_to_five_result.scalar() or 0
+    
+    over_five_result = await db.execute(
+        select(func.count(Device.id))
+        .where(and_(
+            Device.purchase_date != None,
+            Device.purchase_date < five_years_ago
+        ))
+    )
+    over_five = over_five_result.scalar() or 0
+    
+    return {
+        "labels": ["3年以内", "3-5年", "5年以上"],
+        "data": [under_3y, three_to_five, over_five],
+        "colors": ["#67C23A", "#E6A23C", "#F56C6C"]
+    }
+
+
+@router.get("/monthly-incidents")
+async def get_monthly_incidents_trend(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """获取近12个月故障趋势"""
+    require_manager_or_admin(current_user)
+    
+    now = datetime.now()
+    months = []
+    incident_counts = []
+    
+    # 生成近12个月
+    for i in range(11, -1, -1):
+        # 计算当月开始和结束
+        month_date = datetime(now.year, now.month, 1) - timedelta(days=30 * i)
+        year = month_date.year
+        mon = month_date.month
+        month_str = month_date.strftime("%Y-%m")
+        months.append(month_str)
+        
+        next_month = datetime(year + (1 if mon == 12 else 0), 1 if mon == 12 else mon + 1, 1)
+        month_start = datetime(year, mon, 1)
+        
+        count_result = await db.execute(
+            select(func.count(CircuitIncident.id))
+            .where(and_(
+                CircuitIncident.created_at >= month_start,
+                CircuitIncident.created_at < next_month
+            ))
+        )
+        count = count_result.scalar() or 0
+        incident_counts.append(count)
+    
+    return {
+        "months": months,
+        "counts": incident_counts
+    }
+
+
 @router.get("/monthly-report")
 async def download_monthly_report(
     month: str | None = None,
