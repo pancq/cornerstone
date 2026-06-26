@@ -493,7 +493,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     top_area_content.append([Paragraph(f"{data.year}年{data.month}月", cover_sub_style)])
     top_area_content.append([Spacer(1, 30*mm)])
 
-    top_area_table = Table(top_area_content, colWidths=[width - 50*mm])
+    top_area_table = Table(top_area_content, colWidths=[doc.width], rowHeights=[doc.height * 0.45])
     top_area_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), HexColor('#1F4E79')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -506,7 +506,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     elements.append(top_area_table)
 
     # 分隔线
-    sep_table = Table([['']], colWidths=[width - 50*mm])
+    sep_table = Table([['']], colWidths=[doc.width])
     sep_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), HexColor('#CCCCCC')),
         ('TOPPADDING', (0, 0), (-1, -1), 0.25),
@@ -549,7 +549,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         elements.append(Spacer(1, 2*mm))
 
     # 底部装饰线
-    footer_line = Table([['']], colWidths=[width])
+    footer_line = Table([['']], colWidths=[doc.width])
     footer_line.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), HexColor('#1F4E79')),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
@@ -728,7 +728,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         'SectionLabel', fontName=sty['section'].fontName, fontSize=18, leading=24,
         textColor=colors.HexColor('#1F4E79')
     ))]]
-    avail_text_big = "暂无数据" if data.availability_pct is None else f"{data.availability_pct:.1f}%"
+    avail_text_big = "暂无数据" if data.availability_pct is None else f"{data.availability_pct:.1f}%"  # 已合并%
     avail_c = "#E6A23C" if data.availability_pct is None else ("#67C23A" if data.availability_pct >= 99 else "#E6A23C")
     avail_data.append([Paragraph(avail_text_big, ParagraphStyle(
         'BigAvail', fontName=sty['big_number'].fontName,
@@ -919,12 +919,14 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 bar_width = bar_area_width * (amount / total)
                 color = TYPE_COLORS.get(type_key, '#909399')
                 label = TYPE_LABELS.get(type_key, type_key)
+                # 确保中文字体：用 Paragraph 包装并指定字体
+                label_para = Paragraph(label, ParagraphStyle('BarLabel', fontName=sty['body'].fontName, fontSize=10, textColor=HexColor('#666666')))
 
                 # 用Drawing绘制水平条形，添加到elements需要通过Table包装
                 bar_d = Drawing(bar_width, bar_height)
                 bar_d.add(Rect(0, 0, bar_width, bar_height,
                               fillColor=HexColor(color), strokeColor=None))
-                row_data = [[label, bar_d, f"¥{amount:,}  ({pct:.1f}%)"]]
+                row_data = [[label_para, bar_d, f"¥{amount:,}  ({pct:.1f}%)"]]
                 t = Table(row_data, colWidths=[label_width, bar_area_width, 70])
                 t.setStyle(TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
