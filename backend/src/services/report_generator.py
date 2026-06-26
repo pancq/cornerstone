@@ -485,17 +485,9 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                                   fontSize=9, leading=14, alignment=1, textColor=colors.HexColor('#999999')))
     )
 
-    elements.append(PageBreak())
-
-    # 页眉页脚（从第二页开始）
+    # 封面结束，后续页面开始页眉页脚
     hf = _make_header_footer(doc, sty, data)
-    doc.build(elements, onFirstPage=lambda c, d: None, onLaterPages=hf)
-    doc = SimpleDocTemplate(
-        output_path, pagesize=A4,
-        topMargin=25*mm, bottomMargin=25*mm,
-        leftMargin=25*mm, rightMargin=25*mm
-    )
-    elements = []
+    elements.append(PageBreak())
 
     # ===== 第二页：执行摘要 =====
     elements.append(Paragraph("执行摘要", sty['section']))
