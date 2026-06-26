@@ -6,7 +6,7 @@ from typing import Optional
 import json
 import calendar
 
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, Date, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from reportlab.lib.pagesizes import A4
@@ -74,7 +74,6 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1,
         tzinfo=utc
     )
-    now = datetime.now(utc)  # UTC now
 
     # 用于展示的北京时间
     beijing_tz = timezone(timedelta(hours=8))
@@ -143,25 +142,27 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     )
     incidents_list = incidents_list_result.all()
 
-    # 到期事项
-    thirty_days_later = now + timedelta(days=30)
-    sixty_days_later = now + timedelta(days=60)
+    # 到期事项（使用 date 比较，避免 datetime 时区兼容问题）
+    thirty_days_later = bj_now.date() + timedelta(days=30)
+    sixty_days_later = bj_now.date() + timedelta(days=60)
+    bj_today = bj_now.date()
 
     urgent_circuits_result = await db.execute(
         select(Circuit.name, Circuit.contract_end, Circuit.provider)
         .where(and_(
             Circuit.contract_end != None,
-            Circuit.contract_end <= thirty_days_later
+            cast(Circuit.contract_end, Date) <= thirty_days_later
         ))
     )
     urgent_items = []
     for c in urgent_circuits_result.all():
-        days_left = (c.contract_end.date() - now.date()).days
+        end_date = c.contract_end.date() if hasattr(c.contract_end, 'date') else c.contract_end
+        days_left = (end_date - bj_today).days if end_date else -1
         if days_left >= 0:
             urgent_items.append({
                 "type": "专线合同",
                 "name": c.name,
-                "expire_date": c.contract_end.strftime("%Y-%m-%d"),
+                "expire_date": end_date.strftime("%Y-%m-%d") if end_date else "",
                 "days_left": days_left
             })
 
@@ -169,16 +170,17 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         select(Device.name, Device.warranty_end, Device.model)
         .where(and_(
             Device.warranty_end != None,
-            Device.warranty_end <= thirty_days_later
+            cast(Device.warranty_end, Date) <= thirty_days_later
         ))
     )
     for d in urgent_warranties_result.all():
-        days_left = (d.warranty_end.date() - now.date()).days
+        end_date = d.warranty_end.date() if hasattr(d.warranty_end, 'date') else d.warranty_end
+        days_left = (end_date - bj_today).days if end_date else -1
         if days_left >= 0:
             urgent_items.append({
                 "type": "设备保修",
                 "name": d.name,
-                "expire_date": d.warranty_end.strftime("%Y-%m-%d"),
+                "expire_date": end_date.strftime("%Y-%m-%d") if end_date else "",
                 "days_left": days_left
             })
 
@@ -187,17 +189,18 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         select(Circuit.name, Circuit.contract_end, Circuit.provider)
         .where(and_(
             Circuit.contract_end != None,
-            Circuit.contract_end <= sixty_days_later,
-            Circuit.contract_end > thirty_days_later
+            cast(Circuit.contract_end, Date) <= sixty_days_later,
+            cast(Circuit.contract_end, Date) > thirty_days_later
         ))
     )
     for c in warning_circuits_result.all():
-        days_left = (c.contract_end.date() - now.date()).days
+        end_date = c.contract_end.date() if hasattr(c.contract_end, 'date') else c.contract_end
+        days_left = (end_date - bj_today).days if end_date else -1
         if days_left >= 0:
             warning_items.append({
                 "type": "专线合同",
                 "name": c.name,
-                "expire_date": c.contract_end.strftime("%Y-%m-%d"),
+                "expire_date": end_date.strftime("%Y-%m-%d") if end_date else "",
                 "days_left": days_left
             })
 
@@ -205,17 +208,18 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         select(Device.name, Device.warranty_end, Device.model)
         .where(and_(
             Device.warranty_end != None,
-            Device.warranty_end <= sixty_days_later,
-            Device.warranty_end > thirty_days_later
+            cast(Device.warranty_end, Date) <= sixty_days_later,
+            cast(Device.warranty_end, Date) > thirty_days_later
         ))
     )
     for d in warning_warranties_result.all():
-        days_left = (d.warranty_end.date() - now.date()).days
+        end_date = d.warranty_end.date() if hasattr(d.warranty_end, 'date') else d.warranty_end
+        days_left = (end_date - bj_today).days if end_date else -1
         if days_left >= 0:
             warning_items.append({
                 "type": "设备保修",
                 "name": d.name,
-                "expire_date": d.warranty_end.strftime("%Y-%m-%d"),
+                "expire_date": end_date.strftime("%Y-%m-%d") if end_date else "",
                 "days_left": days_left
             })
 
