@@ -235,10 +235,10 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
 
 
 def _register_fonts():
-    """注册中文字体。优先使用项目内 fonts/msyh.ttf（微软雅黑），如果不存在再尝试系统字体路径。"""
+    """注册中文字体。优先使用项目内开源中文字体（Noto Sans SC），如果不存在再尝试系统字体路径。"""
     import os
-    # 项目内字体优先：backend/data/fonts/msyh.ttf（请将微软雅黑 ttf 放在此处，文件名建议 msyh.ttf）
-    project_font = Path(__file__).parent.parent / "data" / "fonts" / "msyh.ttf"
+    # 项目内字体优先：backend/data/fonts/noto-sans-sc-regular.ttf（开源免费商用）
+    project_font = Path(__file__).parent.parent / "data" / "fonts" / "noto-sans-sc-regular.ttf"
 
     font_candidates = [str(project_font),
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
