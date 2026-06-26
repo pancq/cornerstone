@@ -1041,7 +1041,14 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                                fontSize=9, fillColor=HexColor('#909399'),
                                fontName=sty['body'].fontName))
 
-
+                elements.append(d)
+        else:
+            elements.append(Paragraph(
+                "专线费用数据暂未录入，请在专线管理中补充月租费用信息",
+                ParagraphStyle('NoCost', fontName=sty['body'].fontName,
+                               fontSize=10, leading=16, leftIndent=8*mm,
+                               textColor=colors.HexColor('#909399'))
+            ))
     else:
         elements.append(Paragraph(
             "专线费用数据暂未录入，请在专线管理中补充月租费用信息",
