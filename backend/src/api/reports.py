@@ -98,20 +98,15 @@ async def generate_monthly_report(
             MonthlyReport.month == month
         )
     )
+    await db.commit()
 
     # 生成 PDF
     try:
         generate_report_pdf(data, output_path)
     except Exception as e:
-        # 记录失败
-        db.add(MonthlyReport(
-            year=year, month=month,
-            file_path=output_path, file_size=0,
-            status="failed", error_message=str(e),
-            generated_by=current_user.username,
-            generated_at=now
-        ))
-        await db.commit()
+        # 生成失败：删除已删除旧记录后不再新增失败记录，列表保持干净
+        if os.path.exists(output_path):
+            os.remove(output_path)
         raise HTTPException(status_code=500, detail=f"月报生成失败: {str(e)}")
 
     file_size = os.path.getsize(output_path)
