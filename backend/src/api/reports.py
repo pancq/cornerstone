@@ -117,7 +117,7 @@ async def generate_monthly_report(
         year=year, month=month,
         file_path=output_path, file_size=file_size,
         status="done", generated_by=current_user.username,
-        generated_at=now
+        generated_at=now.replace(tzinfo=None)
     )
     db.add(report_record)
     await db.commit()
