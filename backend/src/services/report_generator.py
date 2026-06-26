@@ -4,6 +4,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
 import json
+import calendar
 
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,12 +67,18 @@ async def get_company_info(db: AsyncSession) -> dict:
 
 async def collect_report_data(year: int, month: int, db: AsyncSession) -> MonthlyReportData:
     """从数据库收集月报所需数据"""
-    # 使用北京时间（UTC+8），在UTC基础上加8小时
-    utc_now = datetime.utcnow()
-    now = utc_now + timedelta(hours=8)
-    # 月份查询范围使用 naive datetime 兼容数据库
-    month_start = datetime(year, month, 1)
-    next_month = datetime(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1)
+    # 所有时间统一用 UTC 时区感知，避免 PostgreSQL DateTime(timezone=True) 列不匹配
+    utc = timezone.utc
+    month_start = datetime(year, month, 1, tzinfo=utc)
+    next_month = datetime(
+        year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1,
+        tzinfo=utc
+    )
+    now = datetime.now(utc)  # UTC now
+
+    # 用于展示的北京时间
+    beijing_tz = timezone(timedelta(hours=8))
+    bj_now = datetime.now(beijing_tz)
 
     # 公司信息
     company = await get_company_info(db)
@@ -219,7 +226,7 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         company_short_name=company.get("company_short_name", ""),
         it_department=company.get("it_department_name", "信息技术部"),
         it_contact=company.get("it_contact_name", ""),
-        generated_at=now,
+        generated_at=bj_now,
         circuit_cost_total=total_cost,
         incident_count=incident_count,
         max_duration_hours=max_duration,
@@ -230,7 +237,7 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         incidents=[{
             "title": i.title or "-",
             "severity": i.severity or "low",
-            "started_at": i.started_at.strftime("%m-%d %H:%M") if i.started_at else "-",
+            "started_at": (i.started_at + timedelta(hours=8)).strftime("%m-%d %H:%M") if i.started_at else "-",
             "duration": f"{(i.duration_minutes or 0)/60.0:.1f}" if i.duration_minutes else "-",
             "status": "已恢复" if i.status == "resolved" else "处理中"
         } for i in incidents_list]

@@ -53,7 +53,7 @@ async def list_monthly_reports(
             "file_size": r.file_size,
             "status": r.status,
             "generated_by": r.generated_by,
-            "generated_at": r.generated_at.strftime("%Y-%m-%d %H:%M") if r.generated_at else "",
+            "generated_at": (r.generated_at + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M") if r.generated_at else "",
             "filename": Path(r.file_path).name if r.file_path else "",
         }
         for r in reports
@@ -70,13 +70,15 @@ async def generate_monthly_report(
     """生成指定月份的月报 PDF"""
     _require_manager_or_admin(current_user)
 
-    # 使用北京时间（UTC+8），在UTC基础上加8小时
-    utc_now = datetime.utcnow()
-    now = utc_now + timedelta(hours=8)
+    # DB 用 UTC 时区感知时间
+    now = datetime.now(timezone.utc)
+    # 用北京时间确定年月
+    beijing_tz = timezone(timedelta(hours=8))
+    bj_now = datetime.now(beijing_tz)
     if not year:
-        year = now.year
+        year = bj_now.year
     if not month:
-        month = now.month
+        month = bj_now.month
 
     # 收集数据
     data = await collect_report_data(year, month, db)
@@ -117,7 +119,7 @@ async def generate_monthly_report(
         year=year, month=month,
         file_path=output_path, file_size=file_size,
         status="done", generated_by=current_user.username,
-        generated_at=now.replace(tzinfo=None)
+        generated_at=now
     )
     db.add(report_record)
     await db.commit()
