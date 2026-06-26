@@ -125,22 +125,25 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         })
 
     # 计算网络可用性：从 inspection_device_results 表统计本月在线率
-    from src.models.inspection_device_result import InspectionDeviceResult
+    from src.models.inspection import InspectionDeviceResult
+    # 使用时区感知区间过滤 scanned_at，避免字段名和时区不一致导致的错误
     avail_result = await db.execute(
-        select(func.count(InspectionDeviceResult.id))
-        .where(
-            func.extract('year', InspectionDeviceResult.inspected_at) == year,
-            func.extract('month', InspectionDeviceResult.inspected_at) == month,
+        select(func.count(InspectionDeviceResult.id)).where(
+            and_(
+                InspectionDeviceResult.scanned_at >= month_start,
+                InspectionDeviceResult.scanned_at < next_month
+            )
         )
     )
     total_count = avail_result.scalar() or 0
 
     online_result = await db.execute(
-        select(func.count(InspectionDeviceResult.id))
-        .where(
-            func.extract('year', InspectionDeviceResult.inspected_at) == year,
-            func.extract('month', InspectionDeviceResult.inspected_at) == month,
-            InspectionDeviceResult.result == 'online',
+        select(func.count(InspectionDeviceResult.id)).where(
+            and_(
+                InspectionDeviceResult.scanned_at >= month_start,
+                InspectionDeviceResult.scanned_at < next_month,
+                InspectionDeviceResult.is_online.is_(True)
+            )
         )
     )
     online_count = online_result.scalar() or 0
