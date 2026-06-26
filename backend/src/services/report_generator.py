@@ -16,7 +16,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 )
-from reportlab.graphics.shapes import Drawing, Rect
+from reportlab.graphics.shapes import Drawing, Rect, Line, Circle, String
 
 from src.models.circuit import Circuit
 from src.models.circuit_incident import CircuitIncident
