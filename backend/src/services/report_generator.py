@@ -462,62 +462,50 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         leftMargin=25*mm, rightMargin=20*mm
     )
 
+    from reportlab.lib.colors import HexColor
+    width, height = A4
     elements = []
 
-    # ===== 第一页：封面 =====
-    # 按规范重新设计：顶部深蓝色背景块占页面上方45%，白色文字
-    from reportlab.lib.colors import HexColor
-
-    # 使用 Drawing 在整个页面绘制背景（Table方式容易留白边）
-    width, height = A4
-    cover_d = Drawing(width, height)
-    # 顶部深蓝色背景块
-    cover_d.add(Rect(0, height * 0.55, width, height * 0.45,
-                   fillColor=HexColor('#1F4E79'), strokeColor=None))
-    # 底部蓝色装饰线
-    cover_d.add(Rect(0, 0, width, 8,
-                   fillColor=HexColor('#1F4E79'), strokeColor=None))
-    elements.append(cover_d)
-
-    # 蓝色区域内文字（Y从顶部往下递减）
-    y = height - 22*mm
-    # 公司简称（左上角，Logo区域）
-    if data.company_short_name:
-        company_short_style = ParagraphStyle(
-            'CompanyShort', fontName=sty['title'].fontName,
-            fontSize=13, leading=18,
-            textColor=colors.white
-        )
-        p = Paragraph(data.company_short_name, company_short_style)
-        # 在蓝色块内靠左上方放置
-        cover_header_table = Table([[p]], colWidths=[width], rowHeights=[height * 0.45])
-        cover_header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.transparent),
-            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-            ('VALIGN', (0, 0), (0, 0), 'TOP'),
-            ('TOPPADDING', (0, 0), (-1, -1), 22*mm),
-            ('LEFTPADDING', (0, 0), (-1, -1), 25*mm),
-        ]))
-        elements.append(cover_header_table)
-
-    # 主标题（居中）
-    elements.append(Spacer(1, int(height * 0.45 * 0.3)))
+    # ===== 封面设计 =====
+    # 第一部分：顶部深蓝色区域，用带背景色的 Table
     cover_title_style = ParagraphStyle(
         'CoverTitle', fontName=sty['title'].fontName,
         fontSize=26, leading=34, alignment=1,
         textColor=colors.white
     )
-    elements.append(Paragraph("IT基础设施运营月报", cover_title_style))
-    # 年月副标题（淡蓝色）
     cover_sub_style = ParagraphStyle(
         'CoverSub', fontName=sty['body'].fontName,
         fontSize=16, leading=22, alignment=1,
         textColor=HexColor('#BDD7EE')
     )
-    elements.append(Paragraph(f"{data.year}年{data.month}月", cover_sub_style))
-    elements.append(Spacer(1, int(height * 0.45 * 0.2)))
+    company_short_style = ParagraphStyle(
+        'CompanyShort', fontName=sty['title'].fontName,
+        fontSize=13, leading=18,
+        textColor=colors.white
+    )
 
-    # 细线分隔蓝色区域和白色区域
+    top_area_content = []
+    if data.company_short_name:
+        top_area_content.append([Paragraph(data.company_short_name, company_short_style)])
+    top_area_content.append([Spacer(1, 20*mm)])
+    top_area_content.append([Paragraph("IT基础设施运营月报", cover_title_style)])
+    top_area_content.append([Spacer(1, 12*mm)])
+    top_area_content.append([Paragraph(f"{data.year}年{data.month}月", cover_sub_style)])
+    top_area_content.append([Spacer(1, 30*mm)])
+
+    top_area_table = Table(top_area_content, colWidths=[width - 50*mm])
+    top_area_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HexColor('#1F4E79')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 20*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(top_area_table)
+
+    # 分隔线
     sep_table = Table([['']], colWidths=[width - 50*mm])
     sep_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), HexColor('#CCCCCC')),
@@ -525,7 +513,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0.25),
     ]))
     elements.append(sep_table)
-    elements.append(Spacer(1, 4*mm))
+    elements.append(Spacer(1, 10*mm))
 
     # 白色区域：公司信息
     info_style = ParagraphStyle(
@@ -538,7 +526,6 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         fontSize=10, leading=18,
         textColor=colors.HexColor('#888888')
     )
-
     last_day = calendar.monthrange(data.year, data.month)[1]
     info_lines = [
         ("公司名称", data.company_name or "(请在系统设置中填写)"),
@@ -546,7 +533,6 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ("生成时间", data.generated_at.strftime('%Y年%m月%d日 %H:%M')),
         ("生成系统", "基石 Cornerstone · IT基础设施资源管理平台"),
     ]
-
     for label, value in info_lines:
         if value:
             row_data = [[
@@ -560,9 +546,18 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
             ]))
             elements.append(t)
-        elements.append(Spacer(1, 1*mm))
+        elements.append(Spacer(1, 2*mm))
 
-    # 封面结束，分页进入正文，后续页面由页眉页脚处理
+    # 底部装饰线
+    footer_line = Table([['']], colWidths=[width])
+    footer_line.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HexColor('#1F4E79')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(footer_line)
+
+    # 封面结束，分页进入正文
     hf = _make_header_footer(doc, sty, data)
     elements.append(PageBreak())
 
