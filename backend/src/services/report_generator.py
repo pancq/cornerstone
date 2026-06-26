@@ -1014,14 +1014,13 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                     py = padding_y + (item['cost'] - min_amount) / amount_range * (plot_height * 0.8) + plot_height * 0.1
                     points.append((px, py, item))
 
-                # 绘制折线
-                path = d.beginPath()
-                path.setStrokeColor(HexColor('#2E75B6'))
-                path.setLineWidth(1.5)
-                path.moveTo(points[0][0], points[0][1])
-                for px, py, _ in points[1:]:
-                    path.lineTo(px, py)
-                d.drawPath(path, stroke=1, fill=0)
+                # 绘制折线 - 使用 Line 逐个添加线段
+                for i in range(1, len(points)):
+                    prev = points[i-1]
+                    curr = points[i]
+                    line = Line(prev[0], prev[1], curr[0], curr[1],
+                              strokeWidth=1.5, strokeColor=HexColor('#2E75B6'))
+                    d.add(line)
 
                 # 绘制数据点和标注（修复标注位置）
                 for px, py, item in points:
