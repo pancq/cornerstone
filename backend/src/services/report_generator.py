@@ -1,5 +1,5 @@
 """运营月报 PDF 生成服务"""
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
@@ -68,7 +68,9 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     """从数据库收集月报所需数据"""
     month_start = datetime(year, month, 1)
     next_month = datetime(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1)
-    now = datetime.now()
+    # 使用北京时间（UTC+8）
+    beijing_tz = timezone(timedelta(hours=8))
+    now = datetime.now(beijing_tz)
 
     # 公司信息
     company = await get_company_info(db)
@@ -337,11 +339,13 @@ def _make_header_footer(doc, sty: dict, data: MonthlyReportData):
 
     company_short = data.company_short_name or "基石"
     month_label = f"{data.year}年{data.month}月"
+    # 使用注册好的中文字体（如果注册成功）
+    font_name = sty['footer'].fontName
 
     def header_footer(canvas, doc):
         canvas.saveState()
         # 页眉
-        canvas.setFont("Helvetica", 8)
+        canvas.setFont(font_name, 8)
         canvas.setFillColor(colors.HexColor('#999999'))
         canvas.drawString(25*mm, A4[1] - 15*mm, f"基石 · IT基础设施运营月报")
         canvas.drawRightString(A4[0] - 25*mm, A4[1] - 15*mm, month_label)
@@ -349,7 +353,7 @@ def _make_header_footer(doc, sty: dict, data: MonthlyReportData):
         canvas.setLineWidth(0.5)
         canvas.line(25*mm, A4[1] - 18*mm, A4[0] - 25*mm, A4[1] - 18*mm)
         # 页脚
-        canvas.setFont("Helvetica", 8)
+        canvas.setFont(font_name, 8)
         canvas.setFillColor(colors.HexColor('#999999'))
         canvas.drawString(25*mm, 15*mm, f"{company_short} · {data.it_department}")
         canvas.drawRightString(A4[0] - 25*mm, 15*mm, f"第 {doc.page} 页")

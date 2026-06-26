@@ -1,6 +1,6 @@
 """运营月报 API"""
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -70,7 +70,9 @@ async def generate_monthly_report(
     """生成指定月份的月报 PDF"""
     _require_manager_or_admin(current_user)
 
-    now = datetime.now()
+    # 使用北京时间（UTC+8）
+    beijing_tz = timezone(timedelta(hours=8))
+    now = datetime.now(beijing_tz)
     if not year:
         year = now.year
     if not month:
