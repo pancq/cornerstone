@@ -1015,9 +1015,9 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                     points.append((px, py, item))
 
                 # 绘制折线
-                d.setStrokeColor(HexColor('#2E75B6'))
-                d.setLineWidth(1.5)
                 path = d.beginPath()
+                path.setStrokeColor(HexColor('#2E75B6'))
+                path.setLineWidth(1.5)
                 path.moveTo(points[0][0], points[0][1])
                 for px, py, _ in points[1:]:
                     path.lineTo(px, py)
@@ -1026,8 +1026,8 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 # 绘制数据点和标注（修复标注位置）
                 for px, py, item in points:
                     # 数据点圆点
-                    d.setFillColor(HexColor('#2E75B6'))
-                    d.circle(px, py, 3, fill=1, stroke=0)
+                    circle = Circle(px, py, 3, fillColor=HexColor('#2E75B6'), strokeColor=None)
+                    d.add(circle)
                     # 金额标注（数据点正上方8px）
                     amount = item['cost']
                     if amount >= 10000:
