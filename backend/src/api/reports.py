@@ -70,9 +70,9 @@ async def generate_monthly_report(
     """生成指定月份的月报 PDF"""
     _require_manager_or_admin(current_user)
 
-    # 使用北京时间（UTC+8）
-    beijing_tz = timezone(timedelta(hours=8))
-    now = datetime.now(beijing_tz)
+    # 使用北京时间（UTC+8），在UTC基础上加8小时
+    utc_now = datetime.utcnow()
+    now = utc_now + timedelta(hours=8)
     if not year:
         year = now.year
     if not month:

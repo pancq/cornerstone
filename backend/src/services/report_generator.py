@@ -66,11 +66,12 @@ async def get_company_info(db: AsyncSession) -> dict:
 
 async def collect_report_data(year: int, month: int, db: AsyncSession) -> MonthlyReportData:
     """从数据库收集月报所需数据"""
-    # 使用北京时间（UTC+8）
-    beijing_tz = timezone(timedelta(hours=8))
-    month_start = datetime(year, month, 1, tzinfo=beijing_tz)
-    next_month = datetime(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1, tzinfo=beijing_tz)
-    now = datetime.now(beijing_tz)
+    # 使用北京时间（UTC+8），在UTC基础上加8小时
+    utc_now = datetime.utcnow()
+    now = utc_now + timedelta(hours=8)
+    # 月份查询范围使用 naive datetime 兼容数据库
+    month_start = datetime(year, month, 1)
+    next_month = datetime(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1)
 
     # 公司信息
     company = await get_company_info(db)
