@@ -102,8 +102,11 @@ async def generate_monthly_report(
 
     # 生成 PDF
     try:
+        print(f"开始生成PDF... year={year}, month={month}")
         generate_report_pdf(data, output_path)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         # 生成失败：删除已删除旧记录后不再新增失败记录，列表保持干净
         if os.path.exists(output_path):
             os.remove(output_path)
