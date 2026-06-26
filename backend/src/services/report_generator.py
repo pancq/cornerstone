@@ -879,12 +879,15 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         elements.append(Spacer(1, 6*mm))
 
         # 费用构成-水平条形图（按要求替换为色块条形图）
-        def draw_cost_breakdown(x_start, y_start, available_width):
-            from reportlab.lib.colors import HexColor
+        from reportlab.lib.colors import HexColor
 
-            if not data.cost_by_type or data.circuit_cost_total == 0:
-                return 0
+        elements.append(Paragraph("费用构成", ParagraphStyle(
+            'CostSub2', fontName=sty['body'].fontName, fontSize=11, leading=16,
+            textColor=colors.HexColor('#1F4E79')
+        )))
+        elements.append(Spacer(1, 2*mm))
 
+        if data.cost_by_type and data.circuit_cost_total > 0:
             # 类型 → 颜色/中文标签映射，和管理看板统一
             TYPE_COLORS = {
                 'internet':  '#378ADD',  # 互联网专线：蓝色
@@ -905,12 +908,11 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             }
 
             label_width = 55    # 左侧标签宽度
-            bar_area_width = available_width - label_width - 80  # 条形图区域宽度
+            bar_area_width = 150*mm - label_width - 80  # 条形图区域宽度
             bar_height = 14
             row_height = 22
             total = data.circuit_cost_total
 
-            y = y_start
             for item in data.cost_by_type:
                 type_key = item.get('type', 'other')
                 amount = item.get('cost', 0)
@@ -941,16 +943,6 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 ]))
                 elements.append(t)
                 elements.append(Spacer(1, 2*mm))
-                y -= row_height
-
-            return y
-
-        elements.append(Paragraph("费用构成", ParagraphStyle(
-            'CostSub2', fontName=sty['body'].fontName, fontSize=11, leading=16,
-            textColor=colors.HexColor('#1F4E79')
-        )))
-        elements.append(Spacer(1, 2*mm))
-        draw_cost_breakdown(25*mm, elements[-1].height if hasattr(elements[-1], 'height') else 0, 150*mm)
 
         elements.append(Spacer(1, 8*mm))
 
