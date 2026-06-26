@@ -24,6 +24,7 @@ env
 data/reports/
 data/*.db
 backups/
+.DS_Store
 
 # IDE
 .vscode

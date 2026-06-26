@@ -251,10 +251,9 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
 def _register_fonts():
     """注册中文字体。优先使用项目内开源中文字体（Noto Sans SC），如果不存在再尝试系统字体路径。"""
     import os
-    # 项目内字体优先：backend/data/fonts/noto-sans-sc-regular.ttf（开源免费商用）
-    # __file__ = backend/src/services/report_generator.py
-    # .parent.parent.parent → 向上走三级到达 backend/ 级别
-    project_font = Path(__file__).parent.parent.parent / "data" / "fonts" / "noto-sans-sc-regular.ttf"
+    # 项目内字体优先：backend/fonts/noto-sans-sc-regular.ttf（开源免费商用）
+    # 放在 backend/fonts/ 而非 data/fonts/，避免 Docker 卷挂载 data/ 覆盖字体
+    project_font = Path(__file__).parent.parent.parent / "fonts" / "noto-sans-sc-regular.ttf"
 
     font_candidates = [str(project_font),
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
