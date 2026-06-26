@@ -516,9 +516,9 @@ onMounted(() => {
           <el-col :span="12">
             <el-form-item :label="t('vlan.status')">
               <el-select v-model="vlanForm.status" style="width: 100%">
-                <el-option value="active">{{ t('vlan.statusActive') }}</el-option>
-                <el-option value="reserved">{{ t('vlan.statusReserved') }}</el-option>
-                <el-option value="deprecated">{{ t('vlan.statusDeprecated') }}</el-option>
+                <el-option value="active" :label="t('vlan.statusActive')" />
+                <el-option value="reserved" :label="t('vlan.statusReserved')" />
+                <el-option value="deprecated" :label="t('vlan.statusDeprecated')" />
               </el-select>
             </el-form-item>
           </el-col>

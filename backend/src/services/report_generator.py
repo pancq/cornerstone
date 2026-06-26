@@ -459,7 +459,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     doc = SimpleDocTemplate(
         output_path, pagesize=A4,
         topMargin=25*mm, bottomMargin=20*mm,
-        leftMargin=25*mm, rightMargin=25*mm
+        leftMargin=25*mm, rightMargin=20*mm
     )
 
     elements = []
