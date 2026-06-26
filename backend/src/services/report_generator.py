@@ -16,6 +16,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 )
+from reportlab.graphics.shapes import Drawing, Rect
 
 from src.models.circuit import Circuit
 from src.models.circuit_incident import CircuitIncident
@@ -568,13 +569,25 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         summary_points.append((icon_crit, f"下月有{len(data.urgent_items)}项合同/保修即将到期（30天内）", "#F56C6C"))
 
     # 渲染要点
+    # 用 Drawing 画方形图标，避免 Unicode 符号在不同 PDF 阅读器出现空白/方框
     for icon, text, color in summary_points:
-        p = Paragraph(f"{icon} {text}", ParagraphStyle(
+        # 左侧自定义勾选框图标
+        d = Drawing(10, 10)
+        d.add(Rect(0, 0, 9, 9, strokeColor=colors.HexColor(color), fillColor=None, strokeWidth=1))
+        # 组装成一行：小图标 + 文本
+        row = Table([[d, Paragraph(text, ParagraphStyle(
             'SummaryPoint', fontName=sty['body'].fontName,
-            fontSize=12, leading=20,
+            fontSize=12, leading=18,
             textColor=colors.HexColor(color)
-        ))
-        elements.append(p)
+        ))]], colWidths=[6*mm, 140*mm])
+        row.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+            ('TOPPADDING', (0,0), (-1,-1), 1),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+        ]))
+        elements.append(row)
         elements.append(Spacer(1, 1*mm))
 
     elements.append(Spacer(1, 4*mm))
