@@ -211,8 +211,10 @@ function initLifecycleChart() {
   // 从数据中剔除未设置项用于绘图
   const unsetEntry = raw.find(d => d.range && d.range.includes('未设置'))
   const unsetCount = unsetEntry?.count || 0
-  const data = raw.filter(d => !(d.range && d.range.includes('未设置')))
-  const maxCount = Math.max(1, ...((data || []).map(d => d.count || 0)))
+  const full = raw.filter(d => !(d.range && d.range.includes('未设置')))
+  // 仅展示 count > 0 的段，不显示为 0 的项
+  const data = full.filter(d => (d.count || 0) > 0)
+  const maxCount = data.length > 0 ? Math.max(1, ...data.map(d => d.count || 0)) : 1
 
   // 在图表下方显示未设置提示（如果有）
   const noteContainer = document.querySelector('.lifecycle-content')
