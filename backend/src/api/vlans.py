@@ -111,16 +111,20 @@ async def create_vlan(
     if vlan.vid < 1 or vlan.vid > 4094:
         raise HTTPException(status_code=400, detail="VLAN ID必须在1-4094之间")
     
-    # 检查同站点内VID是否重复
+    # 检查同站点+同组内VID是否重复
     query = select(Vlan).where(Vlan.vid == vlan.vid)
     if vlan.site_id is None:
         query = query.where(Vlan.site_id.is_(None))
     else:
         query = query.where(Vlan.site_id == vlan.site_id)
+    if vlan.group_id is None:
+        query = query.where(Vlan.group_id.is_(None))
+    else:
+        query = query.where(Vlan.group_id == vlan.group_id)
 
     result = await db.execute(query)
     if result.scalars().first():
-        raise HTTPException(status_code=400, detail=f"该站点下 VLAN ID {vlan.vid}已存在")
+        raise HTTPException(status_code=400, detail=f"该站点/组下 VLAN ID {vlan.vid}已存在")
     
     stmt = insert(Vlan).values(**vlan.model_dump()).returning(Vlan)
     result = await db.execute(stmt)
@@ -143,7 +147,7 @@ async def update_vlan(
     if existing_vlan is None:
         raise HTTPException(status_code=404, detail="VLAN not found")
     
-    # 如果修改了VID，检查同站点内是否重复
+    # 如果修改了VID，检查同站点+同组内是否重复
     if vlan.vid is not None and vlan.vid != existing_vlan.vid:
         if vlan.vid < 1 or vlan.vid > 4094:
             raise HTTPException(status_code=400, detail="VLAN ID必须在1-4094之间")
@@ -153,10 +157,14 @@ async def update_vlan(
             query = query.where(Vlan.site_id.is_(None))
         else:
             query = query.where(Vlan.site_id == existing_vlan.site_id)
+        if existing_vlan.group_id is None:
+            query = query.where(Vlan.group_id.is_(None))
+        else:
+            query = query.where(Vlan.group_id == existing_vlan.group_id)
         
         result = await db.execute(query)
         if result.scalars().first():
-            raise HTTPException(status_code=400, detail=f"该站点下 VLAN ID {vlan.vid}已存在")
+            raise HTTPException(status_code=400, detail=f"该站点/组下 VLAN ID {vlan.vid}已存在")
     
     stmt = update(Vlan).where(Vlan.id == vlan_id).values(**vlan.model_dump(exclude_unset=True)).returning(Vlan)
     result = await db.execute(stmt)
