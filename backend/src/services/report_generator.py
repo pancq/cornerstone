@@ -329,30 +329,30 @@ def _get_styles():
     return {
         "title": ParagraphStyle(
             'ReportTitle', fontName=font_name_bold,
-            fontSize=22, leading=28, spaceAfter=6*mm,
+            fontSize=18, leading=24, spaceAfter=8*mm,
             textColor=colors.HexColor('#1a1a2e')
         ),
         "subtitle": ParagraphStyle(
             'ReportSubtitle', fontName=font_name,
-            fontSize=12, leading=16, spaceAfter=10*mm,
+            fontSize=14, leading=20, spaceAfter=8*mm,
             textColor=colors.HexColor('#666666')
         ),
         "section": ParagraphStyle(
             'SectionTitle', fontName=font_name_bold,
-            fontSize=14, leading=20, spaceBefore=6*mm, spaceAfter=4*mm,
+            fontSize=16, leading=22, spaceBefore=6*mm, spaceAfter=4*mm,
             textColor=colors.HexColor('#1F4E79')
         ),
         "body": ParagraphStyle(
             'Body', fontName=font_name,
-            fontSize=10, leading=16, spaceAfter=2*mm
+            fontSize=12, leading=18, spaceAfter=2*mm
         ),
         "body_center": ParagraphStyle(
             'BodyCenter', fontName=font_name,
-            fontSize=10, leading=16, alignment=1
+            fontSize=12, leading=18, alignment=1
         ),
         "small": ParagraphStyle(
             'Small', fontName=font_name,
-            fontSize=9, leading=13
+            fontSize=10, leading=14
         ),
         "footer": ParagraphStyle(
             'Footer', fontName=font_name,
@@ -360,27 +360,32 @@ def _get_styles():
         ),
         "big_number": ParagraphStyle(
             'BigNumber', fontName=font_name_bold,
-            fontSize=24, leading=30, alignment=1,
+            fontSize=32, leading=38, alignment=1,
             textColor=colors.HexColor('#1F4E79')
         ),
         "big_number_green": ParagraphStyle(
             'BigNumberGreen', fontName=font_name_bold,
-            fontSize=24, leading=30, alignment=1,
+            fontSize=32, leading=38, alignment=1,
             textColor=colors.HexColor('#67C23A')
         ),
         "big_number_red": ParagraphStyle(
             'BigNumberRed', fontName=font_name_bold,
-            fontSize=24, leading=30, alignment=1,
+            fontSize=32, leading=38, alignment=1,
             textColor=colors.HexColor('#F56C6C')
+        ),
+        "kpi_label": ParagraphStyle(
+            'KPILabel', fontName=font_name,
+            fontSize=10, leading=14, alignment=1,
+            textColor=colors.HexColor('#666666')
         ),
         "item_urgent": ParagraphStyle(
             'ItemUrgent', fontName=font_name,
-            fontSize=10, leading=16, leftIndent=8*mm,
+            fontSize=11, leading=18, leftIndent=0,
             textColor=colors.HexColor('#F56C6C')
         ),
         "item_warning": ParagraphStyle(
             'ItemWarning', fontName=font_name,
-            fontSize=10, leading=16, leftIndent=8*mm,
+            fontSize=11, leading=18, leftIndent=0,
             textColor=colors.HexColor('#E6A23C')
         ),
     }
@@ -507,41 +512,80 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     hf = _make_header_footer(doc, sty, data)
     elements.append(PageBreak())
 
+    # 封面结束，后续页面开始页眉页脚
+    hf = _make_header_footer(doc, sty, data)
+    elements.append(PageBreak())
+
     # ===== 第二页：执行摘要 =====
     elements.append(Paragraph("执行摘要", sty['section']))
     elements.append(Spacer(1, 4*mm))
 
-    # 动态摘要文字
-    summary_lines = []
+    # 动态要点列表（带状态图标）
+    icon_ok = "✔"
+    icon_warn = "⚠"
+    icon_crit = "🔴"
+
+    summary_points = []
     if data.availability_pct is not None:
         if data.availability_pct >= 99:
-            summary_lines.append(f"本月网络整体运行稳定，可用性达{data.availability_pct:.1f}%。")
+            summary_points.append((icon_ok, f"网络整体运行稳定，可用性达{data.availability_pct:.1f}%", "#67C23A"))
         else:
-            summary_lines.append(f"本月网络可用性为{data.availability_pct:.1f}%，低于目标值99%，需关注。")
+            summary_points.append((icon_warn, f"网络可用性{data.availability_pct:.1f}%，低于目标值99%", "#E6A23C"))
     if data.incident_count == 0:
-        summary_lines.append("本月未发生专线故障。")
+        summary_points.append((icon_ok, "本月未发生专线故障", "#67C23A"))
     else:
-        summary_lines.append(f"发生故障{data.incident_count}次，平均恢复时长{data.avg_recovery_hours:.1f}小时。")
+        summary_points.append((icon_warn, f"发生故障{data.incident_count}次，平均恢复时长{data.avg_recovery_hours:.1f}小时", "#E6A23C"))
     if data.circuit_cost_total > 0:
-        summary_lines.append(f"本月专线月租总费用为¥{data.circuit_cost_total:,}。")
+        summary_points.append((icon_ok, f"本月专线月租总费用 ¥{data.circuit_cost_total:,}", "#1F4E79"))
     if data.urgent_items:
-        summary_lines.append(f"下月有{len(data.urgent_items)}项合同/保修即将到期（30天内），请尽快处理。")
-    if not summary_lines:
-        summary_lines.append("本月暂无运营数据，请确认专线和巡检配置正常。")
+        summary_points.append((icon_crit, f"下月有{len(data.urgent_items)}项合同/保修即将到期（30天内）", "#F56C6C"))
 
-    for line in summary_lines:
-        elements.append(Paragraph(f"▸ {line}", sty['body']))
-        elements.append(Spacer(1, 2*mm))
+    # 渲染要点
+    for icon, text, color in summary_points:
+        p = Paragraph(f"{icon} {text}", ParagraphStyle(
+            'SummaryPoint', fontName=sty['body'].fontName,
+            fontSize=12, leading=20,
+            textColor=colors.HexColor(color)
+        ))
+        elements.append(p)
+        elements.append(Spacer(1, 1*mm))
 
-    elements.append(Spacer(1, 8*mm))
-    elements.append(Paragraph("关键指标速览", sty['section']))
+    elements.append(Spacer(1, 4*mm))
+    # 水平分隔线
+    sep_table = Table([['']], colWidths=[150*mm])
+    sep_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#E0E0E0')),
+        ('TOPPADDING', (0, 0), (-1, -1), 0.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0.5),
+    ]))
+    elements.append(sep_table)
+    elements.append(Spacer(1, 6*mm))
 
-    # 2×3 网格指标
-    def metric_cell(label, value, color="#1F4E79"):
-        return [
-            Paragraph(label, ParagraphStyle('ml', fontName=sty['body'].fontName, fontSize=9, leading=12, alignment=1, textColor=colors.HexColor('#666666'))),
-            Paragraph(str(value), ParagraphStyle('mv', fontName=sty['title'].fontName, fontSize=20, leading=26, alignment=1, textColor=colors.HexColor(color))),
+    elements.append(Paragraph("关键指标", sty['section']))
+    elements.append(Spacer(1, 4*mm))
+
+    # 创建独立KPI卡片：每个卡片有圆角边框，数字放大在上，标签缩小在下
+    def kpi_card(label, value, color="#1F4E79"):
+        """生成一个独立KPI卡片"""
+        # 数字放大在上，标签在下
+        card_data = [
+            [Paragraph(str(value), ParagraphStyle(
+                'KPINum', fontName=sty['big_number'].fontName,
+                fontSize=28, leading=32, alignment=1,
+                textColor=colors.HexColor(color)
+            ))],
+            [Paragraph(label, sty['kpi_label'])],
         ]
+        t = Table(card_data, colWidths=[45*mm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+            ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E0E0E0')),
+            ('ROUNDEDCORNERS', (0, 0), (-1, -1), [4, 4, 4, 4]),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        return t
 
     status_green = "#67C23A"
     status_orange = "#E6A23C"
@@ -552,59 +596,95 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     incident_color = status_green if data.incident_count == 0 else (status_orange if data.incident_count <= 3 else status_red)
     urgent_color = status_green if not data.urgent_items else (status_orange if len(data.urgent_items) <= 3 else status_red)
 
-    metrics_grid = [
-        [metric_cell("网络可用性", avail_text, avail_color),
-         metric_cell("专线费用", f"¥{data.circuit_cost_total:,}"),
-         metric_cell("故障次数", str(data.incident_count), incident_color)],
-        [metric_cell("专线总数", str(data.circuit_count)),
-         metric_cell("最长中断", f"{data.max_duration_hours:.1f}h", status_orange if data.max_duration_hours > 2 else status_green),
-         metric_cell("即将到期", f"{len(data.urgent_items)}项", urgent_color)],
+    # 第一行三个卡片
+    kpi_row1 = [
+        kpi_card("网络可用性", avail_text, avail_color),
+        kpi_card("专线费用", f"¥{data.circuit_cost_total:,}", "#1F4E79"),
+        kpi_card("故障次数", str(data.incident_count), incident_color),
+    ]
+    # 第二行三个卡片
+    kpi_row2 = [
+        kpi_card("专线总数", str(data.circuit_count), "#1F4E79"),
+        kpi_card("最长中断", f"{data.max_duration_hours:.1f}h", status_orange if data.max_duration_hours > 2 else status_green),
+        kpi_card("即将到期", f"{len(data.urgent_items)}项", urgent_color),
     ]
 
-    grid_data = []
-    for row in metrics_grid:
-        grid_row = []
-        for cell in row:
-            grid_row.extend(cell)
-        grid_data.append(grid_row)
-
-    metrics_table = Table(grid_data, colWidths=[48*mm, 48*mm, 48*mm])
-    metrics_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E0E0E0')),
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+    kpi_grid = Table([kpi_row1, kpi_row2], colWidths=[49*mm, 49*mm, 49*mm])
+    kpi_grid.setStyle(TableStyle([
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
     ]))
-    elements.append(metrics_table)
+    elements.append(kpi_grid)
+
+    elements.append(Spacer(1, 6*mm))
+    elements.append(sep_table)
+    elements.append(Spacer(1, 4*mm))
+
+    # 一句话结论
+    conclusion_parts = []
+    if data.availability_pct is None or data.availability_pct >= 99:
+        conclusion_parts.append("网络运行稳定")
+    else:
+        conclusion_parts.append("网络可用性需要关注")
+    if data.incident_count == 0:
+        conclusion_parts.append("无故障发生")
+    if data.urgent_items:
+        conclusion_parts.append(f"有{len(data.urgent_items)}项到期事项需处理")
+    conclusion = "，".join(conclusion_parts) + "。"
+    elements.append(Paragraph("<b>结论：</b> " + conclusion, ParagraphStyle(
+        'Conclusion', fontName=sty['body'].fontName,
+        fontSize=13, leading=20,
+        textColor=colors.HexColor('#333333')
+    )))
+    elements.append(Spacer(1, 6*mm))
+    elements.append(sep_table)
+    elements.append(Spacer(1, 4*mm))
+
+    # 本月亮点
+    highlights = []
+    if data.availability_pct is not None and data.availability_pct >= 99:
+        highlights.append(("✔", f"本月网络可用性 {data.availability_pct:.1f}%，达到99%目标", "#67C23A"))
+    if data.incident_count == 0:
+        highlights.append(("✔", "本月零故障，网络运行连续稳定", "#67C23A"))
+    if not data.urgent_items:
+        highlights.append(("✔", "本月无紧急到期事项", "#67C23A"))
+
+    if highlights:
+        elements.append(Paragraph("本月亮点", sty['section']))
+        elements.append(Spacer(1, 2*mm))
+        for icon, text, color in highlights:
+            elements.append(Paragraph(f"{icon} {text}", ParagraphStyle(
+                'Highlight', fontName=sty['body'].fontName,
+                fontSize=12, leading=20,
+                textColor=colors.HexColor(color)
+            )))
+            elements.append(Spacer(1, 1*mm))
 
     elements.append(PageBreak())
-
-    # ===== 第三页：本月概况（双栏布局） =====
     elements.append(Paragraph("本月运营概况", sty['section']))
     elements.append(Spacer(1, 4*mm))
 
     # 左侧：网络可用性
     avail_data = [[Paragraph("网络可用性", ParagraphStyle(
-        'SectionLabel', fontName=sty['section'].fontName, fontSize=12, leading=16,
+        'SectionLabel', fontName=sty['section'].fontName, fontSize=18, leading=24,
         textColor=colors.HexColor('#1F4E79')
     ))]]
     avail_text_big = "暂无数据" if data.availability_pct is None else f"{data.availability_pct:.1f}%"
-    avail_c = "#67C23A" if data.availability_pct is not None and data.availability_pct >= 99 else "#E6A23C"
+    avail_c = "#E6A23C" if data.availability_pct is None else ("#67C23A" if data.availability_pct >= 99 else "#E6A23C")
     avail_data.append([Paragraph(avail_text_big, ParagraphStyle(
-        'BigAvail', fontName=sty['title'].fontName, fontSize=28, leading=34, alignment=0,
+        'BigAvail', fontName=sty['big_number'].fontName,
+        fontSize=64, leading=72, alignment=0,
         textColor=colors.HexColor(avail_c)
     ))])
     avail_detail = "基于巡检记录统计" if data.availability_pct is not None else "请配置巡检任务获取数据"
     avail_data.append([Paragraph(avail_detail, ParagraphStyle(
-        'AvailNote', fontName=sty['body'].fontName, fontSize=9, leading=13,
+        'AvailNote', fontName=sty['body'].fontName, fontSize=12, leading=16,
         textColor=colors.HexColor('#999999')
     ))])
 
-    avail_table = Table(avail_data, colWidths=[75*mm])
+    avail_table = Table(avail_data, colWidths=[74*mm])
     avail_table.setStyle(TableStyle([
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -745,16 +825,18 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             )))
             elements.append(Spacer(1, 2*mm))
             bar_colors = ['#1F4E79', '#2E75B6', '#67C23A', '#E6A23C', '#F56C6C']
-            bar_rows = [['类型', '月费', '占比', '']]
+            bar_rows = [['类型', '月费', '占比', '趋势']]
             for idx, bt in enumerate(data.cost_by_type):
                 bar_w = int(bt['pct'] * 1.0)  # 最大约 100mm，合适宽度
+                # 趋势：这里简化处理，因为没有历史对比，显示'-'表示无环比数据
+                trend = '–'
                 bar_rows.append([
                     Paragraph(bt['type'], ParagraphStyle('bt', fontName=sty['body'].fontName, fontSize=9, leading=12)),
                     f"¥{bt['cost']:,}",
                     f"{bt['pct']}%",
                     _make_bar_cell(bar_w, bar_colors[idx % len(bar_colors)], sty),
                 ])
-            bar_table = Table(bar_rows, colWidths=[45*mm, 25*mm, 15*mm, 55*mm])
+            bar_table = Table(bar_rows, colWidths=[45*mm, 25*mm, 15*mm, 50*mm])
             bar_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -816,12 +898,18 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             d.add(Line(padding_x, padding_y, padding_x, padding_y + plot_height,
                       strokeWidth=1, strokeColor=colors.HexColor('#999999')))
 
-            # 计算每个点坐标，Y轴从上往下，成本越大越靠上
+            # 计算每个点坐标，reportlab Drawing原点左下角，Y向上增长
+            # 所以 cost 越大，Y 坐标越大（越靠上）
             points = []
+            max_point = None
+            min_point = None
+            max_val = -float('inf')
+            min_val = float('inf')
+
             for i, ch in enumerate(data.cost_history):
                 px = padding_x + i * step_x
                 if max_cost > min_cost:
-                    py = padding_y + plot_height * (1 - (ch['cost'] - min_cost) / (max_cost - min_cost))
+                    py = padding_y + plot_height * (ch['cost'] - min_cost) / (max_cost - min_cost)
                 else:
                     py = padding_y + plot_height / 2
                 points.append((px, py, ch['cost']))
@@ -829,6 +917,13 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 d.add(String(px - 4*mm, padding_y - 8*mm, ch['month'][-2:],
                            fontSize=8, fillColor=colors.HexColor('#666666'),
                            fontName=sty['body'].fontName))
+                # 跟踪最值
+                if ch['cost'] > max_val:
+                    max_val = ch['cost']
+                    max_point = (px, py)
+                if ch['cost'] < min_val:
+                    min_val = ch['cost']
+                    min_point = (px, py)
 
             # 绘制折线
             for i in range(1, len(points)):
@@ -841,8 +936,20 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 d.add(Circle(px, py, 2.5, fillColor=colors.HexColor('#1F4E79'), strokeWidth=0))
                 # 标注在点上方
                 label = f"¥{cost:,}"
-                d.add(String(px - len(label)*2, py + 6, label,
+                d.add(String(px - len(label)*2, py + 3, label,
                            fontSize=7, fillColor=colors.HexColor('#333333'),
+                           fontName=sty['body'].fontName))
+
+            # 标记最大值和最小值
+            if max_point:
+                px, py = max_point
+                d.add(String(px - 6*mm, py + 6, "最高",
+                           fontSize=7, fillColor=colors.HexColor('#F56C6C'),
+                           fontName=sty['body'].fontName))
+            if min_point:
+                px, py = min_point
+                d.add(String(px - 6*mm, py + 6, "最低",
+                           fontSize=7, fillColor=colors.HexColor('#67C23A'),
                            fontName=sty['body'].fontName))
 
             elements.append(d)
