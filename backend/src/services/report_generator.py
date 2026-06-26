@@ -979,8 +979,6 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 ))
             else:
                 # 有变化：绘制折线图
-                from reportlab.graphics.shapes import Drawing, Line, Circle
-
                 width = 140*mm
                 height = 100*mm
                 padding_x = 8*mm
