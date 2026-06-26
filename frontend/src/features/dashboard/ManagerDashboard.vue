@@ -248,7 +248,7 @@ function initLifecycleChart() {
         data: (data || []).map(d => ({
           value: d.count,
           itemStyle: {
-            color: d.range === '未设置' ? '#C0C4CC' : (d.color === 'green' ? '#67C23A' : d.color === 'yellow' ? '#E6A23C' : '#F56C6C')
+            color: getAgeColor(d.range)
           }
         })),
         barWidth: 30,
@@ -354,9 +354,11 @@ function getSeverityRisks(severity: string): RiskItem[] {
 }
 
 function getAgeColor(range: string): string {
-  if (range.includes('>')) return '#F56C6C'
-  if (range.includes('3-5')) return '#E6A23C'
-  return '#67C23A'
+  if (!range) return '#909399'
+  if (range.includes('未设置')) return '#909399' // 数据缺失灰色
+  if (range.includes('5年以上') || range.includes('> 5年')) return '#E24B4A' // 高风险
+  if (range.includes('3-5')) return '#EF9F27' // 需关注
+  return '#1D9E75' // 正常
 }
 
 function getOldDevicesWarning(): string | null {
