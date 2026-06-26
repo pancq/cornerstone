@@ -91,6 +91,14 @@ async def generate_monthly_report(
     filename = get_report_filename(data)
     output_path = str(report_dir / filename)
 
+    # 生成前先删除该月份所有旧记录（不管成功失败），只保留最新一次
+    await db.execute(
+        sa_delete(MonthlyReport).where(
+            MonthlyReport.year == year,
+            MonthlyReport.month == month
+        )
+    )
+
     # 生成 PDF
     try:
         generate_report_pdf(data, output_path)
@@ -100,21 +108,15 @@ async def generate_monthly_report(
             year=year, month=month,
             file_path=output_path, file_size=0,
             status="failed", error_message=str(e),
-            generated_by=current_user.username
+            generated_by=current_user.username,
+            generated_at=now
         ))
         await db.commit()
         raise HTTPException(status_code=500, detail=f"月报生成失败: {str(e)}")
 
     file_size = os.path.getsize(output_path)
 
-    # 保存记录
-    # 先删除同月份的旧记录
-    await db.execute(
-        sa_delete(MonthlyReport).where(
-            MonthlyReport.year == year,
-            MonthlyReport.month == month
-        )
-    )
+    # 保存成功记录
     report_record = MonthlyReport(
         year=year, month=month,
         file_path=output_path, file_size=file_size,
