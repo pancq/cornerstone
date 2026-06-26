@@ -767,96 +767,76 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         )))
         elements.append(Spacer(1, 2*mm))
 
-        # 绘制简单折线图
-        def _draw_cost_trend(canvas, x, y, width, height, data):
-            """在canvas上绘制费用趋势折线图"""
-            if not data or len(data) < 2:
-                return
-            # 网格范围
-            max_cost = max(d['cost'] for d in data) * 1.1
-            min_cost = 0
-            step_x = width / (len(data) - 1)
-            # 画坐标轴
-            canvas.setStrokeColorRGB(0.8, 0.8, 0.8)
-            canvas.setLineWidth(0.5)
-            canvas.line(x, y, x + width, y)  # X轴
-            canvas.line(x, y, x, y + height)  # Y轴
-
-            # 画网格横线
-            for i in range(1, 5):
-                yy = y + height * i / 5
-                canvas.setStrokeColorRGB(0.9, 0.9, 0.9)
-                canvas.line(x, yy, x + width, yy)
-
-            # 转换坐标
-            points = []
-            for i, item in enumerate(data):
-                px = x + i * step_x
-                py = y + height * (item['cost'] - min_cost) / (max_cost - min_cost)
-                points.append((px, py))
-                # X轴标签
-                canvas.setFillColor(colors.HexColor('#666666'))
-                canvas.setFont(sty['body'].fontName, 8)
-                canvas.drawString(px - 6*mm, y - 5*mm, item['month'][-2:])
-
-            # 画折线
-            canvas.setStrokeColor(colors.HexColor('#1F4E79'))
-            canvas.setLineWidth(2)
-            for i in range(1, len(points)):
-                canvas.line(points[i-1][0], points[i-1][1], points[i][0], points[i][1])
-            # 数据点圆点
-            canvas.setFillColor(colors.HexColor('#1F4E79'))
-            for px, py in points:
-                canvas.circle(px, py, 1.5*mm, fill=1)
-                # 标注金额
-                canvas.setFillColor(colors.HexColor('#333333'))
-                canvas.setFont(sty['body'].fontName, 7)
-                label = f"¥{item['cost']:,}"
-                canvas.drawString(px - 4*mm, py + 2*mm, label)
-
-        # 创建绘图画布：从 (x,y) = (25mm, 120mm) 开始
-        # 由于 reportlab 坐标原点在左下角，我们需要在 flowables 中用 Drawing
+        # 使用 Drawing 绘制折线图
+        # Drawing 原点在左下角，Y轴向上增长
         from reportlab.graphics.shapes import Drawing, Line, Circle, String, Rect
-        from reportlab.graphics.shapes import _DrawingEditorMixin
 
         width = 140*mm
         height = 100*mm
-        d = Drawing(width, height)
+        padding_x = 8*mm
+        padding_y = 10*mm
+        d = Drawing(width + padding_x*2, height + padding_y*2)
 
-        max_cost = max(ch['cost'] for ch in data.cost_history) * 1.1
-        min_cost = 0 if data.cost_history else 0
-        step_x = width / (len(data.cost_history) - 1) if len(data.cost_history) > 1 else width
+        if not data.cost_history or len(data.cost_history) < 2:
+            elements.append(Paragraph("暂无费用历史数据", ParagraphStyle(
+                'NoData', fontName=sty['body'].fontName,
+                fontSize=10, leading=16, leftIndent=8*mm,
+                textColor=colors.HexColor('#909399')
+            )))
+        else:
+            max_cost = max(ch['cost'] for ch in data.cost_history) * 1.1
+            min_cost = 0
+            plot_width = width
+            plot_height = height
+            step_x = plot_width / (len(data.cost_history) - 1)
 
-        # 网格
-        for i in range(0, 6):
-            yy = height * i / 5
-            d.add(Rect(0, yy, width, 0, fill=0, strokeColor=colors.HexColor('#E0E0E0')))
+            # 网格线（横向）
+            for i in range(0, 6):
+                yy = padding_y + height * i / 5
+                d.add(Rect(padding_x, yy, plot_width, 0, fill=0, strokeColor=colors.HexColor('#E0E0E0')))
 
-        # X轴和Y轴
-        d.add(Line(0, 0, width, 0, strokeWidth=1, strokeColor=colors.HexColor('#999999')))
-        d.add(Line(0, 0, 0, height, strokeWidth=1, strokeColor=colors.HexColor('#999999')))
+            # X轴和Y轴
+            d.add(Line(padding_x, padding_y, padding_x + plot_width, padding_y,
+                      strokeWidth=1, strokeColor=colors.HexColor('#999999')))
+            d.add(Line(padding_x, padding_y, padding_x, padding_y + plot_height,
+                      strokeWidth=1, strokeColor=colors.HexColor('#999999')))
 
-        # 折线和点
-        points = []
-        for i, ch in enumerate(data.cost_history):
-            px = 0 + i * step_x
-            py = height * (ch['cost'] - min_cost) / (max_cost - min_cost) if max_cost > min_cost else height / 2
-            points.append((px, py))
-            # X标签
-            d.add(String(px - 4*mm, -8*mm, ch['month'][-2:], fontSize=8, fillColor=colors.HexColor('#666666'), fontName=sty['body'].fontName))
-            # 数据点
-            d.add(Circle(px, py, 2.5, fillColor=colors.HexColor('#1F4E79'), strokeWidth=0))
+            # 计算每个点坐标
+            points = []
+            for i, ch in enumerate(data.cost_history):
+                px = padding_x + i * step_x
+                # Y坐标：从下往上，成本越大Y越大
+                if max_cost > min_cost:
+                    py = padding_y + plot_height * (ch['cost'] - min_cost) / (max_cost - min_cost)
+                else:
+                    py = padding_y + plot_height / 2
+                points.append((px, py, ch['cost']))
+                # X轴月份标签
+                d.add(String(px - 4*mm, padding_y - 8*mm, ch['month'][-2:],
+                           fontSize=8, fillColor=colors.HexColor('#666666'),
+                           fontName=sty['body'].fontName))
 
-        # 连线
-        for i in range(1, len(points)):
-            d.add(Line(points[i-1][0], points[i-1][1], points[i][0], points[i][1], strokeWidth=2, strokeColor=colors.HexColor('#2E75B6')))
+            # 绘制折线
+            for i in range(1, len(points)):
+                x1, y1, _ = points[i-1]
+                x2, y2, _ = points[i]
+                d.add(Line(x1, y1, x2, y2, strokeWidth=2, strokeColor=colors.HexColor('#2E75B6')))
 
-        elements.append(d)
-        elements.append(Spacer(1, 4*mm))
-        elements.append(Paragraph("※ 趋势基于当前所有专线静态月租估算，仅供参考", ParagraphStyle(
-            'Note', fontName=sty['body'].fontName, fontSize=8, leading=12,
-            textColor=colors.HexColor('#909399')
-        )))
+            # 绘制数据点 + 金额标注
+            for px, py, cost in points:
+                d.add(Circle(px, py, 2.5, fillColor=colors.HexColor('#1F4E79'), strokeWidth=0))
+                # 标注在点上方
+                label = f"¥{cost:,}"
+                d.add(String(px - len(label)*2, py + 3, label,
+                           fontSize=7, fillColor=colors.HexColor('#333333'),
+                           fontName=sty['body'].fontName))
+
+            elements.append(d)
+            elements.append(Spacer(1, 4*mm))
+            elements.append(Paragraph("※ 趋势基于当前所有专线静态月租估算，仅供参考", ParagraphStyle(
+                'Note', fontName=sty['body'].fontName, fontSize=8, leading=12,
+                textColor=colors.HexColor('#909399')
+            )))
     else:
         elements.append(Paragraph(
             "专线费用数据暂未录入，请在专线管理中补充月租费用信息",
