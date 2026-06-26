@@ -21,7 +21,8 @@ env
 *.log
 .env
 .env.local
-data/
+data/reports/
+data/*.db
 backups/
 
 # IDE
