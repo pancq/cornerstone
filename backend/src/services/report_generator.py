@@ -563,6 +563,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         elements.append(Spacer(1, 1*mm))
 
     # 封面结束，分页进入正文，后续页面由页眉页脚处理
+    hf = _make_header_footer(doc, sty, data)
     elements.append(PageBreak())
 
     # ===== 第二页：执行摘要 =====
