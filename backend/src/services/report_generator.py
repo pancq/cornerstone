@@ -465,83 +465,104 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     elements = []
 
     # ===== 第一页：封面 =====
-    # 顶部深蓝色背景块（占顶部约1/3页面）
-    cover_height = 100*mm  # 固定高度更稳定
-    cover_bg = Table([[Paragraph("", ParagraphStyle('Empty', leading=cover_height))]], colWidths=[A4[0] - 50*mm])
-    cover_bg.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1F4E79')),
-        ('TOPPADDING', (0, 0), (-1, -1), 35*mm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 35*mm),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-    ]))
-    elements.append(cover_bg)
+    # 按规范重新设计：顶部深蓝色背景块占页面上方45%，白色文字
+    from reportlab.lib.colors import HexColor
 
-    # 背景块内的标题文字（白色）
+    # 使用 Drawing 在整个页面绘制背景（Table方式容易留白边）
+    width, height = A4
+    cover_d = Drawing(width, height)
+    # 顶部深蓝色背景块
+    cover_d.add(Rect(0, height * 0.55, width, height * 0.45,
+                   fillColor=HexColor('#1F4E79'), strokeColor=None))
+    # 底部蓝色装饰线
+    cover_d.add(Rect(0, 0, width, 8,
+                   fillColor=HexColor('#1F4E79'), strokeColor=None))
+    elements.append(cover_d)
+
+    # 蓝色区域内文字（Y从顶部往下递减）
+    y = height - 22*mm
+    # 公司简称（左上角，Logo区域）
+    if data.company_short_name:
+        company_short_style = ParagraphStyle(
+            'CompanyShort', fontName=sty['title'].fontName,
+            fontSize=13, leading=18,
+            textColor=colors.white
+        )
+        p = Paragraph(data.company_short_name, company_short_style)
+        # 在蓝色块内靠左上方放置
+        cover_header_table = Table([[p]], colWidths=[width], rowHeights=[height * 0.45])
+        cover_header_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.transparent),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('VALIGN', (0, 0), (0, 0), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 22*mm),
+            ('LEFTPADDING', (0, 0), (-1, -1), 25*mm),
+        ]))
+        elements.append(cover_header_table)
+
+    # 主标题（居中）
+    elements.append(Spacer(1, int(height * 0.45 * 0.3)))
     cover_title_style = ParagraphStyle(
         'CoverTitle', fontName=sty['title'].fontName,
-        fontSize=28, leading=36, alignment=1,
+        fontSize=26, leading=34, alignment=1,
         textColor=colors.white
     )
+    elements.append(Paragraph("IT基础设施运营月报", cover_title_style))
+    # 年月副标题（淡蓝色）
     cover_sub_style = ParagraphStyle(
-        'CoverSub', fontName=sty['subtitle'].fontName,
+        'CoverSub', fontName=sty['body'].fontName,
         fontSize=16, leading=22, alignment=1,
-        textColor=colors.HexColor('#B0C4DE')
+        textColor=HexColor('#BDD7EE')
     )
-    company_short_style = ParagraphStyle(
-        'CompanyShort', fontName=sty['title'].fontName,
-        fontSize=20, leading=26, alignment=1,
-        textColor=colors.white
-    )
+    elements.append(Paragraph(f"{data.year}年{data.month}月", cover_sub_style))
+    elements.append(Spacer(1, int(height * 0.45 * 0.2)))
 
-    # 公司简称（Logo位置）放在背景块内顶部
-    company_short = data.company_short_name or "基石"
-    # 我们用一个表格把标题放在背景块上方居中
-    cover_title_data = [
-        [Paragraph(company_short, company_short_style)],
-        [Paragraph("IT基础设施运营月报", cover_title_style)],
-        [Paragraph(f"{data.year}年{data.month}月", cover_sub_style)],
-    ]
-    cover_title_table = Table(cover_title_data, colWidths=[A4[0] - 50*mm])
-    cover_title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1F4E79')),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    # 细线分隔蓝色区域和白色区域
+    sep_table = Table([['']], colWidths=[width - 50*mm])
+    sep_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), HexColor('#CCCCCC')),
+        ('TOPPADDING', (0, 0), (-1, -1), 0.25),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0.25),
     ]))
-    elements.append(cover_title_table)
+    elements.append(sep_table)
+    elements.append(Spacer(1, 4*mm))
 
-    # 底部信息（白色背景）
+    # 白色区域：公司信息
     info_style = ParagraphStyle(
         'CoverInfo', fontName=sty['body'].fontName,
-        fontSize=11, leading=18, alignment=1,
+        fontSize=10, leading=18,
         textColor=colors.HexColor('#333333')
     )
-    company_name = data.company_name or "(请在系统设置中填写公司名称)"
-    elements.append(Spacer(1, 10*mm))
-    elements.append(Paragraph(company_name, info_style))
-    elements.append(Spacer(1, 3*mm))
+    info_label_style = ParagraphStyle(
+        'CoverInfoLabel', fontName=sty['body'].fontName,
+        fontSize=10, leading=18,
+        textColor=colors.HexColor('#888888')
+    )
+
     last_day = calendar.monthrange(data.year, data.month)[1]
-    elements.append(
-        Paragraph(
-            f"报告周期：{data.year}年{data.month}月1日 至 {data.year}年{data.month}月{last_day}日",
-            info_style
-        )
-    )
-    elements.append(Paragraph(f"生成时间：{data.generated_at.strftime('%Y-%m-%d %H:%M')}", info_style))
-    elements.append(Spacer(1, 2*mm))
-    elements.append(
-        Paragraph("生成系统：基石 Cornerstone · IT基础设施资源管理平台",
-                   ParagraphStyle('CoverFooter', fontName=sty['body'].fontName,
-                                  fontSize=9, leading=14, alignment=1, textColor=colors.HexColor('#999999')))
-    )
+    info_lines = [
+        ("公司名称", data.company_name or "(请在系统设置中填写)"),
+        ("报告周期", f"{data.year}年{data.month}月1日 至 {data.year}年{data.month}月{last_day}日"),
+        ("生成时间", data.generated_at.strftime('%Y年%m月%d日 %H:%M')),
+        ("生成系统", "基石 Cornerstone · IT基础设施资源管理平台"),
+    ]
 
-    # 封面结束，后续页面开始页眉页脚
-    hf = _make_header_footer(doc, sty, data)
-    elements.append(PageBreak())
+    for label, value in info_lines:
+        if value:
+            row_data = [[
+                Paragraph(label + "：", info_label_style),
+                Paragraph(value, info_style)
+            ]]
+            t = Table(row_data, colWidths=[50*mm, width - 75*mm])
+            t.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(t)
+        elements.append(Spacer(1, 1*mm))
 
-    # 封面结束，后续页面开始页眉页脚
-    hf = _make_header_footer(doc, sty, data)
+    # 封面结束，分页进入正文，后续页面由页眉页脚处理
     elements.append(PageBreak())
 
     # ===== 第二页：执行摘要 =====
@@ -857,38 +878,79 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ))
         elements.append(Spacer(1, 6*mm))
 
-        # 费用构成-水平条形图
-        if data.cost_by_type:
-            elements.append(Paragraph("费用构成", ParagraphStyle(
-                'CostSub2', fontName=sty['body'].fontName, fontSize=11, leading=16,
-                textColor=colors.HexColor('#1F4E79')
-            )))
-            elements.append(Spacer(1, 2*mm))
-            bar_colors = ['#1F4E79', '#2E75B6', '#67C23A', '#E6A23C', '#F56C6C']
-            bar_rows = [['类型', '月费', '占比', '趋势']]
-            for idx, bt in enumerate(data.cost_by_type):
-                bar_w = int(bt['pct'] * 1.0)  # 最大约 100mm，合适宽度
-                # 趋势：这里简化处理，因为没有历史对比，显示'-'表示无环比数据
-                trend = '–'
-                bar_rows.append([
-                    Paragraph(bt['type'], ParagraphStyle('bt', fontName=sty['body'].fontName, fontSize=9, leading=12)),
-                    f"¥{bt['cost']:,}",
-                    f"{bt['pct']}%",
-                    _make_bar_cell(bar_w, bar_colors[idx % len(bar_colors)], sty),
-                ])
-            bar_table = Table(bar_rows, colWidths=[45*mm, 25*mm, 15*mm, 50*mm])
-            bar_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-                ('FONTSIZE', (0, 0), (-1, -1), 9),
-                ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('GRID', (0, 1), (-1, -1), 0.3, colors.HexColor('#E0E0E0')),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('FONTNAME', (0, 0), (-1, -1), sty['body'].fontName),
-            ]))
-            elements.append(bar_table)
+        # 费用构成-水平条形图（按要求替换为色块条形图）
+        def draw_cost_breakdown(x_start, y_start, available_width):
+            from reportlab.lib.colors import HexColor
+
+            if not data.cost_by_type or data.circuit_cost_total == 0:
+                return 0
+
+            # 类型 → 颜色/中文标签映射，和管理看板统一
+            TYPE_COLORS = {
+                'internet':  '#378ADD',  # 互联网专线：蓝色
+                'mpls':      '#1D9E75',  # MPLS：绿色
+                'sdwan':     '#EF9F27',  # SD-WAN：橙色
+                'fiber':     '#9B59B6',  # 裸光纤：紫色
+                'cloud':     '#36CFC9',  # 云专线：青色
+                'other':     '#909399',  # 其他：灰色
+            }
+
+            TYPE_LABELS = {
+                'internet': '互联网专线',
+                'mpls':     'MPLS',
+                'sdwan':    'SD-WAN',
+                'fiber':    '裸光纤',
+                'cloud':    '云专线',
+                'other':    '其他',
+            }
+
+            label_width = 55    # 左侧标签宽度
+            bar_area_width = available_width - label_width - 80  # 条形图区域宽度
+            bar_height = 14
+            row_height = 22
+            total = data.circuit_cost_total
+
+            y = y_start
+            for item in data.cost_by_type:
+                type_key = item.get('type', 'other')
+                amount = item.get('cost', 0)
+                if amount == 0:
+                    continue
+
+                pct = amount / total * 100
+                bar_width = bar_area_width * (amount / total)
+                color = TYPE_COLORS.get(type_key, '#909399')
+                label = TYPE_LABELS.get(type_key, type_key)
+
+                # 用Drawing绘制水平条形，添加到elements需要通过Table包装
+                bar_d = Drawing(bar_width, bar_height)
+                bar_d.add(Rect(0, 0, bar_width, bar_height,
+                              fillColor=HexColor(color), strokeColor=None))
+                row_data = [[label, bar_d, f"¥{amount:,}  ({pct:.1f}%)"]]
+                t = Table(row_data, colWidths=[label_width, bar_area_width, 70])
+                t.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('LEFTPADDING', (0, 0), (0, 0), 0),
+                    ('RIGHTPADDING', (1, 0), (1, 0), 5),
+                    ('TOPPADDING', (0, 0), (-1, -1), 4),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ('FONTSIZE', (0, 0), (0, 0), 10),
+                    ('TEXTCOLOR', (0, 0), (0, 0), HexColor('#666666')),
+                    ('FONTSIZE', (2, 0), (2, 0), 10),
+                    ('TEXTCOLOR', (2, 0), (2, 0), HexColor('#333333')),
+                ]))
+                elements.append(t)
+                elements.append(Spacer(1, 2*mm))
+                y -= row_height
+
+            return y
+
+        elements.append(Paragraph("费用构成", ParagraphStyle(
+            'CostSub2', fontName=sty['body'].fontName, fontSize=11, leading=16,
+            textColor=colors.HexColor('#1F4E79')
+        )))
+        elements.append(Spacer(1, 2*mm))
+        draw_cost_breakdown(25*mm, elements[-1].height if hasattr(elements[-1], 'height') else 0, 150*mm)
 
         elements.append(Spacer(1, 8*mm))
 
@@ -899,15 +961,8 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         )))
         elements.append(Spacer(1, 2*mm))
 
-        # 使用 Drawing 绘制折线图
-        # Drawing 原点在左下角，Y轴向上增长
-        from reportlab.graphics.shapes import Drawing, Line, Circle, String, Rect
-
-        width = 140*mm
-        height = 100*mm
-        padding_x = 8*mm
-        padding_y = 10*mm
-        d = Drawing(width + padding_x*2, height + padding_y*2)
+        # 使用原生 Canvas 坐标绘制折线图（Drawing 在platypus中定位不方便）
+        from reportlab.lib.colors import HexColor
 
         if not data.cost_history or len(data.cost_history) < 2:
             elements.append(Paragraph("暂无费用历史数据", ParagraphStyle(
@@ -916,88 +971,86 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 textColor=colors.HexColor('#909399')
             )))
         else:
-            max_cost = max(ch['cost'] for ch in data.cost_history) * 1.1
-            min_cost = 0
-            plot_width = width
-            plot_height = height
-            step_x = plot_width / (len(data.cost_history) - 1)
+            amounts = [h['cost'] for h in data.cost_history]
+            # 判断数据是否全部相同
+            if len(set(amounts)) == 1:
+                # 全相同：不画折线图，改为文字说明
+                elements.append(Paragraph(
+                    f"近6个月费用稳定，每月 ¥{amounts[0]:,}",
+                    ParagraphStyle('CostStable', fontName=sty['body'].fontName,
+                                  fontSize=11, leading=16, textColor=HexColor('#333333'))
+                ))
+                elements.append(Paragraph(
+                    "※ 趋势基于当前所有专线静态月租估算，仅供参考",
+                    ParagraphStyle('CostNote', fontName=sty['body'].fontName,
+                                  fontSize=9, leading=14, textColor=HexColor('#909399'))
+                ))
+            else:
+                # 有变化：绘制折线图
+                from reportlab.graphics.shapes import Drawing, Line, Circle
 
-            # 网格线（横向）
-            for i in range(0, 6):
-                yy = padding_y + height * i / 5
-                d.add(Rect(padding_x, yy, plot_width, 0, fill=0, strokeColor=colors.HexColor('#E0E0E0')))
-                # 添加Y轴刻度标注
-                current_value = round(max_cost * (5 - i) / 5, -2)
-                d.add(String(padding_x - 7*mm, yy - 2, f"¥{int(current_value):,}",
-                           fontSize=7, fillColor=colors.HexColor('#666666'),
-                           fontName=sty['body'].fontName))
+                width = 140*mm
+                height = 100*mm
+                padding_x = 8*mm
+                padding_y = 10*mm
+                d = Drawing(width + padding_x*2, height + padding_y*2 + 20)
 
-            # X轴和Y轴
-            d.add(Line(padding_x, padding_y, padding_x + plot_width, padding_y,
-                      strokeWidth=1, strokeColor=colors.HexColor('#999999')))
-            d.add(Line(padding_x, padding_y, padding_x, padding_y + plot_height,
-                      strokeWidth=1, strokeColor=colors.HexColor('#999999')))
+                max_amount = max(amounts)
+                min_amount = min(amounts)
+                amount_range = max_amount - min_amount or 1
 
-            # 计算每个点坐标，reportlab Drawing原点左下角，Y向上增长
-            # 所以 cost 越大，Y 坐标越大（越靠上）
-            points = []
-            max_point = None
-            min_point = None
-            max_val = -float('inf')
-            min_val = float('inf')
+                plot_width = width
+                plot_height = height
+                step_x = plot_width / (len(data.cost_history) - 1)
 
-            for i, ch in enumerate(data.cost_history):
-                px = padding_x + i * step_x
-                if max_cost > min_cost:
-                    py = padding_y + plot_height * (ch['cost'] - min_cost) / (max_cost - min_cost)
-                else:
-                    py = padding_y + plot_height / 2
-                points.append((px, py, ch['cost']))
-                # X轴月份标签
-                d.add(String(px - 4*mm, padding_y - 8*mm, ch['month'][-2:],
-                           fontSize=8, fillColor=colors.HexColor('#666666'),
-                           fontName=sty['body'].fontName))
-                # 跟踪最值
-                if ch['cost'] > max_val:
-                    max_val = ch['cost']
-                    max_point = (px, py)
-                if ch['cost'] < min_val:
-                    min_val = ch['cost']
-                    min_point = (px, py)
+                # 网格线（横向）
+                for i in range(0, 6):
+                    yy = padding_y + height * i / 5
+                    d.add(Rect(padding_x, yy, plot_width, 0, fill=0, strokeColor=HexColor('#E0E0E0')))
 
-            # 绘制折线
-            for i in range(1, len(points)):
-                x1, y1, _ = points[i-1]
-                x2, y2, _ = points[i]
-                d.add(Line(x1, y1, x2, y2, strokeWidth=2, strokeColor=colors.HexColor('#2E75B6')))
+                # X轴和Y轴
+                d.add(Line(padding_x, padding_y, padding_x + plot_width, padding_y,
+                          strokeWidth=1, strokeColor=HexColor('#999999')))
+                d.add(Line(padding_x, padding_y, padding_x, padding_y + plot_height,
+                          strokeWidth=1, strokeColor=HexColor('#999999')))
 
-            # 绘制数据点 + 金额标注
-            for px, py, cost in points:
-                d.add(Circle(px, py, 2.5, fillColor=colors.HexColor('#1F4E79'), strokeWidth=0))
-                # 标注在点上方
-                label = f"¥{cost:,}"
-                d.add(String(px - len(label)*2, py + 3, label,
-                           fontSize=7, fillColor=colors.HexColor('#333333'),
-                           fontName=sty['body'].fontName))
+                # 计算每个点坐标
+                points = []
+                for i, item in enumerate(data.cost_history):
+                    px = padding_x + (i / (len(data.cost_history) - 1)) * plot_width
+                    # Y坐标：数据范围映射到图表高度，留10%上下边距
+                    py = padding_y + (item['cost'] - min_amount) / amount_range * (plot_height * 0.8) + plot_height * 0.1
+                    points.append((px, py, item))
 
-            # 标记最大值和最小值
-            if max_point:
-                px, py = max_point
-                d.add(String(px - 6*mm, py + 6, "最高",
-                           fontSize=7, fillColor=colors.HexColor('#F56C6C'),
-                           fontName=sty['body'].fontName))
-            if min_point:
-                px, py = min_point
-                d.add(String(px - 6*mm, py + 6, "最低",
-                           fontSize=7, fillColor=colors.HexColor('#67C23A'),
-                           fontName=sty['body'].fontName))
+                # 绘制折线
+                d.setStrokeColor(HexColor('#2E75B6'))
+                d.setLineWidth(1.5)
+                path = d.beginPath()
+                path.moveTo(points[0][0], points[0][1])
+                for px, py, _ in points[1:]:
+                    path.lineTo(px, py)
+                d.drawPath(path, stroke=1, fill=0)
 
-            elements.append(d)
-            elements.append(Spacer(1, 4*mm))
-            elements.append(Paragraph("※ 趋势基于当前所有专线静态月租估算，仅供参考", ParagraphStyle(
-                'Note', fontName=sty['body'].fontName, fontSize=8, leading=12,
-                textColor=colors.HexColor('#909399')
-            )))
+                # 绘制数据点和标注（修复标注位置）
+                for px, py, item in points:
+                    # 数据点圆点
+                    d.setFillColor(HexColor('#2E75B6'))
+                    d.circle(px, py, 3, fill=1, stroke=0)
+                    # 金额标注（数据点正上方8px）
+                    amount = item['cost']
+                    if amount >= 10000:
+                        label = f"¥{amount/10000:.1f}万"
+                    else:
+                        label = f"¥{amount:,}"
+                    d.add(String(px, py + 8, label,
+                               fontSize=8, fillColor=HexColor('#333333'),
+                               fontName=sty['body'].fontName))
+                    # 月份标签（图表底部）
+                    d.add(String(px, padding_y - 14, item['month'][-2:],
+                               fontSize=9, fillColor=HexColor('#909399'),
+                               fontName=sty['body'].fontName))
+
+
     else:
         elements.append(Paragraph(
             "专线费用数据暂未录入，请在专线管理中补充月租费用信息",
