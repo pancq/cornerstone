@@ -207,8 +207,28 @@ function initLifecycleChart() {
   // 添加窗口大小变化监听，自动适配图表大小
   window.addEventListener('resize', () => myChart.resize());
   
-  const data = lifecycleData.value.age_distribution
+  const raw = lifecycleData.value.age_distribution || []
+  // 从数据中剔除未设置项用于绘图
+  const unsetEntry = raw.find(d => d.range && d.range.includes('未设置'))
+  const unsetCount = unsetEntry?.count || 0
+  const data = raw.filter(d => !(d.range && d.range.includes('未设置')))
   const maxCount = Math.max(1, ...((data || []).map(d => d.count || 0)))
+
+  // 在图表下方显示未设置提示（如果有）
+  const noteContainer = document.querySelector('.lifecycle-content')
+  if (noteContainer) {
+    const existing = document.getElementById('lifecycle-unset-note')
+    if (existing) existing.remove()
+    if (unsetCount > 0) {
+      const noteEl = document.createElement('div')
+      noteEl.id = 'lifecycle-unset-note'
+      noteEl.style.color = '#909399'
+      noteEl.style.fontSize = '12px'
+      noteEl.style.marginTop = '8px'
+      noteEl.innerText = `※ ${unsetCount} 台设备未录入采购日期，不计入年龄分布统计` 
+      noteContainer.appendChild(noteEl)
+    }
+  }
   
   const option = {
     tooltip: {
