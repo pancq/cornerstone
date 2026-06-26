@@ -235,10 +235,12 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
 
 
 def _register_fonts():
-    """注册中文字体"""
+    """注册中文字体。优先使用项目内 fonts/msyh.ttf（微软雅黑），如果不存在再尝试系统字体路径。"""
     import os
-    # 尝试多种常见中文字体路径
-    font_candidates = [
+    # 项目内字体优先：backend/data/fonts/msyh.ttf（请将微软雅黑 ttf 放在此处，文件名建议 msyh.ttf）
+    project_font = Path(__file__).parent.parent / "data" / "fonts" / "msyh.ttf"
+
+    font_candidates = [str(project_font),
         "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/System/Library/Fonts/PingFang.ttc",
@@ -249,12 +251,13 @@ def _register_fonts():
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     for path in font_candidates:
-        if os.path.exists(path):
-            try:
-                pdfmetrics.registerFont(TTFont("ChineseFont", path))
-                return True
-            except Exception:
+        try:
+            if not path or not os.path.exists(path):
                 continue
+            pdfmetrics.registerFont(TTFont("ChineseFont", path))
+            return True
+        except Exception:
+            continue
     return False
 
 
