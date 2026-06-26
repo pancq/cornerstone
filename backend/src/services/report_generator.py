@@ -124,6 +124,29 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
             "cost": total_cost  # 静态取当前月费用作为近似
         })
 
+    # 计算网络可用性：从 inspection_device_results 表统计本月在线率
+    from src.models.inspection_device_result import InspectionDeviceResult
+    avail_result = await db.execute(
+        select(func.count(InspectionDeviceResult.id))
+        .where(
+            func.extract('year', InspectionDeviceResult.inspected_at) == year,
+            func.extract('month', InspectionDeviceResult.inspected_at) == month,
+        )
+    )
+    total_count = avail_result.scalar() or 0
+
+    online_result = await db.execute(
+        select(func.count(InspectionDeviceResult.id))
+        .where(
+            func.extract('year', InspectionDeviceResult.inspected_at) == year,
+            func.extract('month', InspectionDeviceResult.inspected_at) == month,
+            InspectionDeviceResult.result == 'online',
+        )
+    )
+    online_count = online_result.scalar() or 0
+
+    availability_pct = (online_count / total_count * 100) if total_count > 0 else None
+
     # 本月故障统计
     incidents_result = await db.execute(
         select(func.count(CircuitIncident.id))
@@ -260,6 +283,7 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
         it_department=company.get("it_department_name", "信息技术部"),
         it_contact=company.get("it_contact_name", ""),
         generated_at=bj_now,
+        availability_pct=availability_pct,
         circuit_cost_total=total_cost,
         incident_count=incident_count,
         max_duration_hours=max_duration,
