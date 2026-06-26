@@ -425,23 +425,23 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
 
     doc = SimpleDocTemplate(
         output_path, pagesize=A4,
-        topMargin=0*mm, bottomMargin=0*mm,
-        leftMargin=0*mm, rightMargin=0*mm
+        topMargin=25*mm, bottomMargin=20*mm,
+        leftMargin=25*mm, rightMargin=25*mm
     )
 
     elements = []
 
     # ===== 第一页：封面 =====
-    # 顶部深蓝色背景块（约占页面1/3高度）
-    cover_height = A4[1] / 3  # 约 99mm
-    cover_bg = [[Paragraph("", ParagraphStyle('Empty', leading=cover_height))]]
-    cover_table = Table(cover_bg, colWidths=[A4[0]])
-    cover_table.setStyle(TableStyle([
+    # 顶部深蓝色背景块（占顶部约1/3页面）
+    cover_height = 100*mm  # 固定高度更稳定
+    cover_bg = Table([[Paragraph("", ParagraphStyle('Empty', leading=cover_height))]], colWidths=[A4[0] - 50*mm])
+    cover_bg.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1F4E79')),
-        ('TOPPADDING', (0, 0), (-1, -1), 40*mm),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 30*mm),
+        ('TOPPADDING', (0, 0), (-1, -1), 35*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 35*mm),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
     ]))
-    elements.append(cover_table)
+    elements.append(cover_bg)
 
     # 背景块内的标题文字（白色）
     cover_title_style = ParagraphStyle(
@@ -454,19 +454,29 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         fontSize=16, leading=22, alignment=1,
         textColor=colors.HexColor('#B0C4DE')
     )
-
-    # 公司简称如果有，在深蓝色背景顶部显示（Logo位置）
-    company_short = data.company_short_name or "基石"
-    elements.append(Paragraph(company_short, ParagraphStyle(
+    company_short_style = ParagraphStyle(
         'CompanyShort', fontName=sty['title'].fontName,
         fontSize=20, leading=26, alignment=1,
         textColor=colors.white
-    )))
-    elements.append(Spacer(1, 15*mm))
-    elements.append(Paragraph("IT基础设施运营月报", cover_title_style))
-    elements.append(Spacer(1, 4*mm))
-    elements.append(Paragraph(f"{data.year}年{data.month}月", cover_sub_style))
-    elements.append(Spacer(1, 18*mm))  # 跳出背景块
+    )
+
+    # 公司简称（Logo位置）放在背景块内顶部
+    company_short = data.company_short_name or "基石"
+    # 我们用一个表格把标题放在背景块上方居中
+    cover_title_data = [
+        [Paragraph(company_short, company_short_style)],
+        [Paragraph("IT基础设施运营月报", cover_title_style)],
+        [Paragraph(f"{data.year}年{data.month}月", cover_sub_style)],
+    ]
+    cover_title_table = Table(cover_title_data, colWidths=[A4[0] - 50*mm])
+    cover_title_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1F4E79')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.white),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(cover_title_table)
 
     # 底部信息（白色背景）
     info_style = ParagraphStyle(
@@ -558,7 +568,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             grid_row.extend(cell)
         grid_data.append(grid_row)
 
-    metrics_table = Table(grid_data, colWidths=[50*mm, 50*mm, 50*mm])
+    metrics_table = Table(grid_data, colWidths=[48*mm, 48*mm, 48*mm])
     metrics_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -624,7 +634,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
     ]))
 
-    overview_layout = Table([[avail_table, right_table]], colWidths=[78*mm, 78*mm])
+    overview_layout = Table([[avail_table, right_table]], colWidths=[74*mm, 74*mm])
     overview_layout.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -737,14 +747,14 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             bar_colors = ['#1F4E79', '#2E75B6', '#67C23A', '#E6A23C', '#F56C6C']
             bar_rows = [['类型', '月费', '占比', '']]
             for idx, bt in enumerate(data.cost_by_type):
-                bar_w = int(bt['pct'] * 1.2)  # 最大约120mm
+                bar_w = int(bt['pct'] * 1.0)  # 最大约 100mm，合适宽度
                 bar_rows.append([
                     Paragraph(bt['type'], ParagraphStyle('bt', fontName=sty['body'].fontName, fontSize=9, leading=12)),
                     f"¥{bt['cost']:,}",
                     f"{bt['pct']}%",
                     _make_bar_cell(bar_w, bar_colors[idx % len(bar_colors)], sty),
                 ])
-            bar_table = Table(bar_rows, colWidths=[40*mm, 30*mm, 15*mm, 60*mm])
+            bar_table = Table(bar_rows, colWidths=[45*mm, 25*mm, 15*mm, 55*mm])
             bar_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E79')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -794,6 +804,11 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             for i in range(0, 6):
                 yy = padding_y + height * i / 5
                 d.add(Rect(padding_x, yy, plot_width, 0, fill=0, strokeColor=colors.HexColor('#E0E0E0')))
+                # 添加Y轴刻度标注
+                current_value = round(max_cost * (5 - i) / 5, -2)
+                d.add(String(padding_x - 7*mm, yy - 2, f"¥{int(current_value):,}",
+                           fontSize=7, fillColor=colors.HexColor('#666666'),
+                           fontName=sty['body'].fontName))
 
             # X轴和Y轴
             d.add(Line(padding_x, padding_y, padding_x + plot_width, padding_y,
@@ -801,13 +816,12 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
             d.add(Line(padding_x, padding_y, padding_x, padding_y + plot_height,
                       strokeWidth=1, strokeColor=colors.HexColor('#999999')))
 
-            # 计算每个点坐标
+            # 计算每个点坐标，Y轴从上往下，成本越大越靠上
             points = []
             for i, ch in enumerate(data.cost_history):
                 px = padding_x + i * step_x
-                # Y坐标：从下往上，成本越大Y越大
                 if max_cost > min_cost:
-                    py = padding_y + plot_height * (ch['cost'] - min_cost) / (max_cost - min_cost)
+                    py = padding_y + plot_height * (1 - (ch['cost'] - min_cost) / (max_cost - min_cost))
                 else:
                     py = padding_y + plot_height / 2
                 points.append((px, py, ch['cost']))
@@ -827,7 +841,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 d.add(Circle(px, py, 2.5, fillColor=colors.HexColor('#1F4E79'), strokeWidth=0))
                 # 标注在点上方
                 label = f"¥{cost:,}"
-                d.add(String(px - len(label)*2, py + 3, label,
+                d.add(String(px - len(label)*2, py + 6, label,
                            fontSize=7, fillColor=colors.HexColor('#333333'),
                            fontName=sty['body'].fontName))
 
