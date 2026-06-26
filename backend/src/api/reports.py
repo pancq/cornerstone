@@ -166,10 +166,9 @@ async def delete_monthly_report(
     year: int,
     month: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(require_super_admin)
 ):
     """删除指定月份月报"""
-    require_super_admin(current_user, db)
 
     result = await db.execute(
         select(MonthlyReport).where(
