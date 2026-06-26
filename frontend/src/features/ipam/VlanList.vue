@@ -213,9 +213,14 @@ const handleSaveVlan = async () => {
       ElMessage.success(t('vlan.vlanCreateSuccess'));
     }
     closeVlanDialog();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to save VLAN:', error);
-    ElMessage.error(t('vlan.vlanSaveFailed'));
+    const detail = error?.response?.data?.detail;
+    if (detail) {
+      ElMessage.error(detail);
+    } else {
+      ElMessage.error(t('vlan.vlanSaveFailed'));
+    }
   }
 };
 
