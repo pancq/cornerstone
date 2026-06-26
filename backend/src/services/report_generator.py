@@ -66,10 +66,10 @@ async def get_company_info(db: AsyncSession) -> dict:
 
 async def collect_report_data(year: int, month: int, db: AsyncSession) -> MonthlyReportData:
     """从数据库收集月报所需数据"""
-    month_start = datetime(year, month, 1)
-    next_month = datetime(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1)
     # 使用北京时间（UTC+8）
     beijing_tz = timezone(timedelta(hours=8))
+    month_start = datetime(year, month, 1, tzinfo=beijing_tz)
+    next_month = datetime(year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1, tzinfo=beijing_tz)
     now = datetime.now(beijing_tz)
 
     # 公司信息
