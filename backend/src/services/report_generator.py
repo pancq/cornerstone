@@ -481,6 +481,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     company_short_style = ParagraphStyle(
         'CompanyShort', fontName=sty['title'].fontName,
         fontSize=13, leading=18,
+        alignment=1,
         textColor=colors.white
     )
 
