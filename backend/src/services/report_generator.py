@@ -498,7 +498,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ('BACKGROUND', (0, 0), (-1, -1), HexColor('#1F4E79')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 20*mm),
+        ('TOPPADDING', (0, 0), (-1, -1), 10*mm),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
@@ -730,9 +730,10 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
     ))]]
     avail_text_big = "暂无数据" if data.availability_pct is None else f"{data.availability_pct:.1f}%"  # 已合并%
     avail_c = "#E6A23C" if data.availability_pct is None else ("#67C23A" if data.availability_pct >= 99 else "#E6A23C")
+    # 调整字号并加宽列，避免 100.0% 自动换行
     avail_data.append([Paragraph(avail_text_big, ParagraphStyle(
         'BigAvail', fontName=sty['big_number'].fontName,
-        fontSize=64, leading=72, alignment=0,
+        fontSize=40, leading=48, alignment=0,
         textColor=colors.HexColor(avail_c)
     ))])
     avail_detail = "基于巡检记录统计" if data.availability_pct is not None else "请配置巡检任务获取数据"
@@ -741,7 +742,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         textColor=colors.HexColor('#999999')
     ))])
 
-    avail_table = Table(avail_data, colWidths=[74*mm])
+    avail_table = Table(avail_data, colWidths=[90*mm])
     avail_table.setStyle(TableStyle([
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -762,7 +763,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ParagraphStyle('StatusText', fontName=sty['body'].fontName, fontSize=10, leading=18)
     )])
 
-    right_table = Table(right_data, colWidths=[75*mm])
+    right_table = Table(right_data, colWidths=[58*mm])
     right_table.setStyle(TableStyle([
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -771,7 +772,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
     ]))
 
-    overview_layout = Table([[avail_table, right_table]], colWidths=[74*mm, 74*mm])
+    overview_layout = Table([[avail_table, right_table]], colWidths=[90*mm, 58*mm])
     overview_layout.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
@@ -903,7 +904,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 'other':    '其他',
             }
 
-            label_width = 55    # 左侧标签宽度
+            label_width = 65    # 左侧标签宽度（加宽，容纳「互联网专线」5个汉字）
             bar_area_width = 150*mm - label_width - 80  # 条形图区域宽度
             bar_height = 14
             row_height = 22
@@ -920,7 +921,11 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
                 color = TYPE_COLORS.get(type_key, '#909399')
                 label = TYPE_LABELS.get(type_key, type_key)
                 # 确保中文字体：用 Paragraph 包装并指定字体
-                label_para = Paragraph(label, ParagraphStyle('BarLabel', fontName=sty['body'].fontName, fontSize=10, textColor=HexColor('#666666')))
+                label_para = Paragraph(label, ParagraphStyle(
+                    'BarLabel', fontName=sty['body'].fontName,
+                    fontSize=9,  # 从10改为9，减少换行风险
+                    textColor=HexColor('#666666')
+                ))
 
                 # 用Drawing绘制水平条形，添加到elements需要通过Table包装
                 bar_d = Drawing(bar_width, bar_height)
