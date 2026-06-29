@@ -49,6 +49,7 @@
 | 💾 配置备份 | Netmiko 驱动的多厂商配置采集，版本 Diff 对比 |
 | 🗺️ 拓扑可视化 | 站点 / 设备双视图，基于 G6 5.x 的交互式拓扑，支持 PNG/JPG/PDF 导出 |
 | 📊 管理看板 | IT负责人专属仪表盘：网络可用性、专线费用趋势、风险看板、故障汇总 |
+| 📈 运营月报 | 自动生成 PDF 月报，含封面、执行摘要、可用性分析、费用构成、故障记录 |
 | 🚨 预警中心 | 规则预警 + AI 异常检测双引擎 |
 | 🤖 AI 助手 | 自然语言查询、备份配置审计、智能预测 |
 | 🔐 RBAC | JWT + 细粒度权限，支持 OAuth2 / SAML SSO / LDAP |
@@ -148,7 +149,7 @@ docker compose stop
 docker compose down
 ```
 
-> 📚 完整部署流程（含生产环境、Nginx、HTTPS、Systemd）见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
+部署指南见下方 [部署](#部署) 章节。
 
 ## 功能模块
 
@@ -184,7 +185,10 @@ docker compose down
 ### 9. 智能巡检
 定期对设备 / 专线 / 子网进行健康检查并生成巡检报告。
 
-### 10. 系统管理
+### 10. 运营月报
+一键生成 PDF 格式月度运营报告，包含封面设计、执行摘要、关键指标（网络可用性、专线费用、故障次数）、费用构成条形图、故障记录明细、下月重点关注事项。
+
+### 11. 系统管理
 - 用户 / 角色 / 权限管理（RBAC）
 - 通知管理（邮件 / Webhook）
 - 认证集成（OAuth2 / SAML SSO / LDAP）
@@ -220,7 +224,6 @@ cornerstone/
 │   │   └── App.vue
 │   └── package.json
 ├── docs/                         # 文档
-│   └── DEPLOYMENT.md             # 部署指南
 ├── LICENSE
 └── README.md
 ```
@@ -271,13 +274,7 @@ cp .env.docker.example .env
 docker compose up -d --build
 ```
 
-完整部署文档见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)，包含：
-
-- Rocky Linux 10 Docker Compose 一键部署
-- Linux 生产环境（Systemd + Nginx + PostgreSQL）
-- 反向代理与 HTTPS 配置
-- 备份与升级策略
-- 常见故障排查
+部署指南见下方 Docker Compose 部署章节。
 
 ## License
 
