@@ -484,16 +484,17 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         textColor=colors.white
     )
 
-    top_area_content = []
+    # 把所有内容放在一个单元格里的列表，形成一个大的区域
+    top_cell_content = []
     if data.company_short_name:
-        top_area_content.append([Paragraph(data.company_short_name, company_short_style)])
-    top_area_content.append([Spacer(1, 20*mm)])
-    top_area_content.append([Paragraph("IT基础设施运营月报", cover_title_style)])
-    top_area_content.append([Spacer(1, 12*mm)])
-    top_area_content.append([Paragraph(f"{data.year}年{data.month}月", cover_sub_style)])
-    top_area_content.append([Spacer(1, 30*mm)])
+        top_cell_content.append(Paragraph(data.company_short_name, company_short_style))
+        top_cell_content.append(Spacer(1, 10*mm))
+    top_cell_content.append(Paragraph("IT基础设施运营月报", cover_title_style))
+    top_cell_content.append(Spacer(1, 12*mm))
+    top_cell_content.append(Paragraph(f"{data.year}年{data.month}月", cover_sub_style))
 
-    top_area_table = Table(top_area_content, colWidths=[doc.width], rowHeights=[doc.height * 0.45])
+    # 单个单元格的Table
+    top_area_table = Table([[top_cell_content]], colWidths=[doc.width], rowHeights=[doc.height * 0.45])
     top_area_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), HexColor('#1F4E79')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
