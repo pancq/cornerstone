@@ -26,7 +26,16 @@ from src.models.setting import Setting
 
 REPORT_DIR = Path(__file__).parent.parent.parent / "data" / "reports"
 COMPANY_INFO_KEY = "company_info"
+BRAND_SETTINGS_KEY = "brand_settings"
 
+# 默认品牌设置
+BRAND_SETTINGS_DEFAULTS = {
+    "brand_name_zh": "基石",
+    "brand_name_en": "Cornerstone",
+    "brand_slogan": "看得见，管得住",
+    "brand_subtitle": "IT基础设施资源管理平台",
+    "brand_logo_url": "",
+}
 
 @dataclass
 class MonthlyReportData:
@@ -36,6 +45,7 @@ class MonthlyReportData:
     company_short_name: str = ""
     it_department: str = "信息技术部"
     it_contact: str = ""
+    it_contact_email: str = ""
     generated_at: datetime = field(default_factory=datetime.now)
 
     # 本月概况
@@ -57,6 +67,12 @@ class MonthlyReportData:
     cost_by_type: list = field(default_factory=list)  # [{"type": "互联网专线", "cost": 22000, "pct": 51.4}]
     cost_history: list = field(default_factory=list)   # [{"month": "2026-01", "cost": 40000}, ...]
 
+    # 品牌信息（来自配置）
+    brand_name_zh: str = BRAND_SETTINGS_DEFAULTS["brand_name_zh"]
+    brand_name_en: str = BRAND_SETTINGS_DEFAULTS["brand_name_en"]
+    brand_slogan: str = BRAND_SETTINGS_DEFAULTS["brand_slogan"]
+    brand_subtitle: str = BRAND_SETTINGS_DEFAULTS["brand_subtitle"]
+
 
 async def get_company_info(db: AsyncSession) -> dict:
     """从数据库获取公司信息"""
@@ -68,6 +84,23 @@ async def get_company_info(db: AsyncSession) -> dict:
         except (json.JSONDecodeError, TypeError):
             pass
     return {}
+
+
+async def get_brand_settings(db: AsyncSession) -> dict:
+    """从数据库获取品牌设置"""
+    result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
+    setting = result.scalars().first()
+    if setting:
+        try:
+            config = json.loads(setting.value)
+            # 填充默认值
+            for key, default in BRAND_SETTINGS_DEFAULTS.items():
+                if key not in config:
+                    config[key] = default
+            return config
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return BRAND_SETTINGS_DEFAULTS.copy()
 
 
 async def collect_report_data(year: int, month: int, db: AsyncSession) -> MonthlyReportData:
@@ -84,7 +117,8 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     beijing_tz = timezone(timedelta(hours=8))
     bj_now = datetime.now(beijing_tz)
 
-    # 公司信息
+    # 品牌&公司信息
+    brand = await get_brand_settings(db)
     company = await get_company_info(db)
 
     # 专线统计
@@ -303,7 +337,11 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
             "started_at": (i.started_at + timedelta(hours=8)).strftime("%m-%d %H:%M") if i.started_at else "-",
             "duration": f"{(i.duration_minutes or 0)/60.0:.1f}" if i.duration_minutes else "-",
             "status": "已恢复" if i.status == "resolved" else "处理中"
-        } for i in incidents_list]
+        } for i in incidents_list],
+        brand_name_zh=brand.get("brand_name_zh", "基石"),
+        brand_name_en=brand.get("brand_name_en", "Cornerstone"),
+        brand_slogan=brand.get("brand_slogan", "看得见，管得住"),
+        brand_subtitle=brand.get("brand_subtitle", "IT基础设施资源管理平台"),
     )
 
 
@@ -424,7 +462,7 @@ def _make_header_footer(doc, sty: dict, data: MonthlyReportData):
     from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate, Frame
     from reportlab.platypus import PageBreak
 
-    company_short = data.company_short_name or "基石"
+    company_short = data.company_short_name or data.brand_name_zh
     month_label = f"{data.year}年{data.month}月"
     # 使用注册好的中文字体（如果注册成功）
     font_name = sty['footer'].fontName
@@ -434,7 +472,7 @@ def _make_header_footer(doc, sty: dict, data: MonthlyReportData):
         # 页眉
         canvas.setFont(font_name, 8)
         canvas.setFillColor(colors.HexColor('#999999'))
-        canvas.drawString(25*mm, A4[1] - 15*mm, f"基石 · IT基础设施运营月报")
+        canvas.drawString(25*mm, A4[1] - 15*mm, f"{data.brand_name_zh} · {data.brand_subtitle}")
         canvas.drawRightString(A4[0] - 25*mm, A4[1] - 15*mm, month_label)
         canvas.setStrokeColor(colors.HexColor('#E0E0E0'))
         canvas.setLineWidth(0.5)
@@ -532,7 +570,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
         ("公司名称", data.company_name or "(请在系统设置中填写)"),
         ("报告周期", f"{data.year}年{data.month}月1日 至 {data.year}年{data.month}月{last_day}日"),
         ("生成时间", data.generated_at.strftime('%Y年%m月%d日 %H:%M')),
-        ("生成系统", "基石 Cornerstone · IT基础设施资源管理平台"),
+        ("生成系统", f"{data.brand_name_zh} {data.brand_name_en} · {data.brand_subtitle}"),
     ]
     for label, value in info_lines:
         if value:
@@ -1132,7 +1170,7 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
 
     # 页脚
     elements.append(Spacer(1, 15*mm))
-    elements.append(Paragraph("本报告由基石 IT 资源管理系统自动生成", sty['footer']))
+    elements.append(Paragraph(f"本报告由{data.brand_name_zh} IT 资源管理系统自动生成", sty['footer']))
 
     doc.build(elements, onFirstPage=lambda c, d: None, onLaterPages=hf)
 
@@ -1141,5 +1179,5 @@ def generate_report_pdf(data: MonthlyReportData, output_path: str):
 
 def get_report_filename(data: MonthlyReportData) -> str:
     """生成报告文件名"""
-    short = data.company_short_name or "基石"
-    return f"基石运营月报_{short}_{data.year}年{data.month:02d}月.pdf"
+    short = data.company_short_name or data.brand_name_zh
+    return f"{data.brand_name_zh}运营月报_{short}_{data.year}年{data.month:02d}月.pdf"

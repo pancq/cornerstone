@@ -7,7 +7,7 @@
         </el-icon>
       </div>
       <h1>403</h1>
-      <p>您没有访问此页面的权限</p>
+      <p>{{ isViewer ? '您当前为IT负责人角色，需要运维工程师权限才能访问此页面' : '您没有访问此页面的权限' }}</p>
       <el-button type="primary" @click="goHome">
         返回首页
       </el-button>
@@ -16,7 +16,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Lock } from '@element-plus/icons-vue'
+import { useAuthStore } from '../../store/auth'
+
+const authStore = useAuthStore()
+const isViewer = computed(() => authStore.isReadOnly())
 
 function goHome() {
   window.location.href = '/'

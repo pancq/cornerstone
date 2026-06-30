@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAppStore } from '../../store'
+import { useAuthStore } from '../../store/auth'
 import { storeToRefs } from 'pinia'
 import { Files, User, Clock, Warning, Check, Edit } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -8,15 +9,27 @@ import { getLocale } from '@/i18n'
 
 const { t, locale } = useI18n()
 const store = useAppStore()
+const authStore = useAuthStore()
 const { auditLogs } = storeToRefs(store)
 
-const activeTab = ref<'login' | 'operation'>('login')
+const isViewer = computed(() => authStore.isReadOnly())
+
+// 高危操作关键词列表
+const DANGEROUS_ACTIONS = ['delete', '创建用户', '修改角色', '删除用户', '回滚']
+
+const activeTab = ref<'login' | 'dangerous' | 'all'>('login')
 const searchQuery = ref('')
 
-const tabs = [
-  { key: 'login', label: t('logs.loginLogs') },
-  { key: 'operation', label: t('logs.operationLogs') },
-]
+const tabs = computed(() => {
+  const allTabs = [
+    { key: 'login', label: t('logs.loginLogs') },
+    { key: 'dangerous', label: '高危操作' },
+  ]
+  if (!isViewer.value) {
+    allTabs.push({ key: 'all', label: t('logs.operationLogs') })
+  }
+  return allTabs
+})
 
 const filteredLogs = computed(() => {
   let logs = auditLogs.value
@@ -24,6 +37,13 @@ const filteredLogs = computed(() => {
   // 按标签页过滤
   if (activeTab.value === 'login') {
     logs = logs.filter(log => log.action.includes(t('logs.login')))
+  } else if (activeTab.value === 'dangerous') {
+    logs = logs.filter(log => {
+      if (log.action.includes(t('logs.login'))) return false
+      return DANGEROUS_ACTIONS.some(keyword => 
+        log.action.includes(keyword) || log.detail.includes(keyword)
+      )
+    })
   } else {
     logs = logs.filter(log => !log.action.includes(t('logs.login')))
   }
@@ -86,10 +106,10 @@ const formatDateTime = (dateString: string) => {
         <div class="overview-card-value">{{ auditLogs.filter(l => l.action.includes(t('logs.login'))).length }}</div>
         <div class="overview-card-trend">{{ t('logs.loginRecords') }}</div>
       </div>
-      <div class="overview-card overview-card-primary">
-        <div class="overview-card-label">{{ t('logs.operationLogs') }}</div>
-        <div class="overview-card-value">{{ auditLogs.filter(l => !l.action.includes(t('logs.login'))).length }}</div>
-        <div class="overview-card-trend">{{ t('logs.operationRecords') }}</div>
+      <div class="overview-card" :class="isViewer ? 'overview-card-danger' : 'overview-card-primary'">
+        <div class="overview-card-label">{{ isViewer ? '高危操作' : t('logs.operationLogs') }}</div>
+        <div class="overview-card-value">{{ isViewer ? auditLogs.filter(l => !l.action.includes(t('logs.login')) && DANGEROUS_ACTIONS.some(k => l.action.includes(k) || l.detail.includes(k))).length : auditLogs.filter(l => !l.action.includes(t('logs.login'))).length }}</div>
+        <div class="overview-card-trend">{{ isViewer ? '高风险记录' : t('logs.operationRecords') }}</div>
       </div>
     </div>
 
@@ -125,7 +145,7 @@ const formatDateTime = (dateString: string) => {
           style="width: 360px"
         />
         <div class="search-label">{{ t('logs.operationTime') }}</div>
-        <div class="search-date">{{ new Date().toLocaleDateString(locale.value || getLocale()) }}</div>
+        <div class="search-date">{{ new Date().toLocaleDateString(getLocale() || 'zh-CN') }}</div>
       </div>
 
       <el-table

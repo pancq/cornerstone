@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './store/auth'
+import { useBrandStore } from './store/brand'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
 import GlobalSearch from './components/GlobalSearch.vue'
 import { useGlobalShortcut } from './lib/shortcuts'
@@ -28,6 +29,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const brandStore = useBrandStore()
 const searchQuery = ref('')
 const companyLogo = ref<string>(localStorage.getItem('companyLogo') || '')
 const isLogoLoading = ref(!companyLogo.value)
@@ -76,6 +78,7 @@ const hideTooltip = () => {
 }
 
 onMounted(() => {
+  brandStore.loadBrand()
   if (authStore.isLoggedIn) {
     authStore.fetchUser()
   }
@@ -290,8 +293,8 @@ async function handleLogout() {
         <div v-else-if="!isLogoLoading" class="enterprise-brand-mark">C</div>
         <div v-else class="enterprise-brand-mark loading"></div>
         <div class="enterprise-brand-text" v-show="!sidebarCollapsed">
-          <strong>{{ t('common.name') === 'Name' ? 'Cornerstone' : '基石' }}</strong>
-          <span>Cornerstone</span>
+          <strong>{{ brandStore.brandNameZh }}</strong>
+          <span>{{ brandStore.brandNameEn }}</span>
         </div>
       </div>
 

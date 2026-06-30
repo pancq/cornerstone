@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from ..database import get_db
 from ..models.setting import Setting
+from ..schemas.setting import SettingResponse, NotificationSettingsRequest, NotificationSettingsResponse, CompanyInfoRequest
 from ..models.audit_log import AuditLog
-from ..schemas.setting import SettingResponse, NotificationSettingsRequest, NotificationSettingsResponse
-from ..config import settings
+from ..config import settings as app_config
 from ..services.alert_service import AlertService
 from ..api.dependencies import require_super_admin
 
@@ -19,6 +19,112 @@ router = APIRouter()
 NOTIFICATION_SETTINGS_KEY = "notification_settings"
 LOG_SETTINGS_KEY = "log_settings"
 COMPANY_INFO_KEY = "company_info"
+BRAND_SETTINGS_KEY = "brand_settings"
+
+# 默认品牌设置
+BRAND_SETTINGS_DEFAULTS = {
+    "brand_name_zh": "基石",
+    "brand_name_en": "Cornerstone",
+    "brand_slogan": "看得见，管得住",
+    "brand_subtitle": "IT基础设施资源管理平台",
+    "brand_logo_url": "",
+}
+
+class BrandSettingsRequest(BaseModel):
+    brand_name_zh: str = "基石"
+    brand_name_en: str = "Cornerstone"
+    brand_slogan: str = "看得见，管得住"
+    brand_subtitle: str = "IT基础设施资源管理平台"
+    brand_logo_url: str = ""
+
+class BrandSettingsResponse(BaseModel):
+    brand_name_zh: str
+    brand_name_en: str
+    brand_slogan: str
+    brand_subtitle: str
+    brand_logo_url: str
+
+@router.get("/brand", response_model=BrandSettingsResponse)
+async def get_brand_settings(
+    db: AsyncSession = Depends(get_db),
+):
+    """获取品牌设置，公共接口，不需要登录"""
+    result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
+    setting = result.scalars().first()
+    
+    if setting:
+        try:
+            config = json.loads(setting.value)
+            return BrandSettingsResponse(**config)
+        except json.JSONDecodeError:
+            pass
+    
+    return BrandSettingsResponse(**BRAND_SETTINGS_DEFAULTS)
+
+@router.get("/public/brand", response_model=BrandSettingsResponse)
+async def get_public_brand_settings(
+    db: AsyncSession = Depends(get_db),
+):
+    """公开获取品牌设置，不需要登录，用于登录页显示"""
+    result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
+    setting = result.scalars().first()
+    
+    if setting:
+        try:
+            config = json.loads(setting.value)
+            return BrandSettingsResponse(**config)
+        except json.JSONDecodeError:
+            pass
+    
+    return BrandSettingsResponse(**BRAND_SETTINGS_DEFAULTS)
+
+@router.put("/brand", response_model=dict)
+async def update_brand_settings(
+    request: BrandSettingsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_super_admin),
+):
+    """更新品牌设置，仅超级管理员"""
+    # 如果提交空值，重置为默认值
+    config_dict = {
+        "brand_name_zh": request.brand_name_zh or "基石",
+        "brand_name_en": request.brand_name_en or "Cornerstone",
+        "brand_slogan": request.brand_slogan or "看得见，管得住",
+        "brand_subtitle": request.brand_subtitle or "IT基础设施资源管理平台",
+        "brand_logo_url": request.brand_logo_url,
+    }
+    config_json = json.dumps(config_dict, ensure_ascii=False)
+    
+    result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
+    setting = result.scalars().first()
+    
+    if setting:
+        setting.value = config_json
+    else:
+        setting = Setting(key=BRAND_SETTINGS_KEY, value=config_json)
+        db.add(setting)
+    
+    await db.commit()
+    
+    return {"message": "品牌设置更新成功"}
+
+@router.post("/brand/reset", response_model=dict)
+async def reset_brand_settings(
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_super_admin),
+):
+    """重置为默认品牌设置"""
+    result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
+    setting = result.scalars().first()
+    
+    if setting:
+        await db.delete(setting)
+        await db.commit()
+    
+    return {"message": "已恢复为默认品牌设置"}
+
+
+# ============ Logo API ============
 
 
 class CompanyInfoRequest(BaseModel):
@@ -135,14 +241,14 @@ async def get_notification_settings(
             pass
     
     return NotificationSettingsResponse(
-        dingtalk_webhook_url=settings.notification.dingtalk_webhook_url,
-        wechat_webhook_url=settings.notification.wechat_webhook_url,
-        feishu_webhook_url=settings.notification.feishu_webhook_url,
-        smtp_host=settings.notification.smtp_host,
-        smtp_port=settings.notification.smtp_port,
-        smtp_username=settings.notification.smtp_username,
-        smtp_password=settings.notification.smtp_password,
-        smtp_from_email=settings.notification.smtp_from_email
+        dingtalk_webhook_url=app_config.notification.dingtalk_webhook_url,
+        wechat_webhook_url=app_config.notification.wechat_webhook_url,
+        feishu_webhook_url=app_config.notification.feishu_webhook_url,
+        smtp_host=app_config.notification.smtp_host,
+        smtp_port=app_config.notification.smtp_port,
+        smtp_username=app_config.notification.smtp_username,
+        smtp_password=app_config.notification.smtp_password,
+        smtp_from_email=app_config.notification.smtp_from_email
     )
 
 @router.put("/notification", response_model=NotificationSettingsResponse)

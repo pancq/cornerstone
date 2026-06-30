@@ -17,10 +17,30 @@ async def read_logs(
     limit: int = 100,
     user: str = None,
     action: str = None,
+    category: str = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
     query = select(AuditLog)
+
+    # viewer 角色强制只返回登录和高危操作
+    VIEWER_ACTIONS = [
+        'user_login', 'user_logout', 'login_failed',
+        'device_delete', 'circuit_delete', 'backup_rollback',
+        'user_create', 'user_role_change', 'user_delete'
+    ]
+
+    if current_user.get('role') == 'viewer':
+        query = query.where(AuditLog.action.in_(VIEWER_ACTIONS))
+    elif category:
+        if category == 'login':
+            query = query.where(AuditLog.action.in_(['user_login', 'user_logout', 'login_failed']))
+        elif category == 'dangerous':
+            query = query.where(AuditLog.action.in_([
+                'device_delete', 'circuit_delete', 'backup_rollback',
+                'user_create', 'user_role_change', 'user_delete'
+            ]))
+
     if user:
         query = query.where(AuditLog.user.like(f"%{user}%"))
     if action:

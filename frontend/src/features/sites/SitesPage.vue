@@ -21,6 +21,8 @@ const showDialog = ref(false)
 const editingSite = ref<Site | null>(null)
 const loading = ref(false)
 
+const isViewer = computed(() => authStore.isReadOnly())
+
 const form = ref<Partial<Site>>({
   id: 0,
   name: '',
@@ -319,7 +321,7 @@ onMounted(() => {
             </el-tag>
           </div>
           <div class="table-actions">
-            <el-button type="primary" @click="openCreateDialog">
+            <el-button v-if="!isViewer" type="primary" @click="openCreateDialog">
               <el-icon><Plus /></el-icon>
               {{ t('sites.addSite') }}
             </el-button>
@@ -383,7 +385,7 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('sites.circuitCount')" width="120" align="center">
+        <el-table-column v-if="!isViewer" :label="t('sites.circuitCount')" width="120" align="center">
           <template #default="{ row }">
             <el-tag type="info" effect="light">
               {{ getCircuitCount(row.id) }}
@@ -406,7 +408,7 @@ onMounted(() => {
             </a>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.actions')" width="180" fixed="right" align="center">
+        <el-table-column v-if="!isViewer" :label="t('common.actions')" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEditDialog(row)">
               <el-icon><Edit /></el-icon>
@@ -430,7 +432,7 @@ onMounted(() => {
         v-if="!loading && filteredSites.length === 0" 
         :description="t('sites.noData')"
       >
-        <el-button type="primary" @click="openCreateDialog">{{ t('sites.createFirst') }}</el-button>
+        <el-button v-if="!isViewer" type="primary" @click="openCreateDialog">{{ t('sites.createFirst') }}</el-button>
       </el-empty>
     </el-card>
 

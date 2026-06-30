@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Picture, Refresh, OfficeBuilding } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Picture, Refresh, OfficeBuilding, Edit } from '@element-plus/icons-vue'
 import api from '../../api/axios'
 import { getCompanyInfo, updateCompanyInfo, type CompanyInfo } from '../../api/reports'
 import { useI18n } from 'vue-i18n'
+import { useBrandStore } from '../../store/brand'
 
 const { t } = useI18n()
+const brandStore = useBrandStore()
 const currentLogo = ref<string>('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isLoading = ref(false)
@@ -20,9 +22,81 @@ const companyForm = reactive<CompanyInfo>({
 })
 const companyLoading = ref(false)
 
+// 品牌设置表单
+const brandForm = reactive({
+  brand_name_zh: '基石',
+  brand_name_en: 'Cornerstone',
+  brand_slogan: '看得见，管得住',
+  brand_subtitle: 'IT基础设施资源管理平台',
+})
+const brandLoading = ref(false)
+const brandFetchLoading = ref(false)
+
+const fetchBrandSettings = async () => {
+  brandFetchLoading.value = true
+  try {
+    const res = await api.get('/api/v1/settings/brand')
+    const data = res.data
+    brandForm.brand_name_zh = data.brand_name_zh || '基石'
+    brandForm.brand_name_en = data.brand_name_en || 'Cornerstone'
+    brandForm.brand_slogan = data.brand_slogan || '看得见，管得住'
+    brandForm.brand_subtitle = data.brand_subtitle || 'IT基础设施资源管理平台'
+  } catch (error: any) {
+    console.error('加载品牌设置失败:', error)
+  } finally {
+    brandFetchLoading.value = false
+  }
+}
+
+const saveBrandSettings = async () => {
+  brandLoading.value = true
+  try {
+    await api.put('/api/v1/settings/brand', {
+      brand_name_zh: brandForm.brand_name_zh,
+      brand_name_en: brandForm.brand_name_en,
+      brand_slogan: brandForm.brand_slogan,
+      brand_subtitle: brandForm.brand_subtitle,
+      brand_logo_url: '',
+    })
+    // 刷新品牌store
+    await brandStore.loadBrand()
+    ElMessage.success('品牌设置已更新')
+  } catch (error: any) {
+    console.error('保存品牌设置失败:', error)
+    ElMessage.error(error.response?.data?.detail || '保存失败')
+  } finally {
+    brandLoading.value = false
+  }
+}
+
+const resetBrandSettings = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '确定恢复为默认品牌设置吗？系统名称和标语将恢复为「基石 Cornerstone」。',
+      '确认恢复默认',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }
+    )
+    brandLoading.value = true
+    try {
+      await api.post('/api/v1/settings/brand/reset')
+      await fetchBrandSettings()
+      await brandStore.loadBrand()
+      ElMessage.success('品牌设置已恢复默认')
+    } catch (error: any) {
+      console.error('恢复默认品牌设置失败:', error)
+      ElMessage.error(error.response?.data?.detail || '恢复失败')
+    } finally {
+      brandLoading.value = false
+    }
+  } catch {
+    // 用户取消
+  }
+}
+
 onMounted(() => {
   fetchLogo()
   fetchCompanyInfo()
+  fetchBrandSettings()
 })
 
 const fetchCompanyInfo = async () => {
@@ -207,6 +281,35 @@ const handleLogoRemove = async () => {
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="saveCompanyInfo" :loading="companyLoading">保存</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="section-header">
+        <el-icon class="section-icon"><Edit /></el-icon>
+        <h2 class="section-title">品牌设置</h2>
+        <p class="section-desc">以下设置控制系统本身的名称和标语，适用于二次部署或品牌定制场景</p>
+      </div>
+
+      <div class="brand-form" v-loading="brandFetchLoading">
+        <el-form :model="brandForm" label-width="140px" size="large">
+          <el-form-item label="系统中文名称" required>
+            <el-input v-model="brandForm.brand_name_zh" placeholder="如「基石」" />
+          </el-form-item>
+          <el-form-item label="系统英文名称" required>
+            <el-input v-model="brandForm.brand_name_en" placeholder="如「Cornerstone」" />
+          </el-form-item>
+          <el-form-item label="系统标语" required>
+            <el-input v-model="brandForm.brand_slogan" placeholder="如「看得见，管得住」" />
+          </el-form-item>
+          <el-form-item label="系统副标题" required>
+            <el-input v-model="brandForm.brand_subtitle" placeholder="如「IT基础设施资源管理平台」" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="saveBrandSettings" :loading="brandLoading">保存</el-button>
+            <el-button @click="resetBrandSettings" :loading="brandLoading">恢复默认</el-button>
           </el-form-item>
         </el-form>
       </div>

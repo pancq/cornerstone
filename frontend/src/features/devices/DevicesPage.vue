@@ -20,6 +20,7 @@ const store = useAppStore()
 const authStore = useAuthStore()
 const route = useRoute()
 
+const isViewer = computed(() => authStore.isReadOnly())
 const highlightedDeviceId = ref<number | null>(null)
 
 // 从后端获取的站点数据
@@ -575,23 +576,23 @@ onMounted(async () => {
             {{ t('devices.title') }}
           </div>
           <div class="table-actions">
-            <el-button type="info" @click="$router.push('/devices/links')">
+            <el-button v-if="!isViewer" type="info" @click="$router.push('/devices/links')">
               <el-icon><Connection /></el-icon>
               {{ t('devices.connections') }}
             </el-button>
-            <el-button type="primary" @click="openCreateDialog">
+            <el-button v-if="!isViewer" type="primary" @click="openCreateDialog">
               <el-icon><Plus /></el-icon>
               {{ t('devices.create') }}
             </el-button>
-            <el-button type="success" @click="showQuickAddWizard = true">
+            <el-button v-if="!isViewer" type="success" @click="showQuickAddWizard = true">
               <el-icon><MagicStick /></el-icon>
               快速添加
             </el-button>
-            <el-button type="success" @click="handleImportClick">
+            <el-button v-if="!isViewer" type="success" @click="handleImportClick">
               <el-icon><Upload /></el-icon>
               {{ t('devices.import') }}
             </el-button>
-            <el-button type="info" @click="handleExport">
+            <el-button v-if="!isViewer" type="info" @click="handleExport">
               <el-icon><Download /></el-icon>
               {{ t('devices.export') }}
             </el-button>
@@ -653,7 +654,7 @@ onMounted(async () => {
             <span v-else class="muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="sn" :label="t('devices.serial')" min-width="140">
+        <el-table-column v-if="!isViewer" prop="sn" :label="t('devices.serial')" min-width="140">
           <template #default="{ row }">
             <code class="serial-number">{{ row.sn || '-' }}</code>
           </template>
@@ -663,10 +664,10 @@ onMounted(async () => {
             <span class="site-badge">{{ siteName(row.siteId) || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="location" :label="t('devices.location')" min-width="120">
+        <el-table-column v-if="!isViewer" prop="location" :label="t('devices.location')" min-width="120">
           <template #default="{ row }">{{ row.location || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="mgmtIpId" :label="t('devices.mgmtIp')" min-width="120">
+        <el-table-column v-if="!isViewer" prop="mgmtIpId" :label="t('devices.mgmtIp')" min-width="120">
           <template #default="{ row }">
             <code v-if="getIpAddress(row.mgmtIpId)" class="mgmt-ip">{{ getIpAddress(row.mgmtIpId) }}</code>
             <span v-else class="muted">-</span>
@@ -691,7 +692,7 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.actions')" width="140" fixed="right" align="center">
+        <el-table-column v-if="!isViewer" :label="t('common.actions')" width="140" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openEditDialog(row)">
               <el-icon><Edit /></el-icon>

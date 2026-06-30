@@ -2,11 +2,13 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../../store/auth'
+import { useBrandStore } from '../../store/brand'
 import { useRouter } from 'vue-router'
 import api from '../../api/axios'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const brandStore = useBrandStore()
 const router = useRouter()
 
 const username = ref('')
@@ -388,6 +390,7 @@ async function fetchLDAPConfig() {
 }
 
 onMounted(async () => {
+    await brandStore.loadBrand()
     refreshCaptcha()
     await authStore.fetchSSOConfig()
     ssoConfigLoaded.value = true
@@ -461,7 +464,7 @@ onUnmounted(() => {
                             </defs>
                         </svg>
                     </div>
-                    <span class="logo-text">基石&nbsp;&nbsp;Cornerstone</span>
+                    <span class="logo-text">{{ brandStore.brandNameZh }}&nbsp;&nbsp;{{ brandStore.brandNameEn }}</span>
                 </div>
                 
                 <!-- 动态角色 -->

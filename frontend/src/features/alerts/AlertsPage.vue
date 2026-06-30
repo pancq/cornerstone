@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '../../store'
+import { useAuthStore } from '../../store/auth'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox, ElDialog, ElButton, ElDatePicker, ElTabPane, ElTabs, ElBadge } from 'element-plus'
 import { Bell, Clock, Refresh, CircleClose, Warning, DataLine, Connection, DocumentChecked, View, InfoFilled, Calendar, Monitor, DocumentCopy, SetUp, BellFilled, WarningFilled } from '@element-plus/icons-vue'
@@ -11,6 +12,8 @@ import { getLocale } from '@/i18n'
 import { useI18n } from 'vue-i18n'
 
 const { locale, t } = useI18n()
+const authStore = useAuthStore()
+const isViewer = computed(() => authStore.isReadOnly())
 interface Alert {
   type: string
   title: string
@@ -602,6 +605,15 @@ function goToAISettings() {
     <div class="page-header">
       <div class="header-left">
         <p class="description">{{ t('alerts.description') }}</p>
+        <el-alert
+          v-if="isViewer"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-top: 12px;"
+        >
+          <span>您当前为IT负责人角色，仅展示合同到期、保修到期和专线故障相关预警</span>
+        </el-alert>
       </div>
       <div class="header-right">
         <el-button type="primary" @click="goToAISettings">
@@ -831,7 +843,7 @@ function goToAISettings() {
       </el-tab-pane>
 
       <!-- IP到期预警 -->
-      <el-tab-pane :label="t('alerts.ipExpiring')" name="ip-expire">
+      <el-tab-pane v-if="!isViewer" :label="t('alerts.ipExpiring')" name="ip-expire">
         <el-card class="table-card" shadow="never">
           <template #header>
             <div class="table-header">
@@ -1011,7 +1023,7 @@ function goToAISettings() {
       </el-tab-pane>
 
       <!-- 备份预警 -->
-      <el-tab-pane :label="t('alerts.backupAlerts')" name="backup">
+      <el-tab-pane v-if="!isViewer" :label="t('alerts.backupAlerts')" name="backup">
         <el-card class="table-card" shadow="never">
           <template #header>
             <div class="table-header">
@@ -1064,7 +1076,7 @@ function goToAISettings() {
       </el-tab-pane>
 
       <!-- 子网预警 -->
-      <el-tab-pane :label="t('alerts.subnetAlerts')" name="prefix">
+      <el-tab-pane v-if="!isViewer" :label="t('alerts.subnetAlerts')" name="prefix">
         <el-card class="table-card" shadow="never">
           <template #header>
             <div class="table-header">

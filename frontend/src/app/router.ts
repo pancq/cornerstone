@@ -112,6 +112,14 @@ router.beforeEach(async (to, _from) => {
   }
   
   return true
+}
+
+// 路由切换后更新浏览器标签页标题
+router.afterEach(async (to) => {
+  const { useBrandStore } = await import('../store/brand')
+  const brandStore = useBrandStore()
+  const titleKey = to.meta.titleKey as string
+  brandStore.updateDocumentTitle(titleKey || undefined)
 })
 
 export default router
