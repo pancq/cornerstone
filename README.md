@@ -177,7 +177,7 @@ docker compose down
 
 合同到期预警、带宽 / 费用、运行状态、变更历史、详情页。
 
-![专线管理](docs/images/ScreenShot_2026-06-30_165507_708.png)
+![专线管理](docs/images/ScreenShot_2026-06-30_165416_692.png)
 
 ### 4. IPAM
 子网展示、IP 分配 / 回收、使用率色块、冲突拦截、CSV 导入。
@@ -192,7 +192,7 @@ docker compose down
 
 基于 AntV G6 的交互式拓扑可视化，支持多种布局、导出图片/PDF：
 
-![网络拓扑](docs/images/ScreenShot_2026-06-30_165416_692.png)
+![网络拓扑](docs/images/ScreenShot_2026-06-30_165507_708.png)
 
 - **站点拓扑**：基于专线关系的全局站点视图
 - **设备拓扑**：基于 LLDP 数据的物理链路视图
