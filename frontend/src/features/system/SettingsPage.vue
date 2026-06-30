@@ -257,6 +257,35 @@ const handleLogoRemove = async () => {
 
     <div class="settings-section">
       <div class="section-header">
+        <el-icon class="section-icon"><Edit /></el-icon>
+        <h2 class="section-title">品牌设置</h2>
+        <p class="section-desc">以下设置控制系统本身的名称和标语，适用于二次部署或品牌定制场景</p>
+      </div>
+
+      <div class="brand-form" v-loading="brandFetchLoading">
+        <el-form :model="brandForm" label-width="140px" size="large">
+          <el-form-item label="系统中文名称" required>
+            <el-input v-model="brandForm.brand_name_zh" placeholder="如「基石」" />
+          </el-form-item>
+          <el-form-item label="系统英文名称" required>
+            <el-input v-model="brandForm.brand_name_en" placeholder="如「Cornerstone」" />
+          </el-form-item>
+          <el-form-item label="系统标语" required>
+            <el-input v-model="brandForm.brand_slogan" placeholder="如「看得见，管得住」" />
+          </el-form-item>
+          <el-form-item label="系统副标题" required>
+            <el-input v-model="brandForm.brand_subtitle" placeholder="如「IT基础设施资源管理平台」" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="saveBrandSettings" :loading="brandLoading">保存</el-button>
+            <el-button @click="resetBrandSettings" :loading="brandLoading">恢复默认</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="section-header">
         <el-icon class="section-icon"><OfficeBuilding /></el-icon>
         <h2 class="section-title">公司信息</h2>
         <p class="section-desc">公司信息将用于运营月报封面、邮件通知落款等场景，请确保信息准确</p>
@@ -281,35 +310,6 @@ const handleLogoRemove = async () => {
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="saveCompanyInfo" :loading="companyLoading">保存</el-button>
-          </el-form-item>
-        </el-form>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="section-header">
-        <el-icon class="section-icon"><Edit /></el-icon>
-        <h2 class="section-title">品牌设置</h2>
-        <p class="section-desc">以下设置控制系统本身的名称和标语，适用于二次部署或品牌定制场景</p>
-      </div>
-
-      <div class="brand-form" v-loading="brandFetchLoading">
-        <el-form :model="brandForm" label-width="140px" size="large">
-          <el-form-item label="系统中文名称" required>
-            <el-input v-model="brandForm.brand_name_zh" placeholder="如「基石」" />
-          </el-form-item>
-          <el-form-item label="系统英文名称" required>
-            <el-input v-model="brandForm.brand_name_en" placeholder="如「Cornerstone」" />
-          </el-form-item>
-          <el-form-item label="系统标语" required>
-            <el-input v-model="brandForm.brand_slogan" placeholder="如「看得见，管得住」" />
-          </el-form-item>
-          <el-form-item label="系统副标题" required>
-            <el-input v-model="brandForm.brand_subtitle" placeholder="如「IT基础设施资源管理平台」" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="saveBrandSettings" :loading="brandLoading">保存</el-button>
-            <el-button @click="resetBrandSettings" :loading="brandLoading">恢复默认</el-button>
           </el-form-item>
         </el-form>
       </div>
