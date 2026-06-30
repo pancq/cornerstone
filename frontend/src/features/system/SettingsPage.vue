@@ -255,6 +255,10 @@ const handleLogoRemove = async () => {
       </div>
     </div>
 
+    <div style="background: red; color: white; padding: 20px; font-size: 30px; font-weight: bold; text-align: center;">
+      测试123 - 如果能看到这段说明文件已更新！
+    </div>
+
     <div class="settings-section">
       <div class="section-header">
         <el-icon class="section-icon"><Edit /></el-icon>
