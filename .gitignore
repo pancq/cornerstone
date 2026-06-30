@@ -33,6 +33,8 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+.superpowers/
+.trae/
 *.swp
 *.swo
 
