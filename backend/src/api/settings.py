@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from ..database import get_db
 from ..models.setting import Setting
-from ..schemas.setting import SettingResponse, NotificationSettingsRequest, NotificationSettingsResponse, CompanyInfoRequest
+from ..schemas.setting import SettingResponse, NotificationSettingsRequest, NotificationSettingsResponse
 from ..models.audit_log import AuditLog
 from ..config import settings as app_config
 from ..services.alert_service import AlertService
