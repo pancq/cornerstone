@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from passlib.context import CryptContext
 import sqlalchemy.orm
 from src.database import sync_engine, Base
-from src.models import Aggregate, AuditLog, Backup, Circuit, Device, IPAddress, Prefix, Site, User, Vlan, VlanGroup
+from src.models import Aggregate, AuditLog, Backup, Circuit, Device, IPAddress, Prefix, Site, User, Vlan, VlanGroup, Role, Permission, RolePermission
 from src.models.device_link import DeviceLink
 from src.models.alert import AlertRule  # 确保关联模型被加载
 
@@ -217,6 +217,149 @@ def seed_demo_data(session: sqlalchemy.orm.Session):
     session.add_all(audit_logs)
 
 
+def _seed_permissions_and_roles(session):
+    """初始化默认权限和角色（与 permission_service.py 数据一致）"""
+
+    # 权限定义
+    permissions_data = [
+        # 站点管理
+        {"module": "sites", "action": "read", "display_name": "站点管理-查看", "description": "查看站点列表和详情"},
+        {"module": "sites", "action": "write", "display_name": "站点管理-新增编辑", "description": "新增和编辑站点"},
+        {"module": "sites", "action": "delete", "display_name": "站点管理-删除", "description": "删除站点"},
+        {"module": "sites", "action": "export", "display_name": "站点管理-导出", "description": "导出站点数据"},
+        # 专线管理
+        {"module": "circuits", "action": "read", "display_name": "专线管理-查看", "description": "查看专线列表和详情"},
+        {"module": "circuits", "action": "write", "display_name": "专线管理-新增编辑", "description": "新增和编辑专线"},
+        {"module": "circuits", "action": "delete", "display_name": "专线管理-删除", "description": "删除专线"},
+        {"module": "circuits", "action": "export", "display_name": "专线管理-导出", "description": "导出专线数据"},
+        # IPAM
+        {"module": "ipam", "action": "read", "display_name": "IP管理-查看", "description": "查看IP地址列表"},
+        {"module": "ipam", "action": "write", "display_name": "IP管理-新增编辑", "description": "新增和编辑IP地址"},
+        {"module": "ipam", "action": "delete", "display_name": "IP管理-删除", "description": "删除IP地址"},
+        {"module": "ipam", "action": "export", "display_name": "IP管理-导出", "description": "导出IP地址数据"},
+        {"module": "ipam", "action": "scan_exec", "display_name": "IP管理-扫描", "description": "触发IP扫描"},
+        # 设备台账
+        {"module": "devices", "action": "read", "display_name": "设备管理-查看", "description": "查看设备列表和详情"},
+        {"module": "devices", "action": "write", "display_name": "设备管理-新增编辑", "description": "新增和编辑设备"},
+        {"module": "devices", "action": "delete", "display_name": "设备管理-删除", "description": "删除设备"},
+        {"module": "devices", "action": "export", "display_name": "设备管理-导出", "description": "导出设备数据"},
+        # 配置备份
+        {"module": "backups", "action": "read", "display_name": "备份管理-查看", "description": "查看备份列表和详情"},
+        {"module": "backups", "action": "write", "display_name": "备份管理-新增编辑", "description": "新增和编辑备份任务"},
+        {"module": "backups", "action": "delete", "display_name": "备份管理-删除", "description": "删除备份记录"},
+        {"module": "backups", "action": "export", "display_name": "备份管理-导出", "description": "导出备份数据"},
+        {"module": "backups", "action": "backup_exec", "display_name": "备份管理-执行", "description": "触发备份任务"},
+        # 网络拓扑
+        {"module": "topology", "action": "read", "display_name": "拓扑管理-查看", "description": "查看网络拓扑"},
+        {"module": "topology", "action": "write", "display_name": "拓扑管理-编辑", "description": "编辑拓扑布局"},
+        {"module": "topology", "action": "delete", "display_name": "拓扑管理-删除", "description": "删除拓扑数据"},
+        # 预警中心
+        {"module": "alerts", "action": "read", "display_name": "预警管理-查看", "description": "查看预警信息"},
+        # 系统管理
+        {"module": "system", "action": "read", "display_name": "系统管理-查看", "description": "查看系统设置"},
+        {"module": "system", "action": "write", "display_name": "系统管理-编辑", "description": "编辑系统设置"},
+        {"module": "system", "action": "delete", "display_name": "系统管理-删除", "description": "删除系统数据"},
+        # 操作日志
+        {"module": "logs", "action": "read", "display_name": "日志管理-查看", "description": "查看操作日志"},
+        # 首页仪表盘
+        {"module": "dashboard", "action": "read", "display_name": "仪表盘-查看", "description": "查看仪表盘数据"},
+        # 用户管理
+        {"module": "users", "action": "read", "display_name": "用户管理-查看", "description": "查看用户列表"},
+        {"module": "users", "action": "write", "display_name": "用户管理-新增编辑", "description": "新增和编辑用户"},
+        {"module": "users", "action": "delete", "display_name": "用户管理-删除", "description": "删除用户"},
+    ]
+
+    # 创建权限
+    perm_map = {}
+    for pd in permissions_data:
+        existing = session.query(Permission).filter(
+            Permission.module == pd["module"],
+            Permission.action == pd["action"]
+        ).first()
+        if not existing:
+            p = Permission(**pd)
+            session.add(p)
+            session.flush()
+            perm_map[f"{pd['module']}:{pd['action']}"] = p.id
+        else:
+            perm_map[f"{pd['module']}:{pd['action']}"] = existing.id
+
+    # 角色定义
+    roles_data = [
+        {
+            "name": "super_admin",
+            "display_name": "超级管理员",
+            "description": "所有权限，包括用户管理、系统设置，唯一可以管理其他用户角色的账号",
+            "is_builtin": True,
+            "permissions": ["all"]
+        },
+        {
+            "name": "engineer",
+            "display_name": "IT运维工程师",
+            "description": "所有业务模块读写权限，不可操作用户管理和系统设置",
+            "is_builtin": True,
+            "permissions": [
+                "sites:read", "sites:write", "sites:delete", "sites:export",
+                "circuits:read", "circuits:write", "circuits:delete", "circuits:export",
+                "ipam:read", "ipam:write", "ipam:delete", "ipam:export", "ipam:scan_exec",
+                "devices:read", "devices:write", "devices:delete", "devices:export",
+                "backups:read", "backups:write", "backups:delete", "backups:export", "backups:backup_exec",
+                "topology:read", "topology:write", "topology:delete",
+                "alerts:read",
+                "logs:read"
+            ]
+        },
+        {
+            "name": "viewer",
+            "display_name": "IT负责人",
+            "description": "管理看板、审批操作、月报下载",
+            "is_builtin": True,
+            "permissions": [
+                "dashboard:read",
+                "circuits:read",
+                "alerts:read",
+                "logs:read"
+            ]
+        }
+    ]
+
+    for rd in roles_data:
+        role = session.query(Role).filter(Role.name == rd["name"]).first()
+        if not role:
+            role = Role(
+                name=rd["name"],
+                display_name=rd["display_name"],
+                description=rd["description"],
+                is_builtin=rd["is_builtin"]
+            )
+            session.add(role)
+            session.flush()
+
+        # 分配权限（super_admin 分配所有权限）
+        if rd["permissions"] == ["all"]:
+            for perm_key, perm_id in perm_map.items():
+                existing_rp = session.query(RolePermission).filter(
+                    RolePermission.role_id == role.id,
+                    RolePermission.permission_id == perm_id
+                ).first()
+                if not existing_rp:
+                    rp = RolePermission(role_id=role.id, permission_id=perm_id)
+                    session.add(rp)
+        else:
+            for perm_key in rd["permissions"]:
+                if perm_key in perm_map:
+                    existing_rp = session.query(RolePermission).filter(
+                        RolePermission.role_id == role.id,
+                        RolePermission.permission_id == perm_map[perm_key]
+                    ).first()
+                    if not existing_rp:
+                        rp = RolePermission(role_id=role.id, permission_id=perm_map[perm_key])
+                        session.add(rp)
+
+    session.flush()
+    print("默认权限和角色初始化成功！")
+
+
 def init_db():
     """初始化数据库"""
     print("创建数据库表...")
@@ -231,23 +374,32 @@ def init_db():
     hashed_password = pwd_context.hash(initial_admin_password)
 
     with sqlalchemy.orm.Session(sync_engine) as session:
+        # 初始化默认权限和角色
+        _seed_permissions_and_roles(session)
+
         existing_admin = session.query(User).filter(User.username == "admin").first()
         if not existing_admin:
+            # 查找 super_admin 角色
+            admin_role = session.query(Role).filter(Role.name == "super_admin").first()
             admin_user = User(
                 username="admin",
                 email="admin@example.com",
                 hashed_password=hashed_password,
                 display_name="管理员",
+                role_id=admin_role.id if admin_role else None,
                 is_active=True,
                 is_superuser=True,
             )
             session.add(admin_user)
 
+            # 查找 engineer 角色
+            eng_role = session.query(Role).filter(Role.name == "engineer").first()
             test_user = User(
                 username="user",
                 email="user@example.com",
                 hashed_password=pwd_context.hash("user123"),
                 display_name="测试用户",
+                role_id=eng_role.id if eng_role else None,
                 is_active=True,
                 is_superuser=False,
             )
@@ -256,6 +408,21 @@ def init_db():
             print("默认用户创建成功！")
         else:
             print("管理员用户已存在，跳过创建。")
+
+            # 对现有 admin 用户补全 role_id（如果为空）
+            if existing_admin.role_id is None:
+                admin_role = session.query(Role).filter(Role.name == "super_admin").first()
+                if admin_role:
+                    existing_admin.role_id = admin_role.id
+                    print(f"已补全 admin 用户 role_id = {admin_role.id}")
+
+            # 对现有 user 用户补全 role_id（如果为空）
+            existing_user = session.query(User).filter(User.username == "user").first()
+            if existing_user and existing_user.role_id is None:
+                eng_role = session.query(Role).filter(Role.name == "engineer").first()
+                if eng_role:
+                    existing_user.role_id = eng_role.id
+                    print(f"已补全 user 用户 role_id = {eng_role.id}")
 
         # 写入演示数据（空库或首次运行）
         seed_demo_data(session)
