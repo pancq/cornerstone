@@ -253,10 +253,16 @@ const handleLogoRemove = async () => {
           <p class="upload-hint">{{ t('settings.uploadHint') }}</p>
         </div>
       </div>
-    </div>
 
-    <div style="background: red; color: white; padding: 20px; font-size: 30px; font-weight: bold; text-align: center;">
-      测试123 - 如果能看到这段说明文件已更新！
+      <div class="logo-tips">
+        <h3 class="tips-title">{{ t('settings.operationTips') }}</h3>
+        <ul class="tips-list">
+          <li>{{ t('settings.tip1') }}</li>
+          <li>{{ t('settings.tip2') }}</li>
+          <li>{{ t('settings.tip3') }}</li>
+          <li>{{ t('settings.tip4') }}</li>
+        </ul>
+      </div>
     </div>
 
     <div class="settings-section">
@@ -317,18 +323,6 @@ const handleLogoRemove = async () => {
           </el-form-item>
         </el-form>
       </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="section-header">
-        <h2 class="section-title">{{ t('settings.operationTips') }}</h2>
-      </div>
-      <ul class="tips-list">
-        <li>{{ t('settings.tip1') }}</li>
-        <li>{{ t('settings.tip2') }}</li>
-        <li>{{ t('settings.tip3') }}</li>
-        <li>{{ t('settings.tip4') }}</li>
-      </ul>
     </div>
   </div>
 </template>
@@ -454,6 +448,19 @@ const handleLogoRemove = async () => {
   margin-top: 12px;
   font-size: 12px;
   color: #bfbfbf;
+}
+
+.logo-tips {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.tips-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #595959;
+  margin-bottom: 12px;
 }
 
 .tips-list {
