@@ -112,7 +112,7 @@ router.beforeEach(async (to, _from) => {
   }
   
   return true
-}
+})
 
 // 路由切换后更新浏览器标签页标题
 router.afterEach(async (to) => {
