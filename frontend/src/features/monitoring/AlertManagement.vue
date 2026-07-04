@@ -272,7 +272,7 @@
 <script setup lang="ts">
   import { ref, onMounted } from 'vue'
   import { useI18n } from 'vue-i18n'
-  const { locale } = useI18n()
+  const { locale, t } = useI18n()
   import { 
   Plus, Edit, Delete, VideoPlay, Setting, Bell, InfoFilled, 
   Warning, WarningFilled, Check 

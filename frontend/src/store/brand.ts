@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from '@/api/axios'
 
 export const useBrandStore = defineStore('brand', () => {
   const brandNameZh = ref('基石')

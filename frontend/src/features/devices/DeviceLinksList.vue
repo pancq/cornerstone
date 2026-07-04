@@ -192,7 +192,7 @@ const form = ref<DeviceLinkCreate & { source_type?: string; target_type?: string
 const rules: FormRules = {
   source_device_id: [
     { 
-      validator: (rule, value, callback) => {
+      validator: (_rule, value, callback) => {
         if (form.value.source_type === 'device' && !value) {
           callback(new Error('请选择源设备'))
         } else {
@@ -204,7 +204,7 @@ const rules: FormRules = {
   ],
   source_circuit_id: [
     { 
-      validator: (rule, value, callback) => {
+      validator: (_rule, value, callback) => {
         if (form.value.source_type === 'circuit' && !value) {
           callback(new Error('请选择源专线'))
         } else {
@@ -216,7 +216,7 @@ const rules: FormRules = {
   ],
   target_device_id: [
     { 
-      validator: (rule, value, callback) => {
+      validator: (_rule, value, callback) => {
         if (form.value.target_type === 'device' && !value) {
           callback(new Error('请选择目标设备'))
         } else {
@@ -228,7 +228,7 @@ const rules: FormRules = {
   ],
   target_circuit_id: [
     { 
-      validator: (rule, value, callback) => {
+      validator: (_rule, value, callback) => {
         if (form.value.target_type === 'circuit' && !value) {
           callback(new Error('请选择目标专线'))
         } else {

@@ -49,7 +49,9 @@ if (typeof window !== 'undefined') {
 }
 
 // 注册 Element Plus 图标
-app.use(ElementPlusIconsVue)
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component)
+}
 
 // 启动应用
 async function bootstrap() {

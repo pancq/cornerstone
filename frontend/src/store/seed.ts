@@ -144,6 +144,7 @@ export const seedState: AppState = {
       deviceId: 1,
       version: 1,
       createdAt: '2026-05-20 02:00:12',
+      created_at: '2026-05-20 02:00:12',
       trigger: '自动定时',
       operator: 'system',
       status: '成功',
@@ -157,6 +158,7 @@ export const seedState: AppState = {
       deviceId: 1,
       version: 2,
       createdAt: '2026-05-21 02:00:14',
+      created_at: '2026-05-21 02:00:14',
       trigger: '自动定时',
       operator: 'system',
       status: '成功',
@@ -167,9 +169,9 @@ export const seedState: AppState = {
     },
   ],
   users: [
-    { id: 'user-001', username: 'admin', email: 'admin@example.com', role: '超级管理员', isActive: true },
-    { id: 'user-002', username: 'ops', email: 'ops@example.com', role: 'IT运维工程师', isActive: true },
-    { id: 'user-003', username: 'viewer', email: 'viewer@example.com', role: 'IT负责人', isActive: true },
+    { id: 'user-001', username: 'admin', email: 'admin@example.com', role: 'super_admin', role_display_name: '超级管理员', isActive: true, is_superuser: true, permissions: [], display_name: 'admin', is_sso_user: false },
+    { id: 'user-002', username: 'ops', email: 'ops@example.com', role: 'engineer', role_display_name: 'IT运维工程师', isActive: true, is_superuser: false, permissions: [], display_name: 'ops', is_sso_user: false },
+    { id: 'user-003', username: 'viewer', email: 'viewer@example.com', role: 'viewer', role_display_name: 'IT负责人', isActive: true, is_superuser: false, permissions: [], display_name: 'viewer', is_sso_user: false },
   ],
   auditLogs: [
     { id: 'log-001', user: 'ops', action: '更新专线状态', resource: '演示实验室SD-WAN备份', detail: '状态由 正常 改为 故障', createdAt: '2026-05-21 09:06', ipAddress: '192.0.2.200', success: 'true' },

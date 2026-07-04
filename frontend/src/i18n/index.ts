@@ -9,29 +9,6 @@ export const SUPPORTED_LOCALES: { value: LocaleType; label: string }[] = [
   { value: 'en-US', label: 'English' }
 ]
 
-// 检测浏览器语言（默认中文）
-function detectBrowserLocale(): LocaleType {
-  const browserLang = navigator.language || 'zh-CN'
-  
-  // 如果明确是中文环境，返回中文
-  if (browserLang === 'zh-CN' || browserLang === 'zh' || browserLang.startsWith('zh-')) {
-    return 'zh-CN'
-  }
-  
-  // 对于其他语言环境，默认也返回中文（强制默认中文）
-  // 如果用户需要英文，可以通过语言切换器手动切换
-  return 'zh-CN'
-}
-
-// 获取存储的语言设置
-function getStoredLocale(): LocaleType | null {
-  const stored = localStorage.getItem('locale')
-  if (stored === 'zh-CN' || stored === 'en-US') {
-    return stored
-  }
-  return null
-}
-
 // 创建 i18n 实例
 export const i18n = createI18n({
   legacy: false, // 使用 Composition API 模式

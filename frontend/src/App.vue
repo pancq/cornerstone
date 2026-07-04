@@ -12,12 +12,10 @@ import {
   DataBoard, 
   Location, 
   Connection, 
-  Monitor, 
   Bell, 
   Setting, 
   Files, 
   SwitchButton, 
-  Tools, 
   Minus, 
   Plus,
   User,
@@ -30,7 +28,6 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const brandStore = useBrandStore()
-const searchQuery = ref('')
 const companyLogo = ref<string>(localStorage.getItem('companyLogo') || '')
 const isLogoLoading = ref(!companyLogo.value)
 const ipamMenuOpen = ref(false)
@@ -118,39 +115,6 @@ const pageTitle = computed(() => {
   }
   
   return ''
-})
-
-const pageEyebrow = computed(() => {
-  const eyebrows: Record<string, string> = {
-    '/': t('menuGroups.overview'),
-    '/circuits': t('menuGroups.resourceManagement'),
-    '/ipam': t('menuGroups.resourceManagement'),
-    '/devices': t('menuGroups.resourceManagement'),
-    '/backups': t('menuGroups.operationsCenter'),
-    '/backups/credentials': t('menuGroups.operationsCenter'),
-    '/backups/tasks': t('menuGroups.operationsCenter'),
-    '/alerts': t('menuGroups.operationsCenter'),
-    '/monitor': t('menuGroups.operationsCenter'),
-    '/topology': t('menuGroups.operationsCenter'),
-    '/inspection': t('menuGroups.operationsCenter'),
-    '/sites': t('menuGroups.resourceManagement'),
-    '/system': t('menuGroups.systemManagement'),
-    '/system/logs': t('menuGroups.systemManagement'),
-    '/system/settings': t('menuGroups.systemManagement'),
-    '/system/ai-settings': t('menuGroups.systemManagement'),
-    '/profile': t('menuGroups.systemManagement'),
-  }
-  
-  const matched = route.matched[route.matched.length - 1]
-  if (matched && matched.meta.eyebrow) {
-    return matched.meta.eyebrow as string
-  }
-  
-  return eyebrows[route.path] || ''
-})
-
-const showTopSearch = computed(() => {
-  return route.path === '/'
 })
 
 const isLoginPage = computed(() => {

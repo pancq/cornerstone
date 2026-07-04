@@ -2,7 +2,7 @@
 import { useAuthStore } from '../../store/auth';
 import { useAppStore } from '../../store';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { User, Plus, Edit, Delete, Lock, Key, Refresh, InfoFilled, CopyDocument, More } from '@element-plus/icons-vue';
+import { User, Plus, Edit, Delete, Lock, Key, Refresh, CopyDocument } from '@element-plus/icons-vue';
 import api from '../../api/axios';
 import { useI18n } from 'vue-i18n';
 
@@ -35,7 +35,7 @@ const users = ref<UserItem[]>([]);
 const roles = ref<RoleItem[]>([]);
 const loading = ref(false);
 // 权限配置矩阵（computed 保证语言切换时实时更新）
-const rolePermissions = computed(() => ({
+const rolePermissions = computed((): Record<string, { name: string; description: string; permissions: string[]; color: string }> => ({
  super_admin: {
    name: t('system.roles.superAdmin'),
    description: t('system.roles.superAdminDesc'),
@@ -119,11 +119,26 @@ const editForm = reactive({
  role_id: null as number | null,
  is_active: true
 });
+const addRoleForm = reactive({
+ name: '',
+ display_name: '',
+ description: '',
+ permissions: [] as string[]
+});
+const editRoleForm = reactive({
+ id: 0,
+ name: '',
+ display_name: '',
+ description: '',
+ permissions: [] as string[]
+});
 // 弹窗状态
 const showAddModal = ref(false);
 const showEditModal = ref(false);
 const showResetPwdModal = ref(false);
 const showSessionsModal = ref(false);
+const showAddRoleModal = ref(false);
+const showEditRoleModal = ref(false);
 const selectedUser = ref<UserItem | null>(null);
 const selectedUserId = ref<number>(0);
 const selectedUsers = ref<UserItem[]>([]);
@@ -293,46 +308,6 @@ async function handleEditUser() {
  ElMessage.error(errorMsg);
  }
 }
-async function handleDeleteUser(userId: number) {
- const userToDelete = users.value.find(u => u.id === userId);
- try {
- await ElMessageBox.confirm(t('system.confirmDeleteUser'), t('system.confirmDelete'), {
- confirmButtonText: t('common.delete'),
- cancelButtonText: t('common.cancel'),
- type: 'warning'
- });
- const response = await fetch(`/api/v1/users/${userId}`, {
- method: 'DELETE',
- headers: {
- Authorization: `Bearer ${authStore.token}`
- }
- });
- if (response.ok) {
- // 添加审计日志
- appStore.addAuditLog({
- user: authStore.user?.username || 'system',
- action: t('system.action.deleteUser'),
- resource: t('system.userManagement'),
- detail: `${t('system.action.deleteUser')}: ${userToDelete?.username || userId}`,
- ipAddress: null,
- createdAt: new Date().toISOString(),
- success: 'true'
- });
- await loadUsers();
- ElMessage.success(t('system.userDeleted'));
- }
- else {
- const error = await response.json();
- ElMessage.error(`${t('system.deleteFailed')}: ${error.detail || t('system.unknownError')}`);
- }
- }
- catch (error) {
- if (error !== 'cancel') {
- console.error('Delete user failed:', error);
- ElMessage.error(t('system.deleteFailed'));
- }
- }
-}
 async function handleToggleActive(user: UserItem) {
  try {
  const response = await fetch(`/api/v1/users/${user.id}/toggle-active`, {
@@ -432,6 +407,7 @@ interface SessionItem {
   created_at: string;
   expires_at: string;
   is_revoked: boolean;
+  is_current: boolean;
 }
 const sessions = ref<SessionItem[]>([]);
 async function openSessionsModal(user: UserItem) {
@@ -484,6 +460,40 @@ function getRoleType(roleName: string): string {
  viewer: 'info'
  };
  return types[roleName] || 'info';
+}
+async function handleAddRole() {
+ if (!addRoleForm.name.trim()) {
+ ElMessage.warning(t('system.enterRoleIdentifier'));
+ return;
+ }
+ try {
+ await api.post('/api/v1/roles/', addRoleForm);
+ ElMessage.success(t('system.roleCreated'));
+ showAddRoleModal.value = false;
+ addRoleForm.name = '';
+ addRoleForm.display_name = '';
+ addRoleForm.description = '';
+ addRoleForm.permissions = [];
+ await loadRoles();
+ } catch (error: any) {
+ console.error('Add role failed:', error);
+ ElMessage.error(error.response?.data?.detail || t('system.createFailed'));
+ }
+}
+async function handleEditRole() {
+ try {
+ await api.put(`/api/v1/roles/${editRoleForm.id}`, {
+ display_name: editRoleForm.display_name,
+ description: editRoleForm.description,
+ permissions: editRoleForm.permissions
+ });
+ ElMessage.success(t('system.roleUpdated'));
+ showEditRoleModal.value = false;
+ await loadRoles();
+ } catch (error: any) {
+ console.error('Edit role failed:', error);
+ ElMessage.error(error.response?.data?.detail || t('system.updateFailed'));
+ }
 }
 
 // 获取角色显示名称（支持国际化）

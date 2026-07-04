@@ -13,11 +13,7 @@ import {
   type CircuitCostTrend,
   type DeviceLifecycle,
   type MonthlyIncidents,
-  type RiskItem,
-  type Incident,
-  type AgeDistribution,
-  type OldDevice,
-  type ExpiringItem
+  type RiskItem
 } from '@/api/dashboard'
 import {
   listMonthlyReports,
@@ -31,14 +27,10 @@ import {
   Money,
   Clock,
   CircleCheck,
-  CircleClose,
   ArrowUp,
   ArrowDown,
   Document,
-  Download,
-  Check,
-  Close,
-  ArrowRight
+  Download
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
@@ -73,32 +65,7 @@ function getTrendColor(trend: string | null): string {
   return trend === 'up' ? '#67C23A' : trend === 'down' ? '#F56C6C' : '#909399'
 }
 
-function getSeverityColor(severity: string): string {
-  switch (severity) {
-    case 'high': return '#F56C6C'
-    case 'medium': return '#E6A23C'
-    case 'low': return '#67C23A'
-    default: return '#909399'
-  }
-}
 
-function getSeverityIcon(severity: string): string {
-  switch (severity) {
-    case 'high': return '🔴'
-    case 'medium': return '🟡'
-    case 'low': return '🟢'
-    default: return '⚪'
-  }
-}
-
-function getSeverityLabel(severity: string): string {
-  switch (severity) {
-    case 'high': return '高风险'
-    case 'medium': return '中风险'
-    case 'low': return '低风险'
-    default: return severity
-  }
-}
 
 function getSeverityBorderColor(severity: string): string {
   switch (severity) {
@@ -140,15 +107,17 @@ function initCostChart() {
     { name: 'SD-WAN', key: 'SD-WAN' }
   ]
 
+  const byType = costTrendData.value?.by_type as Record<string, number[]> | undefined
   typeList.forEach(({ name, key }) => {
-    const typeData = costTrendData.value.by_type[key]
+    const typeData = byType?.[key]
     if (typeData) {
       series.push({
         name,
         type: 'line',
         data: typeData,
         smooth: true,
-        lineStyle: { width: 2 }
+        lineStyle: { width: 2 },
+        itemStyle: { color: '#909399' }
       })
     }
   })
@@ -316,7 +285,6 @@ async function loadData() {
 }
 
 const reports = ref<ReportItem[]>([])
-const reportsLoading = ref(false)
 const generatingReport = ref(false)
 
 async function fetchReports() {
@@ -365,10 +333,7 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
+
 
 function getSeverityRisks(severity: string): RiskItem[] {
   if (!risksData.value) return []

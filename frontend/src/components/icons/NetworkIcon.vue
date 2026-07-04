@@ -57,14 +57,14 @@ const wrapStyle = computed(() => {
     borderRadius: '10px',
     background: isOffline ? 'rgba(144,147,153,0.10)' : config.value.bgColor,
     border: `1px solid ${isOffline ? 'rgba(144,147,153,0.25)' : config.value.borderColor}`,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    display: 'inline-flex' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    position: 'relative' as const,
     flexShrink: '0',
     opacity: isOffline ? '0.5' : '1',
     filter: isOffline ? 'grayscale(0.8)' : 'none',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     gap: '0',
   }
 })
@@ -85,7 +85,7 @@ const STATUS_DOT_COLOR: Record<string, string> = {
 }
 
 const dotStyle = computed(() => ({
-  position: 'absolute',
+  position: 'absolute' as const,
   top: '-3px',
   right: '-3px',
   width: '9px',
@@ -97,14 +97,14 @@ const dotStyle = computed(() => ({
 
 // 标签样式
 const labelStyle = computed(() => ({
-  display: 'block',
-  textAlign: 'center',
+  display: 'block' as const,
+  textAlign: 'center' as const,
   fontSize: '11px',
   color: '#909399',
   marginTop: '6px',
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap' as const,
+  overflow: 'hidden' as const,
+  textOverflow: 'ellipsis' as const,
   maxWidth: '80px',
 }))
 </script>

@@ -12,7 +12,6 @@ import {
   type CircuitIncidentCreate,
   type CircuitIncidentLog,
   type CircuitIncidentStats,
-  type CircuitIncidentResolve
 } from '@/api/circuit_incidents'
 
 const route = useRoute()
@@ -63,11 +62,6 @@ const severityLabels: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   open: '处理中',
   resolved: '已解决'
-}
-
-const statusColors: Record<string, string> = {
-  open: '#F56C6C',
-  resolved: '#67C23A'
 }
 
 function formatDuration(minutes: number | null): string {

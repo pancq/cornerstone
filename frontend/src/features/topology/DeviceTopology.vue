@@ -291,7 +291,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { Search, Refresh, Grid, ZoomIn, ZoomOut, FullScreen, Close, Download, PictureFilled, Picture, Document } from '@element-plus/icons-vue'
-import { getDeviceGraph, getSiteDevices, updateCircuitConnection, type DeviceNode, type DeviceEdge, type SiteDeviceOption } from '../../api/topology'
+import { getDeviceGraph, getSiteDevices, type DeviceNode, type DeviceEdge, type SiteDeviceOption } from '../../api/topology'
 import { getSites as getSitesApi, type SiteResponse } from '../../api/sites'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -363,7 +363,6 @@ const searchKeyword = ref('')
 const siteDevices = ref<SiteDeviceOption[]>([])
 // 专线连接选择的设备ID
 const selectedConnectionDeviceId = ref<number | null>(null)
-const connectionLoading = ref(false)
 
 const isDragging = ref(false)
 const draggingNodeId = ref<string | null>(null)
@@ -436,22 +435,6 @@ const isInternetNode = computed(() => {
          nodeId.startsWith('internet_') || nodeId.startsWith('isp_') || nodeId.startsWith('sdwan_')
 })
 
-// 获取当前选中互联网出口对应的电路ID
-const currentCircuitId = computed(() => {
-  if (!selectedNode.value?.circuit_id) return null
-  return selectedNode.value.circuit_id
-})
-
-// 获取当前连接的设备名称
-const connectedDeviceName = computed(() => {
-  if (!selectedNode.value) return null
-  const edge = deviceEdges.value.find(e => e.source === selectedNode.value?.id || e.target === selectedNode.value?.id)
-  if (!edge) return null
-  const connectedNodeId = edge.source === selectedNode.value?.id ? edge.target : edge.source
-  const connectedNode = deviceNodes.value.find(n => n.id === connectedNodeId)
-  return connectedNode?.name || null
-})
-
 // 获取所有对端连接设备和端口信息
 const connectedDevices = computed(() => {
   if (!selectedNode.value) return []
@@ -503,12 +486,6 @@ function handleSearch() {}
 
 function getNodePosition(nodeId: string): { x: number; y: number } {
   return nodePositions.value[nodeId] || { x: 0, y: 0 }
-}
-
-function getDeviceColor(node: DeviceNode): string {
-  const iconType = inferIconType(node.type, node.vendor, node.name)
-  const config = DEVICE_TYPE_CONFIG[iconType] || DEVICE_TYPE_CONFIG.unknown
-  return config.color
 }
 
 function getNodeStyle(node: DeviceNode) {
@@ -620,7 +597,6 @@ function initializePositions() {
   activeRanks.forEach((rankKey, layerIndex) => {
     const group = layers[rankKey]
     const groupY = startY + layerIndex * layerSpacing
-    const groupWidth = group.length * 220
     const centerX = canvasWidth.value / 2 / scale.value
     
     group.forEach((node, index) => {
@@ -802,24 +778,6 @@ async function loadSiteDevicesForConnection(siteId: number | null) {
   }
 }
 
-// 更新专线连接
-async function handleConnectionChange() {
-  if (!currentCircuitId.value) return
-  
-  connectionLoading.value = true
-  try {
-    await updateCircuitConnection(currentCircuitId.value, selectedConnectionDeviceId.value)
-    ElMessage.success('连接已更新')
-    // 重新加载拓扑数据
-    await loadDeviceData()
-  } catch (error) {
-    console.error('Failed to update connection:', error)
-    ElMessage.error('更新连接失败')
-  } finally {
-    connectionLoading.value = false
-  }
-}
-
 function onNodeHover(node: DeviceNode, event: MouseEvent) {
   hoveredNode.value = node
   const canvasRect = canvasWrapper.value?.getBoundingClientRect()
@@ -839,10 +797,6 @@ function onNodeLeave() {
 
 function closeDetailPanel() {
   selectedNodeId.value = null
-}
-
-function viewDeviceDetail() {
-  console.log('View device detail:', selectedNode.value)
 }
 
 async function loadSiteData() {

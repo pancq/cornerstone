@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Bell, Message, Postcard, Promotion } from '@element-plus/icons-vue'
+import { Bell, Message, Postcard } from '@element-plus/icons-vue'
 import { getNotificationSettings, updateNotificationSettings, testNotification } from '../../api/settings'
 import type { NotificationSettings } from '../../api/settings'
 

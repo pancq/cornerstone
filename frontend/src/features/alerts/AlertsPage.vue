@@ -1117,7 +1117,7 @@ function goToAISettings() {
               </template>
             </el-table-column>
             <el-table-column :label="t('common.actions')" min-width="100" align="center">
-              <template #default="{ row }">
+              <template #default>
                 <el-button type="primary" link size="small" @click="router.push('/ipam?tab=prefixes')">
                   <el-icon><View /></el-icon>
                   {{ t('alerts.manageSubnet') }}

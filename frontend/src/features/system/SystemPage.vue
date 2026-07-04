@@ -2,7 +2,10 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth'
+import { useI18n } from 'vue-i18n'
 import { Setting, User, Connection, Bell } from '@element-plus/icons-vue'
+
+const { t } = useI18n()
 import UserManagement from './UserManagement.vue'
 import SSOSettings from './SSOSettings.vue'
 import NotificationSettings from './NotificationSettings.vue'

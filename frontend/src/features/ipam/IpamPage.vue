@@ -915,7 +915,7 @@ const handleDeleteIP = async (ip: IPAddress) => {
                 v-model="ipForm.prefixId" 
                 style="width: 100%" 
                 placeholder="请选择子网"
-                @change="(val) => val && loadPrefixInfo(Number(val))"
+                @change="(val: number | string) => val && loadPrefixInfo(Number(val))"
               >
                 <el-option v-for="prefix in prefixes" :key="prefix.id" :label="prefix.network" :value="prefix.id" />
               </el-select>

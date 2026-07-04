@@ -174,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Search, Clock, Loading, WarningFilled, MagicStick } from '@element-plus/icons-vue'

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useAppStore } from '../../store'
+import { ArrowLeft, Connection, Location, Document, Operation, Edit, Upload } from '@element-plus/icons-vue'
+import CircuitIncidentsTab from './CircuitIncidentsTab.vue'
+import CircuitChanges from './CircuitChanges.vue'
 
 const route = useRoute()
 const router = useRouter()
+const store = useAppStore()
 
 const activeTab = ref('basic')
 
-const tabs = [
-  { name: 'basic', label: '基础信息' },
-  { name: 'incidents', label: '故障记录' },
-  { name: 'changes', label: '变更记录' }
-]
-
 const circuitId = computed(() => route.params.id as string)
+const circuit = computed(() => store.circuits.find(c => c.id === circuitId.value))
 
 function goBack() {
   router.push('/circuits')
@@ -43,28 +43,28 @@ function goToChanges() {
             </template>
             <el-descriptions :column="2" border>
               <el-descriptions-item label="专线名称">
-                <strong>{{ $store.circuits.find(c => c.id === circuitId)?.name || '-' }}</strong>
+                <strong>{{ circuit?.name || '-' }}</strong>
               </el-descriptions-item>
               <el-descriptions-item label="电路编号">
-                {{ $store.circuits.find(c => c.id === circuitId)?.circuitNo || '-' }}
+                {{ circuit?.circuitNo || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="运营商">
-                {{ $store.circuits.find(c => c.id === circuitId)?.provider || '-' }}
+                {{ circuit?.provider || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="线路类型">
-                {{ $store.circuits.find(c => c.id === circuitId)?.type || '-' }}
+                {{ circuit?.type || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="接入站点">
-                <el-icon><Location /></el-icon> {{ $store.sites.find(s => s.id === $store.circuits.find(c => c.id === circuitId)?.siteId)?.name || '-' }}
+                <el-icon><Location /></el-icon> {{ store.siteName(circuit?.siteId || 0) || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="带宽">
-                <strong>{{ $store.circuits.find(c => c.id === circuitId)?.bandwidth || '-' }} Mbps</strong>
+                <strong>{{ circuit?.bandwidth || '-' }} Mbps</strong>
               </el-descriptions-item>
               <el-descriptions-item label="公网 IP">
-                <code>{{ $store.circuits.find(c => c.id === circuitId)?.publicIp || '-' }}</code>
+                <code>{{ circuit?.publicIp || '-' }}</code>
               </el-descriptions-item>
               <el-descriptions-item label="客服电话">
-                {{ $store.circuits.find(c => c.id === circuitId)?.supportPhone || '-' }}
+                {{ circuit?.supportPhone || '-' }}
               </el-descriptions-item>
             </el-descriptions>
           </el-card>
@@ -77,16 +77,16 @@ function goToChanges() {
             </template>
             <el-descriptions :column="2" border>
               <el-descriptions-item label="合同开始日期">
-                {{ $store.circuits.find(c => c.id === circuitId)?.contractStart || '-' }}
+                {{ circuit?.contractStart || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="合同结束日期">
-                {{ $store.circuits.find(c => c.id === circuitId)?.contractEnd || '-' }}
+                {{ circuit?.contractEnd || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="月租费用">
-                <strong class="cost-value">¥{{ ($store.circuits.find(c => c.id === circuitId)?.monthlyCost || 0).toLocaleString() }}</strong>
+                <strong class="cost-value">¥{{ (circuit?.monthlyCost || 0).toLocaleString() }}</strong>
               </el-descriptions-item>
               <el-descriptions-item label="备注">
-                {{ $store.circuits.find(c => c.id === circuitId)?.note || '-' }}
+                {{ circuit?.note || '-' }}
               </el-descriptions-item>
             </el-descriptions>
           </el-card>

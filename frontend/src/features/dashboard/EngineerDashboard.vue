@@ -121,15 +121,7 @@ const deviceTypeColors: Record<string, string> = {
   'unknown': '#909399'
 }
 
-// 专线类型颜色映射
-const circuitTypeColors: Record<string, string> = {
-  '互联网专线': '#409EFF',
-  'MPLS': '#67C23A',
-  'SD-WAN': '#E6A23C',
-  '光纤专线': '#9C27B0',
-  '云专线': '#00BCD4',
-  '未分类': '#909399'
-}
+
 
 const filteredLogs = computed(() => {
   if (!searchQuery.value) return recentLogs.value
@@ -181,24 +173,7 @@ function getDetailTranslation(detail: string): string {
   return detail
 }
 
-// 获取健康度颜色
-function getHealthColor(score: number): string {
-  if (score >= 90) return '#67C23A'
-  if (score >= 70) return '#409EFF'
-  if (score >= 50) return '#E6A23C'
-  return '#F56C6C'
-}
 
-// 获取健康度状态文字
-function getHealthStatus(status: string): string {
-  const statusMap: Record<string, string> = {
-    'excellent': t('healthStatus.excellent'),
-    'good': t('healthStatus.good'),
-    'warning': t('healthStatus.warning'),
-    'critical': t('healthStatus.critical')
-  }
-  return statusMap[status] || status
-}
 
 // 获取设备类型颜色
 function getDeviceTypeColor(type: string): string {
