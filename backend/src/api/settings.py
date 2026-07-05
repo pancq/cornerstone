@@ -25,16 +25,16 @@ BRAND_SETTINGS_KEY = "brand_settings"
 BRAND_SETTINGS_DEFAULTS = {
     "brand_name_zh": "基石",
     "brand_name_en": "Cornerstone",
-    "brand_slogan": "看得见，管得住",
-    "brand_subtitle": "IT基础设施资源管理平台",
+    "brand_slogan": "智能运维，尽在掌控",
+    "brand_subtitle": "企业级IT基础设施智能运维平台",
     "brand_logo_url": "",
 }
 
 class BrandSettingsRequest(BaseModel):
     brand_name_zh: str = "基石"
     brand_name_en: str = "Cornerstone"
-    brand_slogan: str = "看得见，管得住"
-    brand_subtitle: str = "IT基础设施资源管理平台"
+    brand_slogan: str = "智能运维，尽在掌控"
+    brand_subtitle: str = "企业级IT基础设施智能运维平台"
     brand_logo_url: str = ""
 
 class BrandSettingsResponse(BaseModel):
@@ -89,8 +89,8 @@ async def update_brand_settings(
     config_dict = {
         "brand_name_zh": request.brand_name_zh or "基石",
         "brand_name_en": request.brand_name_en or "Cornerstone",
-        "brand_slogan": request.brand_slogan or "看得见，管得住",
-        "brand_subtitle": request.brand_subtitle or "IT基础设施资源管理平台",
+        "brand_slogan": request.brand_slogan or "智能运维，尽在掌控",
+        "brand_subtitle": request.brand_subtitle or "企业级IT基础设施智能运维平台",
         "brand_logo_url": request.brand_logo_url,
     }
     config_json = json.dumps(config_dict, ensure_ascii=False)

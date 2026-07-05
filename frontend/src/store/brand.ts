@@ -4,8 +4,8 @@ import { ref } from 'vue'
 export const useBrandStore = defineStore('brand', () => {
   const brandNameZh = ref('基石')
   const brandNameEn = ref('Cornerstone')
-  const brandSlogan = ref('看得见，管得住')
-  const brandSubtitle = ref('IT基础设施资源管理平台')
+  const brandSlogan = ref('智能运维，尽在掌控')
+  const brandSubtitle = ref('企业级IT基础设施智能运维平台')
   const brandLogoUrl = ref('')
   const loaded = ref(false)
 
@@ -17,8 +17,8 @@ export const useBrandStore = defineStore('brand', () => {
       if (result) {
         brandNameZh.value = result.brand_name_zh || '基石'
         brandNameEn.value = result.brand_name_en || 'Cornerstone'
-        brandSlogan.value = result.brand_slogan || '看得见，管得住'
-        brandSubtitle.value = result.brand_subtitle || 'IT基础设施资源管理平台'
+        brandSlogan.value = result.brand_slogan || '智能运维，尽在掌控'
+        brandSubtitle.value = result.brand_subtitle || '企业级IT基础设施智能运维平台'
         brandLogoUrl.value = result.brand_logo_url || ''
       }
     } catch (e) {

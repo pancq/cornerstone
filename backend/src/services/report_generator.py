@@ -32,8 +32,8 @@ BRAND_SETTINGS_KEY = "brand_settings"
 BRAND_SETTINGS_DEFAULTS = {
     "brand_name_zh": "基石",
     "brand_name_en": "Cornerstone",
-    "brand_slogan": "看得见，管得住",
-    "brand_subtitle": "IT基础设施资源管理平台",
+    "brand_slogan": "智能运维，尽在掌控",
+    "brand_subtitle": "企业级IT基础设施智能运维平台",
     "brand_logo_url": "",
 }
 

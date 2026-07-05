@@ -304,8 +304,7 @@ async function handleLogin() {
         }
     } catch (err: any) {
         setAnimationMode('login-fail')
-        if (err.response?.data?.detail === '验证码错误' || 
-            err.response?.data?.detail === 'Captcha error') {
+        if (err.response?.status === 400) {
             error.value = t('login.captchaError')
             refreshCaptcha()
         } else {

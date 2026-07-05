@@ -13,14 +13,15 @@ function normalizeUrl(url?: string) {
   return url
 }
 
+const NO_AUTH_ROUTES = ['/auth/token', '/auth/login-with-captcha', '/auth/captcha', '/auth/sso/config', '/auth/sso/authorize', '/auth/sso/callback', '/auth/sso/saml/callback', '/auth/ldap/enabled', '/auth/ldap/login', '/settings/public/brand', '/settings/logo']
+
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token')
     
-    // 关键：始终让 url 相对 baseURL，避免出现 /api/v1/api/v1/... 或不走代理的怪问题
     config.url = normalizeUrl(config.url)
 
-    if (token) {
+    if (token && !NO_AUTH_ROUTES.includes(config.url || '')) {
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
