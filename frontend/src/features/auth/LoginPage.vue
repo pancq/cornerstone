@@ -29,177 +29,193 @@ const loginMode = ref<'local' | 'ldap'>('local')
 
 const isTypingUsername = ref(false)
 const isTypingPassword = ref(false)
-const showHideFace = computed(() => false)
-// 只有用户名输入时才 peeking（看向输入框），密码时不 peeking
-const showPeek = computed(() => isTypingUsername.value)
 const companyLogo = ref<string>('')
 
 // ============================================
-// 幽灵角色动画系统
+// 科技感网络节点动画系统
 // ============================================
 
-// 鼠标位置跟踪
 const mouseX = ref(0)
 const mouseY = ref(0)
 const illustrationRect = ref<DOMRect | null>(null)
 const illustrationRef = ref<HTMLElement | null>(null)
 
-// 动画模式状态
 type AnimationMode = 'default' | 'username' | 'password' | 'captcha' | 'login-click' | 'login-loading' | 'login-success' | 'login-fail'
 const animationMode = ref<AnimationMode>('default')
-
-// 入场动画完成标记
 const hasEntered = ref(false)
 
-// 计算瞳孔偏移（基于鼠标相对于插画区域的位置）
-const pupilOffset = computed(() => {
-  if (!illustrationRect.value) return { x: 0, y: 0 }
-  
-  const rect = illustrationRect.value
-  const centerX = rect.left + rect.width / 2
-  const centerY = rect.top + rect.height / 2
-  
-  const deltaX = mouseX.value - centerX
-  const deltaY = mouseY.value - centerY
-  
-  const maxOffset = 6
-  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-  const maxDistance = Math.max(rect.width, rect.height) / 2
-  
-  const ratio = Math.min(1, distance / maxDistance)
-  const easeRatio = ratio * (2 - ratio)
-  
-  const offsetX = (deltaX / Math.max(distance, 1)) * maxOffset * easeRatio
-  const offsetY = (deltaY / Math.max(distance, 1)) * maxOffset * easeRatio
-  
-  return { x: offsetX, y: offsetY }
-})
+interface NetworkNode {
+  id: number
+  x: number
+  y: number
+  vx: number
+  vy: number
+  radius: number
+  color: string
+  opacity: number
+  pulse: boolean
+}
 
-// 根据动画模式计算每个角色的状态
-const characterStates = computed(() => {
-  const basePupil = pupilOffset.value
-  const mode = animationMode.value
+interface NetworkLink {
+  from: number
+  to: number
+  opacity: number
+}
+
+interface DataPacket {
+  id: number
+  linkIndex: number
+  progress: number
+  color: string
+}
+
+const nodes = ref<NetworkNode[]>([])
+const links = ref<NetworkLink[]>([])
+const dataPackets = ref<DataPacket[]>([])
+
+const nodeCount = 18
+let packetId = 0
+const colors = ['#3b82f6', '#6366f1', '#8b5cf6', '#0ea5e9', '#22d3ee', '#14b8a6']
+
+const initNodes = () => {
+  nodes.value = []
+  links.value = []
   
-  // 4个角色的配置: [紫色, 黑色, 黄色, 橙色]
-  const characters = [
-    { id: 1, color: 'purple' },
-    { id: 2, color: 'black' },
-    { id: 3, color: 'yellow' },
-    { id: 4, color: 'orange' }
-  ]
+  for (let i = 0; i < nodeCount; i++) {
+    nodes.value.push({
+      id: i,
+      x: Math.random() * 400 + 50,
+      y: Math.random() * 300 + 50,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: (Math.random() - 0.5) * 0.6,
+      radius: Math.random() * 6 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      opacity: Math.random() * 0.5 + 0.3,
+      pulse: false
+    })
+  }
   
-  return characters.map((char) => {
-    let pupilX = basePupil.x
-    let pupilY = basePupil.y
-    let headRotate = (basePupil.x / 6) * 3
-    let bodyRotate = 0
-    let mouth = 'normal'
-    let eyeState = 'open'
-    let isNodding = false
-    let isBouncing = false
+  for (let i = 0; i < nodeCount; i++) {
+    const connections = Math.floor(Math.random() * 3) + 1
+    for (let j = 0; j < connections; j++) {
+      const target = Math.floor(Math.random() * nodeCount)
+      if (target !== i && !links.value.some(l => (l.from === i && l.to === target) || (l.from === target && l.to === i))) {
+        links.value.push({
+          from: i,
+          to: target,
+          opacity: Math.random() * 0.3 + 0.1
+        })
+      }
+    }
+  }
+}
+
+const animate = () => {
+  const rect = illustrationRect.value
+  if (!rect) return
+  
+  const width = 500
+  const height = 400
+  
+  nodes.value.forEach((node) => {
+    let dx = mouseX.value - (rect.left + node.x)
+    let dy = mouseY.value - (rect.top + node.y)
+    const dist = Math.sqrt(dx * dx + dy * dy)
     
-    switch (mode) {
-      case 'username':
-        // 看向输入框（右侧）
-        pupilX = 5
-        pupilY = 2
-        headRotate = 8
-        bodyRotate = 5
-        // 橙色、紫色、黄色张嘴吃惊，黑色微张
-        if (char.color === 'orange' || char.color === 'purple' || char.color === 'yellow') {
-          mouth = 'surprised'
-        } else {
-          mouth = 'open'
-        }
-        break
-        
-      case 'password':
-        // 所有幽灵都向左看，回避输入密码
-        pupilX = -6
-        pupilY = 1
-        headRotate = -6
-        bodyRotate = -3
-        mouth = 'normal'
-        break
-        
-      case 'captcha':
-        pupilX = 4
-        pupilY = 2
-        headRotate = 5
-        bodyRotate = 3
-        mouth = 'normal'
-        // 黄色眯眼
-        if (char.color === 'yellow') {
-          eyeState = 'squinting'
-        }
-        break
-        
-      case 'login-click':
-        pupilX = 3
-        pupilY = 4
-        headRotate = 3
-        bodyRotate = 3
-        mouth = 'smile'
-        break
-        
-      case 'login-loading':
-        pupilX = 3
-        pupilY = 4
-        headRotate = 3
-        bodyRotate = 3
-        mouth = 'smile'
-        break
-        
-      case 'login-success':
-        mouth = 'surprised'
-        isBouncing = true
-        break
-        
-      case 'login-fail':
-        mouth = 'sad'
-        break
-        
-      default:
-        // default模式：跟随鼠标
-        pupilX = basePupil.x
-        pupilY = basePupil.y
-        headRotate = (basePupil.x / 6) * 3
+    if (dist < 200) {
+      const force = (200 - dist) / 200
+      dx /= dist
+      dy /= dist
+      node.vx -= dx * force * 0.08
+      node.vy -= dy * force * 0.08
     }
     
-    return {
-      ...char,
-      pupilX,
-      pupilY,
-      headRotate,
-      bodyRotate,
-      mouth,
-      eyeState,
-      isNodding,
-      isBouncing
+    if (animationMode.value === 'login-success') {
+      node.vx *= 0.95
+      node.vy *= 0.95
+    }
+    
+    node.x += node.vx
+    node.y += node.vy
+    
+    node.vx *= 0.98
+    node.vy *= 0.98
+    
+    if (node.x < node.radius) { node.x = node.radius; node.vx *= -0.6 }
+    if (node.x > width - node.radius) { node.x = width - node.radius; node.vx *= -0.6 }
+    if (node.y < node.radius) { node.y = node.radius; node.vy *= -0.6 }
+    if (node.y > height - node.radius) { node.y = height - node.radius; node.vy *= -0.6 }
+  })
+  
+  links.value.forEach((link) => {
+    const from = nodes.value[link.from]
+    const to = nodes.value[link.to]
+    const dx = from.x - to.x
+    const dy = from.y - to.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    
+    if (dist < 150) {
+      link.opacity = (150 - dist) / 150 * 0.4
+    } else {
+      link.opacity = 0
     }
   })
-})
+  
+  dataPackets.value.forEach((packet, index) => {
+    packet.progress += 0.015
+    
+    if (packet.progress >= 1) {
+      dataPackets.value.splice(index, 1)
+    }
+  })
+  
+  requestAnimationFrame(animate)
+}
 
-// 处理鼠标移动
+const spawnDataPacket = () => {
+  if (links.value.length === 0) return
+  
+  const activeLinks = links.value.filter(l => l.opacity > 0.1)
+  if (activeLinks.length === 0) return
+  
+  const linkIndex = activeLinks[Math.floor(Math.random() * activeLinks.length)]
+  const originalIndex = links.value.indexOf(linkIndex)
+  
+  if (originalIndex === -1) return
+  
+  const fromNode = nodes.value[linkIndex.from]
+  dataPackets.value.push({
+    id: packetId++,
+    linkIndex: originalIndex,
+    progress: 0,
+    color: fromNode.color
+  })
+}
+
+let packetInterval: number | null = null
+
 const handleMouseMove = (e: MouseEvent) => {
   mouseX.value = e.clientX
   mouseY.value = e.clientY
 }
 
-// 更新插画区域尺寸
 const updateIllustrationRect = () => {
   if (illustrationRef.value) {
     illustrationRect.value = illustrationRef.value.getBoundingClientRect()
   }
 }
 
-// 设置动画模式
 const setAnimationMode = (mode: AnimationMode) => {
   animationMode.value = mode
   
   if (mode === 'login-success') {
+    nodes.value.forEach((node) => {
+      node.pulse = true
+      node.opacity = 1
+    })
     setTimeout(() => {
       animationMode.value = 'default'
+      nodes.value.forEach((node) => { node.pulse = false })
     }, 1000)
   } else if (mode === 'login-fail') {
     setTimeout(() => {
@@ -208,27 +224,12 @@ const setAnimationMode = (mode: AnimationMode) => {
   }
 }
 
-// 触发点头动画
-const triggerNod = () => {
-  // 通过临时添加类来触发CSS动画
-  const container = document.querySelector('.characters-container')
-  if (container) {
-    container.classList.add('nodding')
-    setTimeout(() => {
-      container.classList.remove('nodding')
-    }, 300)
-  }
-}
-
-// 触发黄色幽灵蹦跳
-const triggerYellowBounce = () => {
-  const yellowChar = document.querySelector('.character-3')
-  if (yellowChar) {
-    yellowChar.classList.add('yellow-bounce')
-    setTimeout(() => {
-      yellowChar.classList.remove('yellow-bounce')
-    }, 400)
-  }
+const triggerNodePulse = () => {
+  const randomNode = nodes.value[Math.floor(Math.random() * nodes.value.length)]
+  randomNode.pulse = true
+  setTimeout(() => {
+    randomNode.pulse = false
+  }, 400)
 }
 
 const loadLogo = async () => {
@@ -396,15 +397,17 @@ onMounted(async () => {
     await fetchLDAPConfig()
     await loadLogo()
     
-    // 初始化眼睛跟踪
     updateIllustrationRect()
+    initNodes()
+    animate()
+    
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('resize', updateIllustrationRect)
     
-    // 入场动画完成后标记
     setTimeout(() => {
         hasEntered.value = true
-    }, 2000)
+        packetInterval = window.setInterval(spawnDataPacket, 800)
+    }, 1000)
     
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
@@ -430,12 +433,14 @@ onMounted(async () => {
 onUnmounted(() => {
     window.removeEventListener('mousemove', handleMouseMove)
     window.removeEventListener('resize', updateIllustrationRect)
+    if (packetInterval) {
+        clearInterval(packetInterval)
+    }
 })
 </script>
 
 <template>
     <div class="login-page">
-        <!-- 动态背景 -->
         <div class="background-effects">
             <div class="floating-orb orb-1"></div>
             <div class="floating-orb orb-2"></div>
@@ -444,7 +449,6 @@ onUnmounted(() => {
             <div class="noise-overlay"></div>
         </div>
 
-        <!-- 左侧动态插画区域 -->
         <div class="login-illustration" ref="illustrationRef">
             <div class="illustration-content">
                 <div class="logo-area">
@@ -466,87 +470,85 @@ onUnmounted(() => {
                     <span class="logo-text">{{ brandStore.brandNameZh }}&nbsp;&nbsp;{{ brandStore.brandNameEn }}</span>
                 </div>
                 
-                <!-- 动态角色 -->
-                <div class="characters-container" :class="{ 'peeking': showPeek, 'entered': hasEntered }">
-                    <div class="character character-4" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[3]?.mouth === 'open', 'mouth-surprised': characterStates[3]?.mouth === 'surprised', 'mouth-smile': characterStates[3]?.mouth === 'smile', 'mouth-sad': characterStates[3]?.mouth === 'sad', 'eye-squinting': characterStates[3]?.eyeState === 'squinting', 'success-bounce': characterStates[3]?.isBouncing }">
-                        <div class="character-body" :style="{ transform: `rotate(${characterStates[3]?.bodyRotate || 0}deg)` }"></div>
-                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[3]?.headRotate || 0}deg)` }">
-                            <div class="eyes">
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[3]?.pupilX || 0}px, ${characterStates[3]?.pupilY || 0}px)` }"></div>
-                                </div>
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[3]?.pupilX || 0}px, ${characterStates[3]?.pupilY || 0}px)` }"></div>
-                                </div>
-                            </div>
-                            <div class="mouth" :class="{ 'smile': showPeek }"></div>
-                        </div>
-                        <div class="hands" v-if="showHideFace">
-                            <div class="hand left-hand"></div>
-                            <div class="hand right-hand"></div>
-                        </div>
-                        <div class="character-shadow"></div>
-                    </div>
-                    
-                    <div class="character character-1" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[0]?.mouth === 'open', 'mouth-surprised': characterStates[0]?.mouth === 'surprised', 'mouth-smile': characterStates[0]?.mouth === 'smile', 'mouth-sad': characterStates[0]?.mouth === 'sad', 'eye-squinting': characterStates[0]?.eyeState === 'squinting', 'success-bounce': characterStates[0]?.isBouncing }">
-                        <div class="character-body" :style="{ transform: `rotate(${characterStates[0]?.bodyRotate || 0}deg)` }"></div>
-                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[0]?.headRotate || 0}deg)` }">
-                            <div class="eyes">
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[0]?.pupilX || 0}px, ${characterStates[0]?.pupilY || 0}px)` }"></div>
-                                </div>
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[0]?.pupilX || 0}px, ${characterStates[0]?.pupilY || 0}px)` }"></div>
-                                </div>
-                            </div>
-                            <div class="mouth" :class="{ 'smile': showPeek }"></div>
-                        </div>
-                        <div class="hands" v-if="showHideFace">
-                            <div class="hand left-hand"></div>
-                            <div class="hand right-hand"></div>
-                        </div>
-                        <div class="character-shadow"></div>
-                    </div>
-                    
-                    <div class="character character-2" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[1]?.mouth === 'open', 'mouth-surprised': characterStates[1]?.mouth === 'surprised', 'mouth-smile': characterStates[1]?.mouth === 'smile', 'mouth-sad': characterStates[1]?.mouth === 'sad', 'eye-squinting': characterStates[1]?.eyeState === 'squinting', 'success-bounce': characterStates[1]?.isBouncing }">
-                        <div class="character-body" :style="{ transform: `rotate(${characterStates[1]?.bodyRotate || 0}deg)` }"></div>
-                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[1]?.headRotate || 0}deg)` }">
-                            <div class="eyes">
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[1]?.pupilX || 0}px, ${characterStates[1]?.pupilY || 0}px)` }"></div>
-                                </div>
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[1]?.pupilX || 0}px, ${characterStates[1]?.pupilY || 0}px)` }"></div>
-                                </div>
-                            </div>
-                            <div class="mouth" :class="{ 'smile': showPeek }"></div>
-                        </div>
-                        <div class="hands" v-if="showHideFace">
-                            <div class="hand left-hand"></div>
-                            <div class="hand right-hand"></div>
-                        </div>
-                        <div class="character-shadow"></div>
-                    </div>
-                    
-                    <div class="character character-3" :class="{ 'hide-face': showHideFace, 'mouth-open': characterStates[2]?.mouth === 'open', 'mouth-surprised': characterStates[2]?.mouth === 'surprised', 'mouth-smile': characterStates[2]?.mouth === 'smile', 'mouth-sad': characterStates[2]?.mouth === 'sad', 'eye-squinting': characterStates[2]?.eyeState === 'squinting', 'success-bounce': characterStates[2]?.isBouncing }">
-                        <div class="character-body" :style="{ transform: `rotate(${characterStates[2]?.bodyRotate || 0}deg)` }"></div>
-                        <div class="character-face" :style="{ transform: `translateX(-50%) rotate(${characterStates[2]?.headRotate || 0}deg)` }">
-                            <div class="eyes">
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[2]?.pupilX || 0}px, ${characterStates[2]?.pupilY || 0}px)` }"></div>
-                                </div>
-                                <div class="eye">
-                                    <div class="pupil" :style="{ transform: `translate(${characterStates[2]?.pupilX || 0}px, ${characterStates[2]?.pupilY || 0}px)` }"></div>
-                                </div>
-                            </div>
-                            <div class="mouth" :class="{ 'smile': showPeek }"></div>
-                        </div>
-                        <div class="hands" v-if="showHideFace">
-                            <div class="hand left-hand"></div>
-                            <div class="hand right-hand"></div>
-                        </div>
-                        <div class="character-shadow"></div>
-                    </div>
+                <div class="network-container" :class="{ 'entered': hasEntered, 'login-success': animationMode === 'login-success', 'login-fail': animationMode === 'login-fail' }">
+                    <svg viewBox="0 0 500 400" class="network-svg">
+                        <defs>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                            <radialGradient id="nodeGradient" cx="30%" cy="30%">
+                                <stop offset="0%" stop-color="white" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="white" stop-opacity="0"/>
+                            </radialGradient>
+                        </defs>
+                        <g class="links">
+                            <line
+                                v-for="(link, index) in links"
+                                :key="'link-' + index"
+                                :x1="nodes[link.from]?.x || 0"
+                                :y1="nodes[link.from]?.y || 0"
+                                :x2="nodes[link.to]?.x || 0"
+                                :y2="nodes[link.to]?.y || 0"
+                                :stroke="nodes[link.from]?.color || '#3b82f6'"
+                                :stroke-opacity="link.opacity"
+                                stroke-width="1"
+                                class="link-line"
+                            />
+                        </g>
+                        <g class="data-packets">
+                            <g v-for="packet in dataPackets" :key="'packet-' + packet.id">
+                                <circle
+                                    :cx="(nodes[links[packet.linkIndex]?.from]?.x || 0) + ((nodes[links[packet.linkIndex]?.to]?.x || 0) - (nodes[links[packet.linkIndex]?.from]?.x || 0)) * packet.progress"
+                                    :cy="(nodes[links[packet.linkIndex]?.from]?.y || 0) + ((nodes[links[packet.linkIndex]?.to]?.y || 0) - (nodes[links[packet.linkIndex]?.from]?.y || 0)) * packet.progress"
+                                    r="4"
+                                    :fill="packet.color"
+                                    filter="url(#glow)"
+                                    class="data-packet"
+                                />
+                                <circle
+                                    :cx="(nodes[links[packet.linkIndex]?.from]?.x || 0) + ((nodes[links[packet.linkIndex]?.to]?.x || 0) - (nodes[links[packet.linkIndex]?.from]?.x || 0)) * packet.progress"
+                                    :cy="(nodes[links[packet.linkIndex]?.from]?.y || 0) + ((nodes[links[packet.linkIndex]?.to]?.y || 0) - (nodes[links[packet.linkIndex]?.from]?.y || 0)) * packet.progress"
+                                    r="2"
+                                    fill="white"
+                                    class="data-packet-core"
+                                />
+                            </g>
+                        </g>
+                        <g class="nodes">
+                            <g v-for="node in nodes" :key="'node-' + node.id" class="node-group">
+                                <circle
+                                    :cx="node.x"
+                                    :cy="node.y"
+                                    :r="node.radius * 2.5"
+                                    :fill="node.color"
+                                    :opacity="node.pulse ? 0.3 : 0.1"
+                                    class="node-glow"
+                                />
+                                <circle
+                                    :cx="node.x"
+                                    :cy="node.y"
+                                    :r="node.radius"
+                                    :fill="node.color"
+                                    :opacity="node.opacity"
+                                    :filter="node.pulse ? 'url(#glow)' : ''"
+                                    class="node-core"
+                                    :class="{ 'pulsing': node.pulse }"
+                                />
+                                <circle
+                                    :cx="node.x"
+                                    :cy="node.y"
+                                    :r="node.radius * 0.4"
+                                    fill="white"
+                                    :opacity="node.opacity"
+                                    class="node-center"
+                                />
+                            </g>
+                        </g>
+                    </svg>
                 </div>
                 
                 <div class="slogan">
@@ -556,7 +558,6 @@ onUnmounted(() => {
             </div>
         </div>
 
-        <!-- 右侧登录表单 -->
         <div class="login-form-container">
             <div class="login-box">
 
@@ -570,7 +571,6 @@ onUnmounted(() => {
                     <p>{{ t('login.rightSubtitle') }}</p>
                 </div>
 
-                <!-- 登录模式选项卡 -->
                 <div v-if="showLdapTab" class="login-tabs">
                     <button 
                         class="tab-btn" 
@@ -626,7 +626,7 @@ onUnmounted(() => {
                                 class="form-input"
                                 @focus="isTypingUsername = true; setAnimationMode('username')"
                                 @blur="isTypingUsername = false; setAnimationMode('default')"
-                                @input="triggerNod(); triggerYellowBounce()"
+                                @input="triggerNodePulse()"
                             />
                             <span class="input-focus-ring"></span>
                         </div>
@@ -651,7 +651,7 @@ onUnmounted(() => {
                                 class="form-input"
                                 @focus="isTypingPassword = true; setAnimationMode('password')"
                                 @blur="isTypingPassword = false; setAnimationMode('default')"
-                                @input="triggerNod()"
+                                @input="triggerNodePulse()"
                                 @keyup.enter="handleLogin"
                             />
                             <span 
@@ -672,7 +672,6 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <!-- 验证码 - 仅在本地登录模式显示 -->
                     <div v-if="loginMode === 'local'" class="form-group">
                         <label class="form-label">
                             <span class="label-text">{{ t('login.captcha') }}</span>
@@ -687,7 +686,7 @@ onUnmounted(() => {
                                     class="form-input"
                                     @focus="setAnimationMode('captcha')"
                                     @blur="setAnimationMode('default')"
-                                    @input="triggerNod()"
+                                    @input="triggerNodePulse()"
                                     @keyup.enter="handleLogin"
                                 />
                                 <span class="input-focus-ring"></span>
@@ -765,7 +764,6 @@ onUnmounted(() => {
                         </button>
                     </template>
                 </div>
-
                 
             </div>
         </div>
@@ -781,7 +779,6 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
 }
 
-/* 动态背景效果 */
 .background-effects {
   position: fixed;
   inset: 0;
@@ -855,16 +852,15 @@ onUnmounted(() => {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-/* 左侧插画区域 */
 .login-illustration {
   flex: 1;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  background: transparent;
+  backdrop-filter: none;
+  border-right: none;
 }
 
 .illustration-content {
@@ -873,14 +869,17 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 50px 30px;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
 }
 
 .logo-area {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 90px;
+  margin-bottom: 20px;
 }
 
 .logo-icon {
@@ -932,385 +931,90 @@ onUnmounted(() => {
   text-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
 }
 
-/* 角色容器 */
-.characters-container {
-  display: flex;
-  align-items: flex-end;
-  gap: 24px;
-  margin-bottom: 90px;
-  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  transform-origin: center bottom;
-}
+/* ============================================
+   科技感网络节点动画
+   ============================================ */
 
-.characters-container.peeking {
-  transform: translateX(60px);
-}
-
-.characters-container.peeking .character {
-  transform: translateY(-8px);
-}
-
-.character {
+.network-container {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: characterFloat 5.5s ease-in-out infinite;
-}
-
-.character-1 {
-  animation-delay: 0s;
-  animation-duration: 5.8s;
-  z-index: 2;
-}
-
-.character-2 {
-  animation-delay: 0.8s;
-  animation-duration: 5.2s;
-  z-index: 3;
-}
-
-.character-3 {
-  animation-delay: 1.6s;
-  animation-duration: 6s;
-  z-index: 4;
-}
-
-.character-4 {
-  animation-delay: 2.4s;
-  animation-duration: 5.6s;
-  z-index: 1;
-}
-
-@keyframes characterFloat {
-  0%, 100% {
-    transform: translateY(0) rotate(-2deg);
-  }
-  50% {
-    transform: translateY(-22px) rotate(2deg);
-  }
-}
-
-.character-body {
-  width: 80px;
-  height: 125px;
-  border-radius: 40px 40px 0 0;
-  position: relative;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.character-1 .character-body {
-  width: 75px;
-  height: 155px;
-  background: #8b5cf6;
-  border-radius: 38px 38px 0 0;
-}
-
-.character-2 .character-body {
-  width: 65px;
-  height: 115px;
-  background: #1e293b;
-  border-radius: 32px 32px 0 0;
-}
-
-.character-3 .character-body {
-  width: 95px;
-  height: 125px;
-  background: #fbbf24;
-  border-radius: 48px 48px 0 0;
-}
-
-.character-4 .character-body {
-  width: 120px;
-  height: 95px;
-  background: #fb923c;
-  border-radius: 60px 60px 0 0;
-  margin-top: 30px;
-}
-
-.character-face {
-  position: absolute;
-  top: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.eyes {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 12px;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.eye {
-  width: 16px;
-  height: 16px;
-  background: white;
-  border-radius: 50%;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pupil {
-  width: 8px;
-  height: 8px;
-  background: #1e293b;
-  border-radius: 50%;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.character.peeking .pupil {
-  transform: translateX(3px);
-}
-
-.mouth {
-  width: 24px;
-  height: 3px;
-  background: #1e293b;
-  border-radius: 2px;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mouth.smile {
-  height: 8px;
-  border-radius: 0 0 12px 12px;
-  background: #1e293b;
-}
-
-/* 捂脸动画 */
-.character.hide-face .eyes {
-  transform: scale(0);
-}
-
-.character.hide-face .mouth {
-  transform: scale(0);
-}
-
-.character.hide-face .blush {
+  width: 500px;
+  height: 300px;
   opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.hands {
-  position: absolute;
-  top: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 24px;
-  z-index: 10;
+.network-container.entered {
+  opacity: 1;
+  transform: scale(1);
 }
 
-.hand {
-  width: 28px;
-  height: 18px;
-  background: inherit;
-  border-radius: 14px;
-  animation: coverFace 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  box-shadow: 0 5px 14px rgba(0,0,0,0.25);
+.network-container.login-success {
+  animation: networkSuccess 0.6s ease-out;
 }
 
-.left-hand {
-  transform-origin: right center;
+.network-container.login-fail {
+  animation: networkFail 0.5s ease-out;
 }
 
-.right-hand {
-  transform-origin: left center;
+@keyframes networkSuccess {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
-@keyframes coverFace {
-  0% {
-    opacity: 0;
-    transform: rotate(45deg) translateX(-25px);
-  }
-  100% {
-    opacity: 1;
-    transform: rotate(0deg) translateX(0);
-  }
+@keyframes networkFail {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+.network-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  background: transparent;
+}
+
+.link-line {
+  transition: opacity 0.3s ease;
+}
+
+.node-group {
+  transition: transform 0.15s ease;
+}
+
+.node-glow {
+  transition: r 0.3s ease, opacity 0.3s ease;
+}
+
+.node-core {
+  transition: r 0.3s ease, opacity 0.3s ease;
+}
+
+.node-core.pulsing {
+  animation: nodePulse 0.4s ease-out;
+}
+
+.node-center {
+  transition: opacity 0.3s ease;
+}
+
+.data-packet {
+  transition: r 0.1s ease;
+}
+
+.data-packet-core {
+  transition: r 0.1s ease;
+}
+
+@keyframes nodePulse {
+  0%, 100% { r: var(--original-radius, 5); }
+  50% { r: calc(var(--original-radius, 5) * 1.5); }
 }
 
 /* ============================================
-   新增动画效果
+   标语样式
    ============================================ */
-
-/* 入场动画 */
-@keyframes slideIn {
-  0% {
-    opacity: 0;
-    transform: translateX(-60px);
-  }
-  70% {
-    transform: translateX(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* 点头动画 */
-@keyframes nod {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  30% {
-    transform: translateY(5px) rotate(1deg);
-  }
-  60% {
-    transform: translateY(-2px) rotate(-0.5deg);
-  }
-}
-
-/* 黄色幽灵额外蹦跳 */
-@keyframes yellowBounce {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-  }
-  40% {
-    transform: translateY(-15px) scale(1.05);
-  }
-  70% {
-    transform: translateY(3px) scale(0.98);
-  }
-}
-
-/* 登录成功欢呼 */
-@keyframes successBounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  25% {
-    transform: translateY(-20px);
-  }
-  50% {
-    transform: translateY(5px);
-  }
-  75% {
-    transform: translateY(-10px);
-  }
-}
-
-/* 嘴巴状态 */
-.character .mouth {
-  width: 24px;
-  height: 3px;
-  background: #1e293b;
-  border-radius: 2px;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 张嘴状态 */
-.character.mouth-open .mouth {
-  width: 18px;
-  height: 10px;
-  border-radius: 50%;
-  background: #1e293b;
-}
-
-/* 吃惊状态（圆形） */
-.character.mouth-surprised .mouth {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #1e293b;
-}
-
-/* 微笑状态 */
-.character.mouth-smile .mouth {
-  height: 10px;
-  border-radius: 0 0 14px 14px;
-  background: #1e293b;
-}
-
-/* 难过状态 */
-.character.mouth-sad .mouth {
-  height: 8px;
-  border-radius: 14px 14px 0 0;
-  background: #1e293b;
-}
-
-/* 眼睛状态 */
-.character.eye-squinting .eyes {
-  transform: scaleY(0.6);
-}
-
-/* 登录成功弹跳 */
-.character.success-bounce {
-  animation: successBounce 0.6s cubic-bezier(0.4, 0, 0.2, 1) 2;
-}
-
-/* 点头动画触发 */
-.characters-container.nodding .character {
-  animation: nod 0.3s ease-out;
-}
-
-/* 黄色幽灵额外蹦跳 */
-.character.yellow-bounce {
-  animation: yellowBounce 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* 入场动画应用到每个角色 */
-.character {
-  opacity: 0;
-  animation: slideIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards, characterFloat 5.5s ease-in-out infinite;
-}
-
-.characters-container.entered .character {
-  opacity: 1;
-}
-
-.character-1 {
-  animation-delay: 0s, 0s;
-}
-
-.character-2 {
-  animation-delay: 0.15s, 0.8s;
-}
-
-.character-3 {
-  animation-delay: 0.3s, 1.6s;
-}
-
-.character-4 {
-  animation-delay: 0.45s, 2.4s;
-}
-
-/* 修正浮动动画延迟 */
-@keyframes characterFloat {
-  0%, 100% {
-    transform: translateY(0) rotate(-2deg);
-  }
-  50% {
-    transform: translateY(-22px) rotate(2deg);
-  }
-}
-
-.character-shadow {
-  position: absolute;
-  bottom: -6px;
-  width: 55%;
-  height: 10px;
-  background: rgba(0,0,0,0.18);
-  border-radius: 50%;
-  filter: blur(6px);
-  animation: shadowPulse 5.5s ease-in-out infinite;
-}
-
-@keyframes shadowPulse {
-  0%, 100% {
-    transform: scaleX(1);
-    opacity: 0.25;
-  }
-  50% {
-    transform: scaleX(0.75);
-    opacity: 0.4;
-  }
-}
 
 .slogan {
   text-align: center;
@@ -1347,7 +1051,10 @@ onUnmounted(() => {
   color: #94a3b8;
 }
 
-/* 右侧登录表单区域 */
+/* ============================================
+   右侧登录表单区域
+   ============================================ */
+
 .login-form-container {
   width: 520px;
   display: flex;
@@ -1479,7 +1186,6 @@ onUnmounted(() => {
   gap: 24px;
 }
 
-/* 错误消息 */
 .error-message {
   display: flex;
   align-items: center;
@@ -1807,13 +1513,18 @@ onUnmounted(() => {
 .sso-login-btn:hover:not(:disabled) {
   border-color: #3b82f6;
   color: #3b82f6;
-  background: #f0f9ff;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.18);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.15);
 }
 
 .sso-login-btn:active:not(:disabled) {
-  transform: translateY(-0.5px);
+  transform: translateY(-1px);
+}
+
+.sso-login-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .sso-icon {
@@ -1821,155 +1532,14 @@ onUnmounted(() => {
   height: 20px;
 }
 
-.login-footer {
-  text-align: center;
-  margin-top: 35px;
-  padding-top: 24px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.login-footer p {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-/* 语言切换器 */
-.language-switcher-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
-}
-
-.language-switcher {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.language-switcher:hover {
-  background-color: #f1f5f9;
-  color: #334155;
-}
-
-.lang-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.lang-label {
-  min-width: 45px;
-}
-
-.lang-arrow {
-  width: 12px;
-  height: 12px;
-  opacity: 0.6;
-}
-
-:deep(.login-box .el-dropdown-menu__item.is-active) {
-  color: #3b82f6;
-  background-color: #f0f9ff;
-}
-
-/* 响应式设计 */
 @media (max-width: 1024px) {
-  .login-page {
-    flex-direction: column;
-  }
-  
   .login-illustration {
-    width: 100%;
-    min-height: 450px;
-    padding: 35px 25px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    display: none;
   }
   
   .login-form-container {
     width: 100%;
-    padding: 35px 25px;
-    background: rgba(255, 255, 255, 0.01);
-  }
-  
-  .login-box {
-    padding: 35px;
-    box-shadow: 0 -12px 35px rgba(0,0,0,0.12);
-    border-radius: 24px 24px 0 0;
-  }
-  
-  .logo-text {
-    font-size: 24px;
-  }
-  
-  .slogan h2 {
-    font-size: 26px;
-  }
-  
-  .characters-container {
-    gap: 18px;
-    margin-bottom: 70px;
-  }
-}
-
-@media (max-width: 520px) {
-  .login-box {
-    padding: 24px;
-  }
-  
-  .login-header h2 {
-    font-size: 24px;
-  }
-  
-  .captcha-row {
-    flex-direction: column;
-  }
-  
-  .captcha-image-wrapper {
-    align-self: flex-start;
-  }
-  
-  .captcha-image {
-    width: 100%;
-    max-width: 150px;
-  }
-  
-  .logo-text {
-    font-size: 22px;
-  }
-  
-  .slogan h2 {
-    font-size: 22px;
-  }
-  
-  .characters-container {
-    gap: 12px;
-  }
-  
-  .character-body {
-    width: 58px;
-    height: 95px;
-  }
-  
-  .character-1 .character-body {
-    width: 54px;
-    height: 120px;
-  }
-  
-  .character-2 .character-body {
-    width: 50px;
-    height: 90px;
-  }
-  
-  .character-3 .character-body {
-    width: 68px;
-    height: 95px;
+    justify-content: center;
   }
 }
 </style>
