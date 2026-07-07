@@ -84,8 +84,8 @@ const initNodes = () => {
   for (let i = 0; i < nodeCount; i++) {
     nodes.value.push({
       id: i,
-      x: Math.random() * 400 + 50,
-      y: Math.random() * 300 + 50,
+      x: Math.random() * 500 + 50,
+      y: Math.random() * 250 + 25,
       vx: (Math.random() - 0.5) * 0.6,
       vy: (Math.random() - 0.5) * 0.6,
       radius: Math.random() * 6 + 4,
@@ -115,7 +115,7 @@ const animate = () => {
   if (!rect) return
   
   const width = 500
-  const height = 400
+  const height = 300
   
   nodes.value.forEach((node) => {
     let dx = mouseX.value - (rect.left + node.x)
@@ -471,7 +471,7 @@ onUnmounted(() => {
                 </div>
                 
                 <div class="network-container" :class="{ 'entered': hasEntered, 'login-success': animationMode === 'login-success', 'login-fail': animationMode === 'login-fail' }">
-                    <svg viewBox="0 0 500 400" class="network-svg">
+                    <svg viewBox="0 0 500 300" class="network-svg">
                         <defs>
                             <filter id="glow">
                                 <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
