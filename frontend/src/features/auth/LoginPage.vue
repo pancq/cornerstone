@@ -879,7 +879,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 456px;
+  margin-bottom: 399px;
 }
 
 .logo-icon {
