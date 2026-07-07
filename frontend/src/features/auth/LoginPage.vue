@@ -73,7 +73,7 @@ const nodes = ref<NetworkNode[]>([])
 const links = ref<NetworkLink[]>([])
 const dataPackets = ref<DataPacket[]>([])
 
-const nodeCount = 18
+const nodeCount = 32
 let packetId = 0
 const colors = ['#3b82f6', '#6366f1', '#8b5cf6', '#0ea5e9', '#22d3ee', '#14b8a6']
 
@@ -84,11 +84,11 @@ const initNodes = () => {
   for (let i = 0; i < nodeCount; i++) {
     nodes.value.push({
       id: i,
-      x: Math.random() * 500 + 50,
-      y: Math.random() * 250 + 25,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: (Math.random() - 0.5) * 0.6,
-      radius: Math.random() * 6 + 4,
+      x: Math.random() * 550 + 25,
+      y: Math.random() * 780 + 10,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.5,
+      radius: Math.random() * 5 + 3,
       color: colors[Math.floor(Math.random() * colors.length)],
       opacity: Math.random() * 0.5 + 0.3,
       pulse: false
@@ -96,7 +96,7 @@ const initNodes = () => {
   }
   
   for (let i = 0; i < nodeCount; i++) {
-    const connections = Math.floor(Math.random() * 3) + 1
+    const connections = Math.floor(Math.random() * 4) + 2
     for (let j = 0; j < connections; j++) {
       const target = Math.floor(Math.random() * nodeCount)
       if (target !== i && !links.value.some(l => (l.from === i && l.to === target) || (l.from === target && l.to === i))) {
@@ -114,8 +114,8 @@ const animate = () => {
   const rect = illustrationRect.value
   if (!rect) return
   
-  const width = 500
-  const height = 300
+  const width = 600
+  const height = 800
   
   nodes.value.forEach((node) => {
     let dx = mouseX.value - (rect.left + node.x)
@@ -406,7 +406,7 @@ onMounted(async () => {
     
     setTimeout(() => {
         hasEntered.value = true
-        packetInterval = window.setInterval(spawnDataPacket, 800)
+        packetInterval = window.setInterval(spawnDataPacket, 400)
     }, 1000)
     
     const urlParams = new URLSearchParams(window.location.search)
@@ -450,6 +450,87 @@ onUnmounted(() => {
         </div>
 
         <div class="login-illustration" ref="illustrationRef">
+            <div class="network-container" :class="{ 'entered': hasEntered, 'login-success': animationMode === 'login-success', 'login-fail': animationMode === 'login-fail' }">
+                <svg viewBox="0 0 600 800" class="network-svg">
+                    <defs>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                            <feMerge>
+                                <feMergeNode in="coloredBlur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                        <radialGradient id="nodeGradient" cx="30%" cy="30%">
+                            <stop offset="0%" stop-color="white" stop-opacity="0.8"/>
+                            <stop offset="100%" stop-color="white" stop-opacity="0"/>
+                        </radialGradient>
+                    </defs>
+                    <g class="links">
+                        <line
+                            v-for="(link, index) in links"
+                            :key="'link-' + index"
+                            :x1="nodes[link.from]?.x || 0"
+                            :y1="nodes[link.from]?.y || 0"
+                            :x2="nodes[link.to]?.x || 0"
+                            :y2="nodes[link.to]?.y || 0"
+                            :stroke="nodes[link.from]?.color || '#3b82f6'"
+                            :stroke-opacity="link.opacity"
+                            stroke-width="1"
+                            class="link-line"
+                        />
+                    </g>
+                    <g class="data-packets">
+                        <g v-for="packet in dataPackets" :key="'packet-' + packet.id">
+                            <circle
+                                :cx="(nodes[links[packet.linkIndex]?.from]?.x || 0) + ((nodes[links[packet.linkIndex]?.to]?.x || 0) - (nodes[links[packet.linkIndex]?.from]?.x || 0)) * packet.progress"
+                                :cy="(nodes[links[packet.linkIndex]?.from]?.y || 0) + ((nodes[links[packet.linkIndex]?.to]?.y || 0) - (nodes[links[packet.linkIndex]?.from]?.y || 0)) * packet.progress"
+                                r="4"
+                                :fill="packet.color"
+                                filter="url(#glow)"
+                                class="data-packet"
+                            />
+                            <circle
+                                :cx="(nodes[links[packet.linkIndex]?.from]?.x || 0) + ((nodes[links[packet.linkIndex]?.to]?.x || 0) - (nodes[links[packet.linkIndex]?.from]?.x || 0)) * packet.progress"
+                                :cy="(nodes[links[packet.linkIndex]?.from]?.y || 0) + ((nodes[links[packet.linkIndex]?.to]?.y || 0) - (nodes[links[packet.linkIndex]?.from]?.y || 0)) * packet.progress"
+                                r="2"
+                                fill="white"
+                                class="data-packet-core"
+                            />
+                        </g>
+                    </g>
+                    <g class="nodes">
+                        <g v-for="node in nodes" :key="'node-' + node.id" class="node-group">
+                            <circle
+                                :cx="node.x"
+                                :cy="node.y"
+                                :r="node.radius * 2.5"
+                                :fill="node.color"
+                                :opacity="node.pulse ? 0.3 : 0.1"
+                                class="node-glow"
+                            />
+                            <circle
+                                :cx="node.x"
+                                :cy="node.y"
+                                :r="node.radius"
+                                :fill="node.color"
+                                :opacity="node.opacity"
+                                :filter="node.pulse ? 'url(#glow)' : ''"
+                                class="node-core"
+                                :class="{ 'pulsing': node.pulse }"
+                            />
+                            <circle
+                                :cx="node.x"
+                                :cy="node.y"
+                                :r="node.radius * 0.4"
+                                fill="white"
+                                :opacity="node.opacity"
+                                class="node-center"
+                            />
+                        </g>
+                    </g>
+                </svg>
+            </div>
+            
             <div class="illustration-content">
                 <div class="logo-area">
                     <div v-if="companyLogo" class="logo-icon">
@@ -468,87 +549,6 @@ onUnmounted(() => {
                         </svg>
                     </div>
                     <span class="logo-text">{{ brandStore.brandNameZh }}&nbsp;&nbsp;{{ brandStore.brandNameEn }}</span>
-                </div>
-                
-                <div class="network-container" :class="{ 'entered': hasEntered, 'login-success': animationMode === 'login-success', 'login-fail': animationMode === 'login-fail' }">
-                    <svg viewBox="0 0 500 300" class="network-svg">
-                        <defs>
-                            <filter id="glow">
-                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                                <feMerge>
-                                    <feMergeNode in="coloredBlur"/>
-                                    <feMergeNode in="SourceGraphic"/>
-                                </feMerge>
-                            </filter>
-                            <radialGradient id="nodeGradient" cx="30%" cy="30%">
-                                <stop offset="0%" stop-color="white" stop-opacity="0.8"/>
-                                <stop offset="100%" stop-color="white" stop-opacity="0"/>
-                            </radialGradient>
-                        </defs>
-                        <g class="links">
-                            <line
-                                v-for="(link, index) in links"
-                                :key="'link-' + index"
-                                :x1="nodes[link.from]?.x || 0"
-                                :y1="nodes[link.from]?.y || 0"
-                                :x2="nodes[link.to]?.x || 0"
-                                :y2="nodes[link.to]?.y || 0"
-                                :stroke="nodes[link.from]?.color || '#3b82f6'"
-                                :stroke-opacity="link.opacity"
-                                stroke-width="1"
-                                class="link-line"
-                            />
-                        </g>
-                        <g class="data-packets">
-                            <g v-for="packet in dataPackets" :key="'packet-' + packet.id">
-                                <circle
-                                    :cx="(nodes[links[packet.linkIndex]?.from]?.x || 0) + ((nodes[links[packet.linkIndex]?.to]?.x || 0) - (nodes[links[packet.linkIndex]?.from]?.x || 0)) * packet.progress"
-                                    :cy="(nodes[links[packet.linkIndex]?.from]?.y || 0) + ((nodes[links[packet.linkIndex]?.to]?.y || 0) - (nodes[links[packet.linkIndex]?.from]?.y || 0)) * packet.progress"
-                                    r="4"
-                                    :fill="packet.color"
-                                    filter="url(#glow)"
-                                    class="data-packet"
-                                />
-                                <circle
-                                    :cx="(nodes[links[packet.linkIndex]?.from]?.x || 0) + ((nodes[links[packet.linkIndex]?.to]?.x || 0) - (nodes[links[packet.linkIndex]?.from]?.x || 0)) * packet.progress"
-                                    :cy="(nodes[links[packet.linkIndex]?.from]?.y || 0) + ((nodes[links[packet.linkIndex]?.to]?.y || 0) - (nodes[links[packet.linkIndex]?.from]?.y || 0)) * packet.progress"
-                                    r="2"
-                                    fill="white"
-                                    class="data-packet-core"
-                                />
-                            </g>
-                        </g>
-                        <g class="nodes">
-                            <g v-for="node in nodes" :key="'node-' + node.id" class="node-group">
-                                <circle
-                                    :cx="node.x"
-                                    :cy="node.y"
-                                    :r="node.radius * 2.5"
-                                    :fill="node.color"
-                                    :opacity="node.pulse ? 0.3 : 0.1"
-                                    class="node-glow"
-                                />
-                                <circle
-                                    :cx="node.x"
-                                    :cy="node.y"
-                                    :r="node.radius"
-                                    :fill="node.color"
-                                    :opacity="node.opacity"
-                                    :filter="node.pulse ? 'url(#glow)' : ''"
-                                    class="node-core"
-                                    :class="{ 'pulsing': node.pulse }"
-                                />
-                                <circle
-                                    :cx="node.x"
-                                    :cy="node.y"
-                                    :r="node.radius * 0.4"
-                                    fill="white"
-                                    :opacity="node.opacity"
-                                    class="node-center"
-                                />
-                            </g>
-                        </g>
-                    </svg>
                 </div>
                 
                 <div class="slogan">
@@ -879,7 +879,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 456px;
 }
 
 .logo-icon {
@@ -936,9 +936,9 @@ onUnmounted(() => {
    ============================================ */
 
 .network-container {
-  position: relative;
-  width: 500px;
-  height: 300px;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
   opacity: 0;
   transform: scale(0.95);
   transition: all 0.8s cubic-bezier(0.22, 1, 0.36, 1);
