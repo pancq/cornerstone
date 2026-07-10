@@ -423,7 +423,7 @@ async function handleDownloadPrefixTemplate() {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.download = `${t('ipam.prefixImportTemplate')}`
+    link.download = `${t('ipam.prefixImportTemplate')}.xlsx`
     link.click()
     window.URL.revokeObjectURL(url)
   } catch (error) {
@@ -490,7 +490,7 @@ async function handleDownloadIPTemplate() {
     const url = window.URL.createObjectURL(new Blob([response.data]))
     const link = document.createElement('a')
     link.href = url
-    link.download = `${t('ipam.ipImportTemplate')}`
+    link.download = `${t('ipam.ipImportTemplate')}.xlsx`
     link.click()
     window.URL.revokeObjectURL(url)
   } catch (error) {
