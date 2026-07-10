@@ -254,7 +254,7 @@ class PrefixImportExport(ImportExportService):
         file_type: str,
         user: str
     ) -> Dict[str, Any]:
-        """导入子网"""
+        """导入子网（覆盖重复）"""
         if file_type == "excel":
             data = await ImportExportService.import_from_excel(
                 file_content,
@@ -274,6 +274,12 @@ class PrefixImportExport(ImportExportService):
 
         for idx, row_data in enumerate(data, start=2):
             try:
+                network = row_data.get("network")
+                if not network:
+                    failed_count += 1
+                    errors.append(f"第{idx}行: 子网不能为空")
+                    continue
+
                 site_id = None
                 if row_data.get("site_name"):
                     site_result = await db.execute(
@@ -282,13 +288,24 @@ class PrefixImportExport(ImportExportService):
                     site = site_result.scalar_one_or_none()
                     site_id = site.id if site else None
 
-                prefix = Prefix(
-                    network=row_data.get("network"),
-                    site_id=site_id,
-                    vlan=row_data.get("vlan"),
-                    usage=row_data.get("usage")
+                existing_result = await db.execute(
+                    select(Prefix).where(Prefix.network == network)
                 )
-                db.add(prefix)
+                existing_prefix = existing_result.scalar_one_or_none()
+
+                if existing_prefix:
+                    existing_prefix.site_id = site_id
+                    existing_prefix.vlan = row_data.get("vlan")
+                    existing_prefix.usage = row_data.get("usage")
+                else:
+                    prefix = Prefix(
+                        network=network,
+                        site_id=site_id,
+                        vlan=row_data.get("vlan"),
+                        usage=row_data.get("usage")
+                    )
+                    db.add(prefix)
+
                 success_count += 1
             except Exception as e:
                 failed_count += 1

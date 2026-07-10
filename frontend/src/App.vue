@@ -11,7 +11,6 @@ import { useI18n } from 'vue-i18n'
 import { 
   DataBoard, 
   Location,
-  Layout,
   Connection, 
   Bell, 
   Setting, 

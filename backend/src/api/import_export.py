@@ -159,7 +159,7 @@ async def get_prefix_template():
     ws = wb.active
     ws.title = "子网导入模板"
 
-    headers = ["子网", "站点", "VLAN", "用途"]
+    headers = ["站点", "子网", "VLAN", "用途"]
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
 
@@ -173,6 +173,17 @@ async def get_prefix_template():
     column_widths = [15, 15, 8, 15]
     for i, width in enumerate(column_widths, start=1):
         ws.column_dimensions[chr(64 + i)].width = width
+
+    # 添加示例数据
+    sample_data = [
+        ["总部", "192.168.1.0/24", "10", "办公网"],
+        ["分部A", "192.168.2.0/24", "20", "服务器"],
+        ["分部B", "192.168.3.0/24", "30", "物联网"],
+    ]
+
+    for row_idx, row_data in enumerate(sample_data, start=2):
+        for col_idx, value in enumerate(row_data, start=1):
+            ws.cell(row=row_idx, column=col_idx, value=value)
 
     output = io.BytesIO()
     wb.save(output)

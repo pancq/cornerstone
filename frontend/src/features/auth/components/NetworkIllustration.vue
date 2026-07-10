@@ -10,8 +10,6 @@ const brandStore = useBrandStore()
 const { illustrationRef, nodes, links, dataPackets, hasEntered, animationMode } = useNetworkAnimation()
 
 const companyLogo = ref<string>('')
-const isTypingUsername = ref(false)
-const isTypingPassword = ref(false)
 
 const loadLogo = async () => {
   try {

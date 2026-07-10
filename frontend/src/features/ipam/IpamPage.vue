@@ -67,6 +67,7 @@ onMounted(() => {
 const activeTab = ref('prefixes')
 const searchPrefixQuery = ref('')
 const searchIPQuery = ref('')
+const selectedSiteFilter = ref<number | null>(null)
 const showPrefixDialog = ref(false)
 const showIPDialog = ref(false)
 const showImportDialog = ref(false)
@@ -201,8 +202,14 @@ const handleViewIP = (ip: IPAddress) => {
 }
 
 const filteredPrefixes = computed(() => {
-  if (!searchPrefixQuery.value) return prefixes.value
-  return prefixes.value.filter(p => 
+  let result = prefixes.value
+  
+  if (selectedSiteFilter.value !== null) {
+    result = result.filter(p => p.siteId === selectedSiteFilter.value)
+  }
+  
+  if (!searchPrefixQuery.value) return result
+  return result.filter(p => 
     p.network.toLowerCase().includes(searchPrefixQuery.value.toLowerCase()) ||
     p.usage.toLowerCase().includes(searchPrefixQuery.value.toLowerCase()) ||
     siteName(p.siteId).toLowerCase().includes(searchPrefixQuery.value.toLowerCase()) ||
@@ -710,6 +717,14 @@ const handleDeleteIP = async (ip: IPAddress) => {
 
       <template v-if="activeTab === 'prefixes'">
         <div class="table-filters">
+          <el-select
+            v-model="selectedSiteFilter"
+            placeholder="按站点筛选"
+            clearable
+            style="width: 200px; margin-right: 15px"
+          >
+            <el-option v-for="site in sites" :key="site.id" :label="site.name" :value="site.id" />
+          </el-select>
           <el-input
             v-model="searchPrefixQuery"
             :placeholder="t('ipam.searchPrefixesPlaceholder')"
@@ -725,6 +740,9 @@ const handleDeleteIP = async (ip: IPAddress) => {
           border
           height="calc(100vh - 420px)"
         >
+          <el-table-column prop="siteId" :label="t('ipam.site')" width="140">
+            <template #default="{ row }">{{ siteName(row.siteId) }}</template>
+          </el-table-column>
           <el-table-column prop="network" :label="t('ipam.subnet')" width="200">
             <template #default="{ row }">
               <div class="network-cell">
@@ -744,9 +762,6 @@ const handleDeleteIP = async (ip: IPAddress) => {
                 </div>
               </div>
             </template>
-          </el-table-column>
-          <el-table-column prop="siteId" :label="t('ipam.site')" width="140">
-            <template #default="{ row }">{{ siteName(row.siteId) }}</template>
           </el-table-column>
           <el-table-column prop="vlan" :label="t('ipam.vlan')" width="100">
             <template #default="{ row }">{{ row.vlan || '-' }}</template>
