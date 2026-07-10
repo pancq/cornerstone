@@ -10,14 +10,15 @@ import api from './api/axios'
 import { useI18n } from 'vue-i18n'
 import { 
   DataBoard, 
-  Location, 
+  Location,
+  Layout,
   Connection, 
   Bell, 
   Setting, 
   Files, 
   SwitchButton, 
-  Minus, 
-  Plus,
+  ArrowDown, 
+  ArrowUp,
   User,
   TrendCharts,
   Search
@@ -298,8 +299,8 @@ async function handleLogout() {
                 <el-icon><component :is="item.icon" /></el-icon>
                 <span>{{ item.name }}</span>
                 <el-icon class="arrow-icon">
-                  <Minus v-if="(item.key === 'ipam' && ipamMenuOpen) || (item.key === 'backups' && backupMenuOpen) || (item.key === 'topology' && topologyMenuOpen)" />
-                  <Plus v-else />
+                  <ArrowUp v-if="(item.key === 'ipam' && ipamMenuOpen) || (item.key === 'backups' && backupMenuOpen) || (item.key === 'topology' && topologyMenuOpen)" />
+                  <ArrowDown v-else />
                 </el-icon>
                 <div 
                   v-if="sidebarCollapsed && activeTooltip === item.name" 
