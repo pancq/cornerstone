@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Picture, Refresh, OfficeBuilding, Edit } from '@element-plus/icons-vue'
+import { Picture, Refresh, OfficeBuilding, Edit, InfoFilled, ArrowDown, ArrowUp, View } from '@element-plus/icons-vue'
 import api from '../../api/axios'
 import { getCompanyInfo, updateCompanyInfo, type CompanyInfo } from '../../api/reports'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +12,114 @@ const brandStore = useBrandStore()
 const currentLogo = ref<string>('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isLoading = ref(false)
+
+const aiConfigLoading = ref(false)
+const aiExpanded = ref(false)
+const showApiKey = ref(false)
+
+const aiForm = reactive({
+  provider: '',
+  model: '',
+  api_url: '',
+  api_key: '',
+  description: '',
+})
+
+const providerOptions = [
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'qwen', label: '通义千问' },
+  { value: 'zhipu', label: '智谱AI' },
+  { value: 'custom', label: '自定义 API' },
+]
+
+const modelOptions: Record<string, Array<{ value: string; label: string }>> = {
+  openai: [
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+  ],
+  deepseek: [
+    { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
+    { value: 'deepseek-v4', label: 'DeepSeek V4' },
+    { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+  ],
+  qwen: [
+    { value: 'qwen2-7b-instruct', label: 'Qwen2-7B' },
+    { value: 'qwen2-14b-instruct', label: 'Qwen2-14B' },
+    { value: 'qwen2-72b-instruct', label: 'Qwen2-72B' },
+    { value: 'qwen-turbo', label: 'Qwen Turbo' },
+    { value: 'qwen-plus', label: 'Qwen Plus' },
+  ],
+  zhipu: [
+    { value: 'glm-4-flash', label: 'GLM-4 Flash' },
+    { value: 'glm-4', label: 'GLM-4' },
+    { value: 'glm-3-turbo', label: 'GLM-3 Turbo' },
+  ],
+  custom: [],
+}
+
+const apiUrlDefaults: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  deepseek: 'https://api.deepseek.com',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  custom: '',
+}
+
+const currentModelOptions = computed(() => {
+  return modelOptions[aiForm.provider] || []
+})
+
+import { computed } from 'vue'
+
+const fetchAIConfig = async () => {
+  try {
+    const res = await api.get('/ai/config')
+    const data = res.data
+    aiForm.provider = data.provider || ''
+    aiForm.model = data.model || ''
+    aiForm.api_url = data.api_url || ''
+    aiForm.api_key = data.api_key || ''
+    aiForm.description = data.description || ''
+  } catch (error: any) {
+    console.error('加载AI配置失败:', error)
+  }
+}
+
+const saveAIConfig = async () => {
+  if (!aiForm.provider || !aiForm.api_url || !aiForm.api_key || !aiForm.model) {
+    ElMessage.warning('请填写完整的AI配置信息')
+    return
+  }
+
+  aiConfigLoading.value = true
+  try {
+    await api.put('/ai/config', {
+      provider: aiForm.provider,
+      model: aiForm.model,
+      api_url: aiForm.api_url,
+      api_key: aiForm.api_key,
+      description: aiForm.description,
+    })
+    ElMessage.success('AI配置已更新')
+  } catch (error: any) {
+    console.error('保存AI配置失败:', error)
+    ElMessage.error(error.response?.data?.detail || '保存失败')
+  } finally {
+    aiConfigLoading.value = false
+  }
+}
+
+const handleProviderChange = () => {
+  aiForm.api_url = apiUrlDefaults[aiForm.provider] || ''
+  aiForm.model = ''
+}
+
+const toggleAIExpanded = () => {
+  aiExpanded.value = !aiExpanded.value
+}
 
 const companyForm = reactive<CompanyInfo>({
   company_name: '',
@@ -97,6 +205,7 @@ onMounted(() => {
   fetchLogo()
   fetchCompanyInfo()
   fetchBrandSettings()
+  fetchAIConfig()
 })
 
 const fetchCompanyInfo = async () => {
@@ -294,6 +403,76 @@ const handleLogoRemove = async () => {
       </div>
     </div>
 
+    <div class="settings-section ai-settings-section">
+      <div class="section-header" @click="toggleAIExpanded">
+        <el-icon class="section-icon ai-icon"><InfoFilled /></el-icon>
+        <h2 class="section-title">AI 设置</h2>
+        <p class="section-desc">配置 AI 模型以启用智能分析、趋势预测等功能</p>
+        <el-icon class="expand-icon">
+          <ArrowDown v-if="!aiExpanded" />
+          <ArrowUp v-else />
+        </el-icon>
+      </div>
+
+      <div v-show="aiExpanded" class="ai-form-container">
+        <div class="ai-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">名称</label>
+              <el-input v-model="aiForm.description" placeholder="请输入配置名称" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">提供商类型</label>
+              <el-select
+                v-model="aiForm.provider"
+                placeholder="请选择提供商"
+                @change="handleProviderChange"
+              >
+                <el-option v-for="option in providerOptions" :key="option.value" :label="option.label" :value="option.value" />
+              </el-select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">模型</label>
+              <el-select
+                v-model="aiForm.model"
+                placeholder="请选择模型"
+              >
+                <el-option v-for="option in currentModelOptions" :key="option.value" :label="option.label" :value="option.value" />
+                <el-option v-if="aiForm.provider === 'custom'" label="自定义模型名称" value="custom-model" />
+              </el-select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">API URL</label>
+              <el-input v-model="aiForm.api_url" placeholder="请输入 API URL" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group api-key-group">
+              <label class="form-label">API Key</label>
+              <div class="input-with-icon">
+                <el-input
+                  v-model="aiForm.api_key"
+                  :type="showApiKey ? 'text' : 'password'"
+                  placeholder="请输入 API Key"
+                />
+                <el-button type="text" @click="showApiKey = !showApiKey" class="eye-btn">
+                  <el-icon><View /></el-icon>
+                </el-button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <el-button type="primary" @click="saveAIConfig" :loading="aiConfigLoading">保存配置</el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="settings-section">
       <div class="section-header">
         <el-icon class="section-icon"><OfficeBuilding /></el-icon>
@@ -479,5 +658,86 @@ const handleLogoRemove = async () => {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+.ai-settings-section {
+  border: 1px solid #e8e8e8;
+}
+
+.ai-settings-section .section-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 0;
+}
+
+.ai-settings-section .section-header:hover {
+  background-color: #fafafa;
+}
+
+.ai-icon {
+  color: #722ed1;
+  font-size: 22px;
+}
+
+.expand-icon {
+  margin-left: auto;
+  font-size: 16px;
+  color: #8c8c8c;
+  transition: transform 0.2s;
+}
+
+.ai-form-container {
+  padding-top: 16px;
+}
+
+.ai-form {
+  max-width: 800px;
+}
+
+.form-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  flex: 1;
+  min-width: 280px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.api-key-group {
+  flex: 2;
+}
+
+.input-with-icon {
+  display: flex;
+  align-items: center;
+}
+
+.input-with-icon .eye-btn {
+  margin-left: -40px;
+  z-index: 10;
+  padding: 0 10px;
+}
+
+.form-actions {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.form-actions .el-button {
+  width: auto;
 }
 </style>

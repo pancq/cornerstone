@@ -42,6 +42,21 @@ class ConfigStatusResponse(BaseModel):
     model: str = ""
 
 
+class AIConfigRequest(BaseModel):
+    provider: str
+    model: str
+    api_url: str
+    api_key: str
+    description: str = ""
+
+
+class AIConfigResponse(BaseModel):
+    provider: str
+    model: str
+    api_url: str
+    description: str = ""
+
+
 class BackupAnalysisResponse(BaseModel):
     status: str  # ready / pending / unavailable / error
     summary: str = ""
@@ -118,6 +133,62 @@ async def ai_config_status(
             model=config.model,
         )
     return ConfigStatusResponse(configured=False)
+
+
+@router.get("/config", response_model=AIConfigResponse)
+async def get_ai_config_detail(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """获取 AI 配置详情"""
+    config = await get_ai_config(db)
+    if config:
+        return AIConfigResponse(
+            provider=config.provider,
+            model=config.model,
+            api_url=config.api_base,
+            description="",
+        )
+    return AIConfigResponse(provider="", model="", api_url="")
+
+
+@router.put("/config", response_model=AIConfigResponse)
+async def update_ai_config(
+    req: AIConfigRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """更新 AI 配置"""
+    from ..models.setting import Setting
+    from ..services.ai_client import AI_CONFIG_KEY
+
+    config_data = {
+        "provider": req.provider,
+        "api_key": req.api_key,
+        "api_base": req.api_url,
+        "model": req.model,
+        "description": req.description,
+    }
+
+    result = await db.execute(
+        select(Setting).filter(Setting.key == AI_CONFIG_KEY)
+    )
+    setting = result.scalars().first()
+
+    if setting:
+        setting.value = json.dumps(config_data)
+    else:
+        setting = Setting(key=AI_CONFIG_KEY, value=json.dumps(config_data))
+        db.add(setting)
+
+    await db.commit()
+
+    return AIConfigResponse(
+        provider=req.provider,
+        model=req.model,
+        api_url=req.api_url,
+        description=req.description,
+    )
 
 
 @router.get("/backups/{backup_id}/analysis", response_model=BackupAnalysisResponse)
