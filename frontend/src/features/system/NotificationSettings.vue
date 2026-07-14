@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Bell, Message, Postcard } from '@element-plus/icons-vue'
+import { Bell, Message, Postcard as MailIcon, ArrowRight as SendIcon, Check, Close } from '@element-plus/icons-vue'
 import { getNotificationSettings, updateNotificationSettings, testNotification } from '../../api/settings'
 import type { NotificationSettings } from '../../api/settings'
 
@@ -20,8 +20,20 @@ const form = ref<NotificationSettings>({
 })
 
 const isLoading = ref(false)
-const activeTab = ref<'webhook' | 'email'>('webhook')
 const testingChannel = ref<string | null>(null)
+const expandedChannels = ref<Record<string, boolean>>({
+  dingtalk: true,
+  wechat: true,
+  feishu: true,
+  email: true
+})
+
+const channels = ref([
+  { key: 'dingtalk', name: '钉钉', icon: Message, color: '#268AF7' },
+  { key: 'wechat', name: '企业微信', icon: Message, color: '#07C160' },
+  { key: 'feishu', name: '飞书', icon: Message, color: '#007DFF' },
+  { key: 'email', name: '邮件通知', icon: MailIcon, color: '#722ED1' }
+])
 
 onMounted(() => {
   loadSettings()
@@ -68,377 +80,346 @@ const handleTest = async (channel: 'dingtalk' | 'wechat' | 'feishu' | 'email') =
     testingChannel.value = null
   }
 }
+
+const toggleChannel = (key: string) => {
+  expandedChannels.value[key] = !expandedChannels.value[key]
+}
+
+const isChannelConfigured = (key: string) => {
+  if (key === 'dingtalk') return !!form.value.dingtalk_webhook_url
+  if (key === 'wechat') return !!form.value.wechat_webhook_url
+  if (key === 'feishu') return !!form.value.feishu_webhook_url
+  if (key === 'email') return !!form.value.smtp_host && !!form.value.smtp_username && !!form.value.smtp_password
+  return false
+}
 </script>
 
 <template>
   <div class="notification-settings-page">
-    <div class="settings-section">
-      <div class="section-header">
-        <el-icon class="section-icon"><Bell /></el-icon>
-        <div class="section-info">
-          <h2 class="section-title">{{ t('system.notification.channelConfig') }}</h2>
-          <p class="section-desc">{{ t('system.notification.channelDesc') }}</p>
-        </div>
+    <div class="page-header">
+      <div class="header-icon">
+        <Bell />
       </div>
-      
-      <el-tabs v-model="activeTab" class="notification-tabs">
-        <el-tab-pane :label="t('system.notification.imBot')" name="webhook">
-          <div class="form-section">
+      <div class="header-info">
+        <h1>通知管理</h1>
+        <p>配置通知渠道，接收系统告警和运维通知</p>
+      </div>
+    </div>
+
+    <div class="channels-grid">
+      <div
+        v-for="channel in channels"
+        :key="channel.key"
+        class="channel-card"
+      >
+        <div class="card-header">
+          <div class="channel-info">
+            <div class="channel-icon" :style="{ background: channel.color }">
+              <component :is="channel.icon" />
+            </div>
+            <div>
+              <h3>{{ channel.name }}</h3>
+              <p class="channel-status">
+                <span :class="['status-badge', isChannelConfigured(channel.key) ? 'configured' : 'not-configured']">
+                  <Check v-if="isChannelConfigured(channel.key)" />
+                  <Close v-else />
+                  {{ isChannelConfigured(channel.key) ? '已配置' : '未配置' }}
+                </span>
+              </p>
+            </div>
+          </div>
+          <el-button
+            type="text"
+            class="expand-btn"
+            @click="toggleChannel(channel.key)"
+          >
+            <el-icon>
+              <SendIcon :style="{ transform: expandedChannels[channel.key] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }" />
+            </el-icon>
+          </el-button>
+        </div>
+
+        <div v-show="expandedChannels[channel.key]" class="card-body">
+          <div v-if="channel.key === 'dingtalk'" class="form-content">
             <div class="form-group">
-              <label class="form-label">
-                <el-icon class="label-icon"><Message /></el-icon>
-                {{ t('system.notification.dingtalkWebhook') }}
-              </label>
+              <label>Webhook URL</label>
               <el-input
                 v-model="form.dingtalk_webhook_url"
                 type="textarea"
                 :rows="3"
-                :placeholder="t('system.notification.dingtalkPlaceholder')"
-                class="form-textarea"
+                placeholder="请输入钉钉机器人 Webhook 地址"
               />
-              <p class="form-hint">{{ t('system.notification.dingtalkHint') }}</p>
-              <el-button 
-                type="primary" 
-                size="small" 
-                plain
+              <p class="form-hint">在钉钉群中添加自定义机器人，复制 Webhook 地址</p>
+            </div>
+            <div class="form-actions">
+              <el-button
+                type="primary"
                 :loading="testingChannel === 'dingtalk'"
                 @click="handleTest('dingtalk')"
-                style="margin-top: 8px;"
               >
-                {{ t('system.notification.testDingtalk') }}
+                测试发送
               </el-button>
             </div>
-            
+          </div>
+
+          <div v-if="channel.key === 'wechat'" class="form-content">
             <div class="form-group">
-              <label class="form-label">
-                <el-icon class="label-icon"><Message /></el-icon>
-                {{ t('system.notification.wechatWebhook') }}
-              </label>
+              <label>Webhook URL</label>
               <el-input
                 v-model="form.wechat_webhook_url"
                 type="textarea"
                 :rows="3"
-                :placeholder="t('system.notification.wechatPlaceholder')"
-                class="form-textarea"
+                placeholder="请输入企业微信机器人 Webhook 地址"
               />
-              <p class="form-hint">{{ t('system.notification.wechatHint') }}</p>
-              <el-button 
-                type="primary" 
-                size="small" 
-                plain
+              <p class="form-hint">在企业微信群中添加机器人，复制 Webhook 地址</p>
+            </div>
+            <div class="form-actions">
+              <el-button
+                type="primary"
                 :loading="testingChannel === 'wechat'"
                 @click="handleTest('wechat')"
-                style="margin-top: 8px;"
               >
-                {{ t('system.notification.testWechat') }}
+                测试发送
               </el-button>
             </div>
-            
+          </div>
+
+          <div v-if="channel.key === 'feishu'" class="form-content">
             <div class="form-group">
-              <label class="form-label">
-                <el-icon class="label-icon"><Message /></el-icon>
-                {{ t('system.notification.feishuWebhook') }}
-              </label>
+              <label>Webhook URL</label>
               <el-input
                 v-model="form.feishu_webhook_url"
                 type="textarea"
                 :rows="3"
-                :placeholder="t('system.notification.feishuPlaceholder')"
-                class="form-textarea"
+                placeholder="请输入飞书机器人 Webhook 地址"
               />
-              <p class="form-hint">{{ t('system.notification.feishuHint') }}</p>
-              <el-button 
-                type="primary" 
-                size="small" 
-                plain
+              <p class="form-hint">在飞书群中添加机器人，复制 Webhook 地址</p>
+            </div>
+            <div class="form-actions">
+              <el-button
+                type="primary"
                 :loading="testingChannel === 'feishu'"
                 @click="handleTest('feishu')"
-                style="margin-top: 8px;"
               >
-                {{ t('system.notification.testFeishu') }}
+                测试发送
               </el-button>
             </div>
           </div>
-        </el-tab-pane>
-        
-        <el-tab-pane :label="t('system.notification.emailNotification')" name="email">
-          <div class="form-section">
+
+          <div v-if="channel.key === 'email'" class="form-content">
             <div class="form-row">
-              <div class="form-group flex-1">
-                <label class="form-label">
-                  <el-icon class="label-icon"><Postcard /></el-icon>
-                  {{ t('system.notification.smtpHost') }}
-                </label>
-                <el-input
-                  v-model="form.smtp_host"
-                  :placeholder="t('system.notification.smtpHostPlaceholder')"
-                />
-              </div>
-              
               <div class="form-group">
-                <label class="form-label">{{ t('system.notification.smtpPort') }}</label>
-                <el-input
-                  v-model.number="form.smtp_port"
-                  type="number"
-                  placeholder="587"
-                  style="width: 120px;"
-                />
+                <label>SMTP 服务器</label>
+                <el-input v-model="form.smtp_host" placeholder="smtp.example.com" />
+              </div>
+              <div class="form-group">
+                <label>SMTP 端口</label>
+                <el-input v-model.number="form.smtp_port" type="number" placeholder="587" />
               </div>
             </div>
-            
             <div class="form-row">
-              <div class="form-group flex-1">
-                <label class="form-label">{{ t('system.notification.smtpUsername') }}</label>
-                <el-input
-                  v-model="form.smtp_username"
-                  :placeholder="t('system.notification.smtpUserPlaceholder')"
-                />
+              <div class="form-group">
+                <label>用户名</label>
+                <el-input v-model="form.smtp_username" placeholder="邮箱账号" />
               </div>
-              
-              <div class="form-group flex-1">
-                <label class="form-label">{{ t('system.notification.smtpFromEmail') }}</label>
-                <el-input
-                  v-model="form.smtp_from_email"
-                  :placeholder="t('system.notification.smtpFromPlaceholder')"
-                />
+              <div class="form-group">
+                <label>发件人邮箱</label>
+                <el-input v-model="form.smtp_from_email" placeholder="sender@example.com" />
               </div>
             </div>
-            
             <div class="form-group">
-              <label class="form-label">{{ t('system.notification.smtpPassword') }}</label>
-              <el-input
-                v-model="form.smtp_password"
-                type="password"
-                :placeholder="t('system.notification.smtpPwdPlaceholder')"
-              />
-              <p class="form-hint">{{ t('system.notification.smtpPwdHint') }}</p>
+              <label>密码/授权码</label>
+              <el-input v-model="form.smtp_password" type="password" placeholder="请输入密码或授权码" />
+              <p class="form-hint">建议使用邮箱授权码而非密码，例如 Gmail 使用 App Password</p>
             </div>
-            
-            <div class="form-group">
-              <el-button 
-                type="primary" 
-                size="small" 
-                plain
+            <div class="form-actions">
+              <el-button
+                type="primary"
                 :loading="testingChannel === 'email'"
                 @click="handleTest('email')"
               >
-                {{ t('system.notification.testEmail') }}
+                测试发送
               </el-button>
             </div>
           </div>
-        </el-tab-pane>
-      </el-tabs>
-      
-      <div class="form-actions">
-        <el-button type="default" @click="resetForm">
-          {{ t('common.reset') }}
-        </el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="isLoading">
-          {{ t('common.save') }}
-        </el-button>
+        </div>
       </div>
     </div>
-    
-    <div class="settings-section">
-      <div class="section-header">
-        <h2 class="section-title">{{ t('system.notification.usageGuide') }}</h2>
-      </div>
-      <div class="help-content">
-        <h3>{{ t('system.notification.guideImBot') }}</h3>
-        <ol>
-          <li>{{ t('system.notification.guideStep1') }}</li>
-          <li>{{ t('system.notification.guideStep2') }}</li>
-          <li>{{ t('system.notification.guideStep3') }}</li>
-          <li>{{ t('system.notification.guideStep4') }}</li>
-          <li>{{ t('system.notification.guideStep5') }}</li>
-        </ol>
-        
-        <h3>{{ t('system.notification.guideEmail') }}</h3>
-        <ol>
-          <li>{{ t('system.notification.guideEmail1') }}</li>
-          <li>{{ t('system.notification.guideEmail2') }}</li>
-          <li>{{ t('system.notification.guideEmail3') }}</li>
-          <li>{{ t('system.notification.guideEmail4') }}</li>
-        </ol>
-        
-        <h3>{{ t('system.notification.guideTest') }}</h3>
-        <p>{{ t('system.notification.guideTestDesc') }}</p>
-      </div>
+
+    <div class="page-footer">
+      <el-button @click="resetForm">重置</el-button>
+      <el-button type="primary" @click="handleSubmit" :loading="isLoading">保存配置</el-button>
     </div>
   </div>
 </template>
 
 <style scoped>
 .notification-settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 20px;
+  padding: 24px;
+  background: #f5f5f5;
+  min-height: 100vh;
 }
 
-.settings-section {
-  background: #fff;
-  border-radius: 12px;
-  padding: 28px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid #f5f5f5;
-}
-
-.section-header {
+.page-header {
   display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
 }
 
-.section-icon {
-  width: 44px;
-  height: 44px;
+.header-icon {
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  font-size: 22px;
+  border-radius: 16px;
+  font-size: 28px;
   color: #fff;
-  flex-shrink: 0;
 }
 
-.section-info {
-  flex: 1;
-}
-
-.section-title {
-  font-size: 18px;
+.header-info h1 {
+  font-size: 22px;
   font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 6px;
+  color: #262626;
+  margin: 0 0 6px 0;
 }
 
-.section-desc {
+.header-info p {
   font-size: 14px;
   color: #8c8c8c;
-  line-height: 1.5;
+  margin: 0;
 }
 
-.notification-tabs {
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 20px;
   margin-bottom: 24px;
-  --el-tabs-header-text-color: #8c8c8c;
-  --el-tabs-active-text-color: #1890ff;
-  --el-tabs-header-border-color: #f0f0f0;
-  --el-tabs-active-bar-color: #1890ff;
 }
 
-.form-section {
+.channel-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.channel-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.channel-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.channel-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 18px;
+  color: #fff;
+}
+
+.channel-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 4px 0;
+}
+
+.channel-status {
+  font-size: 12px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.status-badge.configured {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.status-badge.not-configured {
+  background: #fff2f0;
+  color: #ff4d4f;
+}
+
+.expand-btn {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.card-body {
+  padding: 20px;
+}
+
+.form-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .form-row {
   display: flex;
-  gap: 20px;
+  gap: 16px;
 }
 
 .form-group {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
-.form-group.flex-1 {
-  flex: 1;
-}
-
-.form-label {
-  font-size: 14px;
+.form-group label {
+  font-size: 13px;
   font-weight: 500;
   color: #434343;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.label-icon {
-  color: #1890ff;
-  font-size: 15px;
-}
-
-.form-textarea {
-  resize: vertical;
-  border-radius: 8px;
-  border: 1px solid #e8e8e8;
-  transition: all 0.3s ease;
-}
-
-.form-textarea:focus {
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
 .form-hint {
-  font-size: 13px;
+  font-size: 12px;
   color: #999;
   margin: 0;
   padding-left: 4px;
-  line-height: 1.5;
 }
 
 .form-actions {
   display: flex;
-  gap: 14px;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.page-footer {
+  display: flex;
   justify-content: flex-end;
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.help-content {
-  font-size: 14px;
-  color: #595959;
-  line-height: 1.7;
-}
-
-.help-content h3 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #262626;
-  margin: 20px 0 14px;
-  padding-left: 12px;
-  border-left: 3px solid #1890ff;
-}
-
-.help-content h3:first-child {
-  margin-top: 0;
-}
-
-.help-content ol {
-  margin: 0;
-  padding-left: 24px;
-}
-
-.help-content li {
-  margin-bottom: 10px;
-  position: relative;
-}
-
-.help-content li::marker {
-  color: #1890ff;
-  font-weight: 600;
-}
-
-.help-content p {
-  margin: 10px 0;
-  padding-left: 4px;
-}
-
-.help-content code {
-  background: #f5f7fa;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #595959;
+  gap: 12px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 </style>
