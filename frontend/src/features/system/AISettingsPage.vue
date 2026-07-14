@@ -62,9 +62,8 @@
 
     <el-dialog
       :title="editingId ? '编辑 LLM 配置' : '添加 LLM 配置'"
-      :visible.sync="modalVisible"
+      v-model="modalVisible"
       width="650px"
-      @close="closeModal"
     >
       <div class="modal-form">
         <div class="form-row">
