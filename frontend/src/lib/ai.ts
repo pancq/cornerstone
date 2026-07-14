@@ -224,13 +224,65 @@ const defaultServices: AIServiceConfig[] = [
  }
 ];
 
-// AI服务配置管理
+async function loadAIServicesFromBackend(): Promise<AIServiceConfig[]> {
+  try {
+    const response = await api.get('/ai/config');
+    const data = response.data;
+    if (data.provider) {
+      return [{
+        name: data.description || getProviderDisplayName(data.provider),
+        provider: data.provider as AIServiceConfig['provider'],
+        apiKey: '',
+        apiBase: data.api_url,
+        model: data.model,
+        enabled: true
+      }];
+    }
+  } catch (error) {
+    console.error('Failed to load AI config from backend:', error);
+  }
+  return defaultServices;
+}
+
+async function saveAIServiceToBackend(service: AIServiceConfig) {
+  try {
+    await api.put('/ai/config', {
+      provider: service.provider,
+      model: service.model,
+      api_url: service.apiBase,
+      api_key: service.apiKey || '',
+      description: service.name
+    });
+  } catch (error) {
+    console.error('Failed to save AI config to backend:', error);
+  }
+}
+
+function getProviderDisplayName(provider: string): string {
+  const names: Record<string, string> = {
+    deepseek: 'DeepSeek',
+    qwen: '阿里通义千问',
+    zhipu: '智谱AI',
+    claude: 'Anthropic Claude',
+    openai: 'OpenAI',
+    local: '本地模型'
+  };
+  return names[provider] || provider;
+}
+
 export function useAIServiceConfig() {
- // 从localStorage加载保存的配置，没有则使用默认配置
- const savedConfig = localStorage.getItem('ai_service_config');
- const services = ref<AIServiceConfig[]>(savedConfig ? JSON.parse(savedConfig) : defaultServices);
+  const services = ref<AIServiceConfig[]>(defaultServices);
+  
+  const isLoaded = ref(false);
+  
+  async function loadServices() {
+    if (isLoaded.value) return;
+    services.value = await loadAIServicesFromBackend();
+    isLoaded.value = true;
+  }
+  
+  loadServices();
  
- // 默认不展开任何服务配置（空对象），用户点击后才展开
  const currentService = ref<AIServiceConfig>({
  name: '',
  provider: 'local',
@@ -245,23 +297,18 @@ export function useAIServiceConfig() {
  }
  function toggleService(index: number) {
  services.value[index].enabled = !services.value[index].enabled;
- // 自动保存配置到localStorage
- localStorage.setItem('ai_service_config', JSON.stringify(services.value));
+ saveAIServiceToBackend(services.value[index]);
  }
- // 添加自定义服务
  function addCustomService(config: Omit<AIServiceConfig, 'enabled'>) {
  const newService: AIServiceConfig = {
  ...config,
  enabled: false
  };
  services.value.push(newService);
- localStorage.setItem('ai_service_config', JSON.stringify(services.value));
+ saveAIServiceToBackend({ ...newService, enabled: false });
  }
- // 删除服务
  function removeService(index: number) {
  services.value.splice(index, 1);
- localStorage.setItem('ai_service_config', JSON.stringify(services.value));
- // 如果删除的是当前选中的服务，清空选择
  if (currentService.value.name && services.value.findIndex(s => s.name === currentService.value.name) === -1) {
  currentService.value = {
  name: '',
