@@ -40,15 +40,70 @@ async def get_ai_config(db: AsyncSession) -> Optional[AIConfig]:
 
     try:
         cfg = json.loads(setting.value)
+        if isinstance(cfg, list):
+            default_config = next((c for c in cfg if c.get("is_default") and c.get("enabled")), None)
+            if not default_config:
+                default_config = next((c for c in cfg if c.get("enabled")), None)
+            if not default_config:
+                default_config = cfg[0] if cfg else None
+            
+            if default_config:
+                provider = default_config.get("provider", "").lower()
+                api_key = default_config.get("api_key", "")
+                api_base = default_config.get("api_url", "")
+                model = default_config.get("model", "")
+                if api_key and api_base:
+                    return AIConfig(provider=provider, api_key=api_key, api_base=api_base, model=model)
+            return None
+        
         provider = cfg.get("provider", "").lower()
         api_key = cfg.get("api_key", "")
-        api_base = cfg.get("api_base", "")
+        api_base = cfg.get("api_base", cfg.get("api_url", ""))
         model = cfg.get("model", "")
         if not api_key or not api_base:
             return None
         return AIConfig(provider=provider, api_key=api_key, api_base=api_base, model=model)
-    except (json.JSONDecodeError, KeyError):
+    except (json.JSONDecodeError, KeyError, IndexError):
         return None
+
+
+async def get_ai_configs(db: AsyncSession) -> list:
+    """获取所有 AI 配置列表"""
+    result = await db.execute(select(Setting).filter(Setting.key == AI_CONFIG_KEY))
+    setting = result.scalars().first()
+    if not setting:
+        return []
+
+    try:
+        cfg = json.loads(setting.value)
+        if isinstance(cfg, list):
+            return cfg
+        return [{
+            "id": 1,
+            "name": cfg.get("description", ""),
+            "provider": cfg.get("provider", ""),
+            "model": cfg.get("model", ""),
+            "api_url": cfg.get("api_base", cfg.get("api_url", "")),
+            "description": "",
+            "enabled": True,
+            "is_default": True,
+        }]
+    except (json.JSONDecodeError, KeyError):
+        return []
+
+
+async def save_ai_configs(db: AsyncSession, configs: list):
+    """保存 AI 配置列表"""
+    result = await db.execute(select(Setting).filter(Setting.key == AI_CONFIG_KEY))
+    setting = result.scalars().first()
+
+    if setting:
+        setting.value = json.dumps(configs)
+    else:
+        setting = Setting(key=AI_CONFIG_KEY, value=json.dumps(configs))
+        db.add(setting)
+
+    await db.commit()
 
 
 async def call_ai(

@@ -43,18 +43,25 @@ class ConfigStatusResponse(BaseModel):
 
 
 class AIConfigRequest(BaseModel):
+    name: str
     provider: str
     model: str
     api_url: str
     api_key: str
     description: str = ""
+    enabled: bool = True
+    is_default: bool = False
 
 
 class AIConfigResponse(BaseModel):
+    id: int
+    name: str
     provider: str
     model: str
     api_url: str
     description: str = ""
+    enabled: bool = False
+    is_default: bool = False
 
 
 class BackupAnalysisResponse(BaseModel):
@@ -135,60 +142,108 @@ async def ai_config_status(
     return ConfigStatusResponse(configured=False)
 
 
-@router.get("/config", response_model=AIConfigResponse)
-async def get_ai_config_detail(
+@router.get("/config", response_model=list[AIConfigResponse])
+async def get_ai_configs(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """获取 AI 配置详情"""
-    config = await get_ai_config(db)
-    if config:
-        return AIConfigResponse(
-            provider=config.provider,
-            model=config.model,
-            api_url=config.api_base,
-            description="",
-        )
-    return AIConfigResponse(provider="", model="", api_url="")
+    """获取所有 AI 配置列表"""
+    from ..services.ai_client import get_ai_configs as fetch_configs
+    configs = await fetch_configs(db)
+    return configs
 
 
-@router.put("/config", response_model=AIConfigResponse)
-async def update_ai_config(
+@router.post("/config", response_model=AIConfigResponse)
+async def add_ai_config(
     req: AIConfigRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """更新 AI 配置"""
-    from ..models.setting import Setting
-    from ..services.ai_client import AI_CONFIG_KEY
+    """添加新的 AI 配置"""
+    from ..services.ai_client import get_ai_configs as fetch_configs, save_ai_configs
 
-    config_data = {
+    configs = await fetch_configs(db)
+    
+    new_id = max((c.get("id", 0) for c in configs), default=0) + 1
+    
+    new_config = {
+        "id": new_id,
+        "name": req.name,
         "provider": req.provider,
-        "api_key": req.api_key,
-        "api_base": req.api_url,
         "model": req.model,
+        "api_url": req.api_url,
+        "api_key": req.api_key,
         "description": req.description,
+        "enabled": req.enabled,
+        "is_default": req.is_default,
     }
+    
+    if req.is_default:
+        for c in configs:
+            c["is_default"] = False
+    
+    configs.append(new_config)
+    await save_ai_configs(db, configs)
 
-    result = await db.execute(
-        select(Setting).filter(Setting.key == AI_CONFIG_KEY)
-    )
-    setting = result.scalars().first()
+    return AIConfigResponse(**{k: v for k, v in new_config.items() if k != "api_key"})
 
-    if setting:
-        setting.value = json.dumps(config_data)
-    else:
-        setting = Setting(key=AI_CONFIG_KEY, value=json.dumps(config_data))
-        db.add(setting)
 
-    await db.commit()
+@router.put("/config/{config_id}", response_model=AIConfigResponse)
+async def update_ai_config(
+    config_id: int,
+    req: AIConfigRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """更新指定的 AI 配置"""
+    from ..services.ai_client import get_ai_configs as fetch_configs, save_ai_configs
 
-    return AIConfigResponse(
-        provider=req.provider,
-        model=req.model,
-        api_url=req.api_url,
-        description=req.description,
-    )
+    configs = await fetch_configs(db)
+    
+    index = next((i for i, c in enumerate(configs) if c.get("id") == config_id), -1)
+    if index == -1:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    if req.is_default:
+        for c in configs:
+            c["is_default"] = False
+    
+    configs[index] = {
+        "id": config_id,
+        "name": req.name,
+        "provider": req.provider,
+        "model": req.model,
+        "api_url": req.api_url,
+        "api_key": req.api_key,
+        "description": req.description,
+        "enabled": req.enabled,
+        "is_default": req.is_default,
+    }
+    
+    await save_ai_configs(db, configs)
+
+    return AIConfigResponse(**{k: v for k, v in configs[index].items() if k != "api_key"})
+
+
+@router.delete("/config/{config_id}", response_model=dict)
+async def delete_ai_config(
+    config_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """删除指定的 AI 配置"""
+    from ..services.ai_client import get_ai_configs as fetch_configs, save_ai_configs
+
+    configs = await fetch_configs(db)
+    
+    index = next((i for i, c in enumerate(configs) if c.get("id") == config_id), -1)
+    if index == -1:
+        raise HTTPException(status_code=404, detail="配置不存在")
+    
+    configs.pop(index)
+    await save_ai_configs(db, configs)
+
+    return {"message": "配置已删除"}
 
 
 @router.get("/backups/{backup_id}/analysis", response_model=BackupAnalysisResponse)

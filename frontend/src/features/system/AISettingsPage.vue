@@ -5,23 +5,83 @@
       <p class="description">配置 AI 模型以启用智能分析、趋势预测等功能</p>
     </div>
 
-    <div class="config-form-container">
-      <div class="config-form">
+    <div class="config-list-container">
+      <div class="list-header">
+        <span class="list-title">LLM 配置列表</span>
+        <el-button type="primary" @click="openAddModal">+ 添加配置</el-button>
+      </div>
+
+      <div v-if="configs.length === 0" class="empty-state">
+        <el-icon class="empty-icon"><InfoFilled /></el-icon>
+        <p>暂无 AI 配置</p>
+        <el-button type="primary" @click="openAddModal">添加配置</el-button>
+      </div>
+
+      <div v-else class="config-list">
+        <div
+          v-for="config in configs"
+          :key="config.id"
+          class="config-card"
+          :class="{ active: editingId === config.id }"
+        >
+          <div class="config-header">
+            <div class="config-name">
+              <span class="name-text">{{ config.name }}</span>
+              <el-tag v-if="config.is_default" type="primary" size="small">默认</el-tag>
+            </div>
+            <div class="config-actions">
+              <el-switch
+                v-model="config.enabled"
+                @change="toggleEnabled(config)"
+              />
+              <el-button type="text" @click="openEditModal(config)">编辑</el-button>
+              <el-button type="text" @click="deleteConfig(config)" style="color: #ff4d4f">删除</el-button>
+            </div>
+          </div>
+          <div class="config-body">
+            <div class="config-row">
+              <span class="label">提供商</span>
+              <span class="value">{{ getProviderLabel(config.provider) }}</span>
+            </div>
+            <div class="config-row">
+              <span class="label">模型</span>
+              <span class="value">{{ config.model }}</span>
+            </div>
+            <div class="config-row">
+              <span class="label">API URL</span>
+              <span class="value">{{ config.api_url }}</span>
+            </div>
+            <div v-if="config.description" class="config-row">
+              <span class="label">描述</span>
+              <span class="value">{{ config.description }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <el-dialog
+      :title="editingId ? '编辑 LLM 配置' : '添加 LLM 配置'"
+      :visible.sync="modalVisible"
+      width="650px"
+      @close="closeModal"
+    >
+      <div class="modal-form">
         <div class="form-row">
           <div class="form-group name-group">
             <label class="form-label required">名称</label>
             <el-input
-              v-model="aiForm.name"
+              v-model="form.name"
               placeholder="请输入配置名称"
             />
           </div>
           <div class="form-group switch-group">
             <label class="form-label">启用</label>
-            <el-switch v-model="aiForm.enabled" />
+            <el-switch v-model="form.enabled" />
           </div>
           <div class="form-group switch-group">
             <label class="form-label">默认</label>
-            <el-switch v-model="aiForm.is_default" />
+            <el-switch v-model="form.is_default" />
           </div>
         </div>
 
@@ -29,7 +89,7 @@
           <div class="form-group full-width">
             <label class="form-label">描述</label>
             <el-input
-              v-model="aiForm.description"
+              v-model="form.description"
               type="textarea"
               :rows="2"
               placeholder="请输入 LLM 配置的描述信息"
@@ -41,7 +101,7 @@
           <div class="form-group">
             <label class="form-label required">提供商类型</label>
             <el-select
-              v-model="aiForm.provider"
+              v-model="form.provider"
               placeholder="请选择提供商类型"
               @change="handleProviderChange"
             >
@@ -56,7 +116,7 @@
           <div class="form-group">
             <label class="form-label required">模型</label>
             <el-input
-              v-model="aiForm.model"
+              v-model="form.model"
               placeholder="请输入模型名称"
             />
           </div>
@@ -66,7 +126,7 @@
           <div class="form-group full-width">
             <label class="form-label required">API URL</label>
             <el-input
-              v-model="aiForm.api_url"
+              v-model="form.api_url"
               placeholder="请输入 API URL"
             />
           </div>
@@ -77,7 +137,7 @@
             <label class="form-label required">API Key</label>
             <div class="input-with-icon">
               <el-input
-                v-model="aiForm.api_key"
+                v-model="form.api_key"
                 :type="showApiKey ? 'text' : 'password'"
                 placeholder="请输入 API Key"
               />
@@ -87,67 +147,59 @@
             </div>
           </div>
         </div>
-
-        <div class="advanced-settings" @click="toggleAdvanced">
-          <div class="advanced-header">
-            <el-icon><ArrowDown v-if="!advancedExpanded" /><ArrowUp v-else /></el-icon>
-            <span>高级设置</span>
-          </div>
-        </div>
-
-        <div v-show="advancedExpanded" class="advanced-content">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">最大 Token</label>
-              <el-input
-                v-model.number="aiForm.max_tokens"
-                type="number"
-                placeholder="2000"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">温度</label>
-              <el-input
-                v-model.number="aiForm.temperature"
-                type="number"
-                :step="0.1"
-                placeholder="0.7"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <el-button type="primary" @click="saveConfig" :loading="loading">保存配置</el-button>
-          <el-button @click="resetConfig">重置</el-button>
-        </div>
       </div>
-    </div>
+
+      <template #footer>
+        <el-button @click="closeModal">取消</el-button>
+        <el-button type="primary" @click="saveConfig" :loading="loading">保存配置</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ArrowDown, ArrowUp, View } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { InfoFilled, View } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../../api/axios'
 
-const loading = ref(false)
-const showApiKey = ref(false)
-const advancedExpanded = ref(false)
+interface AIConfig {
+  id: number
+  name: string
+  description: string
+  provider: string
+  model: string
+  api_url: string
+  api_key: string
+  enabled: boolean
+  is_default: boolean
+}
 
-const aiForm = reactive({
+const loading = ref(false)
+const modalVisible = ref(false)
+const editingId = ref<number | null>(null)
+const showApiKey = ref(false)
+const configs = ref<AIConfig[]>([])
+
+const form = reactive({
   name: '',
   description: '',
   provider: '',
   model: '',
   api_url: '',
   api_key: '',
-  enabled: false,
+  enabled: true,
   is_default: false,
-  max_tokens: 2000,
-  temperature: 0.7,
 })
+
+const providerOptions: Record<string, string> = {
+  openai: 'OpenAI',
+  deepseek: 'OpenAI 兼容',
+  qwen: '阿里通义千问',
+  zhipu: '智谱AI',
+  claude: 'Anthropic Claude',
+  custom: '自定义 API',
+}
 
 const apiUrlDefaults: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
@@ -167,71 +219,136 @@ const modelDefaults: Record<string, string> = {
   custom: '',
 }
 
+const getProviderLabel = (provider: string) => providerOptions[provider] || provider
+
 const handleProviderChange = () => {
-  aiForm.api_url = apiUrlDefaults[aiForm.provider] || ''
-  aiForm.model = modelDefaults[aiForm.provider] || ''
+  form.api_url = apiUrlDefaults[form.provider] || ''
+  form.model = modelDefaults[form.provider] || ''
 }
 
-const toggleAdvanced = () => {
-  advancedExpanded.value = !advancedExpanded.value
-}
-
-const fetchAIConfig = async () => {
+const fetchConfigs = async () => {
   try {
     const res = await api.get('/ai/config')
-    const data = res.data
-    aiForm.name = data.description || ''
-    aiForm.description = ''
-    aiForm.provider = data.provider || ''
-    aiForm.model = data.model || ''
-    aiForm.api_url = data.api_url || ''
-    aiForm.api_key = ''
-    aiForm.enabled = true
-    aiForm.is_default = true
+    configs.value = res.data || []
   } catch (error: any) {
     console.error('加载AI配置失败:', error)
+    configs.value = []
   }
 }
 
+const openAddModal = () => {
+  editingId.value = null
+  showApiKey.value = false
+  form.name = ''
+  form.description = ''
+  form.provider = ''
+  form.model = ''
+  form.api_url = ''
+  form.api_key = ''
+  form.enabled = true
+  form.is_default = configs.value.length === 0
+  modalVisible.value = true
+}
+
+const openEditModal = (config: AIConfig) => {
+  editingId.value = config.id
+  showApiKey.value = false
+  form.name = config.name
+  form.description = config.description
+  form.provider = config.provider
+  form.model = config.model
+  form.api_url = config.api_url
+  form.api_key = ''
+  form.enabled = config.enabled
+  form.is_default = config.is_default
+  modalVisible.value = true
+}
+
+const closeModal = () => {
+  modalVisible.value = false
+  editingId.value = null
+}
+
 const saveConfig = async () => {
-  if (!aiForm.name || !aiForm.provider || !aiForm.api_url || !aiForm.api_key || !aiForm.model) {
+  if (!form.name || !form.provider || !form.api_url || !form.api_key || !form.model) {
     ElMessage.warning('请填写完整的配置信息')
     return
   }
 
   loading.value = true
   try {
-    await api.put('/ai/config', {
-      provider: aiForm.provider,
-      model: aiForm.model,
-      api_url: aiForm.api_url,
-      api_key: aiForm.api_key,
-      description: aiForm.name,
-    })
-    ElMessage.success('AI配置已保存')
+    if (editingId.value) {
+      await api.put(`/ai/config/${editingId.value}`, {
+        name: form.name,
+        description: form.description,
+        provider: form.provider,
+        model: form.model,
+        api_url: form.api_url,
+        api_key: form.api_key,
+        enabled: form.enabled,
+        is_default: form.is_default,
+      })
+    } else {
+      await api.post('/ai/config', {
+        name: form.name,
+        description: form.description,
+        provider: form.provider,
+        model: form.model,
+        api_url: form.api_url,
+        api_key: form.api_key,
+        enabled: form.enabled,
+        is_default: form.is_default,
+      })
+    }
+    ElMessage.success('配置已保存')
+    closeModal()
+    await fetchConfigs()
   } catch (error: any) {
-    console.error('保存AI配置失败:', error)
+    console.error('保存配置失败:', error)
     ElMessage.error(error.response?.data?.detail || '保存失败')
   } finally {
     loading.value = false
   }
 }
 
-const resetConfig = () => {
-  aiForm.name = ''
-  aiForm.description = ''
-  aiForm.provider = ''
-  aiForm.model = ''
-  aiForm.api_url = ''
-  aiForm.api_key = ''
-  aiForm.enabled = false
-  aiForm.is_default = false
-  aiForm.max_tokens = 2000
-  aiForm.temperature = 0.7
+const toggleEnabled = async (config: AIConfig) => {
+  try {
+    await api.put(`/ai/config/${config.id}`, {
+      name: config.name,
+      description: config.description,
+      provider: config.provider,
+      model: config.model,
+      api_url: config.api_url,
+      api_key: '',
+      enabled: config.enabled,
+      is_default: config.is_default,
+    })
+    ElMessage.success(config.enabled ? '已启用' : '已禁用')
+  } catch (error: any) {
+    console.error('更新状态失败:', error)
+    config.enabled = !config.enabled
+    ElMessage.error('更新失败')
+  }
+}
+
+const deleteConfig = async (config: AIConfig) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除配置 "${config.name}" 吗？`, '确认删除', {
+      type: 'warning',
+    })
+    await api.delete(`/ai/config/${config.id}`)
+    ElMessage.success('已删除')
+    await fetchConfigs()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败')
+    }
+  }
 }
 
 onMounted(() => {
-  fetchAIConfig()
+  fetchConfigs()
 })
 </script>
 
@@ -259,26 +376,129 @@ onMounted(() => {
   margin: 0;
 }
 
-.config-form-container {
+.config-list-container {
   background: #fff;
   border-radius: 8px;
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.config-form {
-  max-width: 800px;
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.list-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 0;
+  color: #8c8c8c;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-state p {
+  margin: 0 0 16px 0;
+}
+
+.config-list {
+  display: grid;
+  gap: 16px;
+}
+
+.config-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.config-card:hover {
+  border-color: #1890ff;
+}
+
+.config-card.active {
+  border-color: #1890ff;
+  background: #f0f5ff;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.config-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.config-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.config-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.config-row {
+  display: flex;
+  gap: 8px;
+}
+
+.config-row .label {
+  font-size: 12px;
+  color: #8c8c8c;
+  min-width: 60px;
+}
+
+.config-row .value {
+  font-size: 12px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-form {
+  padding: 8px 0;
 }
 
 .form-row {
   display: flex;
-  gap: 24px;
-  margin-bottom: 20px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .form-group {
   flex: 1;
-  min-width: 200px;
+  min-width: 150px;
 }
 
 .form-group.full-width {
@@ -290,8 +510,8 @@ onMounted(() => {
 }
 
 .form-group.switch-group {
-  flex: 0.5;
-  min-width: 100px;
+  flex: 0.4;
+  min-width: 80px;
 }
 
 .form-label {
@@ -325,33 +545,5 @@ onMounted(() => {
   margin-left: -40px;
   z-index: 10;
   padding: 0 10px;
-}
-
-.advanced-settings {
-  margin-bottom: 16px;
-  cursor: pointer;
-}
-
-.advanced-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #595959;
-  padding: 8px 0;
-}
-
-.advanced-content {
-  padding-left: 24px;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.form-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
 }
 </style>
