@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import { Bell, Message, Postcard as MailIcon, ArrowRight as SendIcon, Check, Close } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Bell, Message, Postcard, Edit } from '@element-plus/icons-vue'
 import { getNotificationSettings, updateNotificationSettings, testNotification } from '../../api/settings'
 import type { NotificationSettings } from '../../api/settings'
 
@@ -20,20 +20,128 @@ const form = ref<NotificationSettings>({
 })
 
 const isLoading = ref(false)
-const testingChannel = ref<string | null>(null)
-const expandedChannels = ref<Record<string, boolean>>({
-  dingtalk: true,
-  wechat: true,
-  feishu: true,
-  email: true
-})
+const editingChannel = ref<string | null>(null)
+const modalVisible = ref(false)
+const showPassword = ref(false)
 
 const channels = ref([
-  { key: 'dingtalk', name: '钉钉', icon: Message, color: '#268AF7' },
-  { key: 'wechat', name: '企业微信', icon: Message, color: '#07C160' },
-  { key: 'feishu', name: '飞书', icon: Message, color: '#007DFF' },
-  { key: 'email', name: '邮件通知', icon: MailIcon, color: '#722ED1' }
+  { 
+    key: 'dingtalk', 
+    name: '钉钉', 
+    icon: Message, 
+    color: '#268AF7',
+    enabled: false
+  },
+  { 
+    key: 'wechat', 
+    name: '企业微信', 
+    icon: Message, 
+    color: '#07C160',
+    enabled: false
+  },
+  { 
+    key: 'feishu', 
+    name: '飞书', 
+    icon: Message, 
+    color: '#007DFF',
+    enabled: false
+  },
+  { 
+    key: 'email', 
+    name: '邮件通知', 
+    icon: Postcard, 
+    color: '#722ED1',
+    enabled: false
+  }
 ])
+
+const editingForm = reactive({
+  key: '',
+  name: '',
+  webhook_url: '',
+  smtp_host: '',
+  smtp_port: 587,
+  smtp_username: '',
+  smtp_password: '',
+  smtp_from_email: '',
+})
+
+const isConfigured = (channelKey: string) => {
+  switch (channelKey) {
+    case 'dingtalk':
+      return !!form.value.dingtalk_webhook_url
+    case 'wechat':
+      return !!form.value.wechat_webhook_url
+    case 'feishu':
+      return !!form.value.feishu_webhook_url
+    case 'email':
+      return !!form.value.smtp_host && !!form.value.smtp_username && !!form.value.smtp_password
+    default:
+      return false
+  }
+}
+
+const getCurrentValue = () => {
+  const key = editingForm.key
+  switch (key) {
+    case 'dingtalk':
+      editingForm.webhook_url = form.value.dingtalk_webhook_url || ''
+      break
+    case 'wechat':
+      editingForm.webhook_url = form.value.wechat_webhook_url || ''
+      break
+    case 'feishu':
+      editingForm.webhook_url = form.value.feishu_webhook_url || ''
+      break
+    case 'email':
+      editingForm.smtp_host = form.value.smtp_host || ''
+      editingForm.smtp_port = form.value.smtp_port || 587
+      editingForm.smtp_username = form.value.smtp_username || ''
+      editingForm.smtp_password = form.value.smtp_password || ''
+      editingForm.smtp_from_email = form.value.smtp_from_email || ''
+      break
+  }
+}
+
+const openEditModal = (channel: any) => {
+  editingChannel.value = channel.key
+  editingForm.key = channel.key
+  editingForm.name = channel.name
+  getCurrentValue()
+  showPassword.value = false
+  modalVisible.value = true
+}
+
+const closeModal = () => {
+  modalVisible.value = false
+  editingChannel.value = null
+}
+
+const saveEdit = async () => {
+  const key = editingForm.key
+  
+  switch (key) {
+    case 'dingtalk':
+      form.value.dingtalk_webhook_url = editingForm.webhook_url
+      break
+    case 'wechat':
+      form.value.wechat_webhook_url = editingForm.webhook_url
+      break
+    case 'feishu':
+      form.value.feishu_webhook_url = editingForm.webhook_url
+      break
+    case 'email':
+      form.value.smtp_host = editingForm.smtp_host
+      form.value.smtp_port = editingForm.smtp_port
+      form.value.smtp_username = editingForm.smtp_username
+      form.value.smtp_password = editingForm.smtp_password
+      form.value.smtp_from_email = editingForm.smtp_from_email
+      break
+  }
+
+  await handleSubmit()
+  closeModal()
+}
 
 onMounted(() => {
   loadSettings()
@@ -68,190 +176,189 @@ const resetForm = () => {
 }
 
 const handleTest = async (channel: 'dingtalk' | 'wechat' | 'feishu' | 'email') => {
-  testingChannel.value = channel
-  
   try {
     const result = await testNotification(channel)
     ElMessage.success(result.message)
   } catch (error: any) {
     console.error('Test notification failed:', error)
     ElMessage.error(error.response?.data?.detail || t('system.notification.testFailed'))
-  } finally {
-    testingChannel.value = null
   }
 }
 
-const toggleChannel = (key: string) => {
-  expandedChannels.value[key] = !expandedChannels.value[key]
+const getWebhookValue = (key: string) => {
+  switch (key) {
+    case 'dingtalk': return form.value.dingtalk_webhook_url
+    case 'wechat': return form.value.wechat_webhook_url
+    case 'feishu': return form.value.feishu_webhook_url
+    default: return ''
+  }
 }
 
-const isChannelConfigured = (key: string) => {
-  if (key === 'dingtalk') return !!form.value.dingtalk_webhook_url
-  if (key === 'wechat') return !!form.value.wechat_webhook_url
-  if (key === 'feishu') return !!form.value.feishu_webhook_url
-  if (key === 'email') return !!form.value.smtp_host && !!form.value.smtp_username && !!form.value.smtp_password
-  return false
+const getDisplayValue = (channelKey: string) => {
+  switch (channelKey) {
+    case 'dingtalk':
+    case 'wechat':
+    case 'feishu': {
+      const val = getWebhookValue(channelKey)
+      return val ? (val.length > 40 ? val.substring(0, 40) + '...' : val) : '未配置'
+    }
+    case 'email': {
+      if (!form.value.smtp_host) return '未配置'
+      return `${form.value.smtp_host}:${form.value.smtp_port}`
+    }
+    default:
+      return '未配置'
+  }
 }
 </script>
 
 <template>
   <div class="notification-settings-page">
     <div class="page-header">
-      <div class="header-icon">
-        <Bell />
-      </div>
-      <div class="header-info">
-        <h1>通知管理</h1>
-        <p>配置通知渠道，接收系统告警和运维通知</p>
-      </div>
+      <h1>通知管理</h1>
+      <p class="description">配置通知渠道，接收系统告警和运维通知</p>
     </div>
 
-    <div class="channels-grid">
-      <div
-        v-for="channel in channels"
-        :key="channel.key"
-        class="channel-card"
-      >
-        <div class="card-header">
-          <div class="channel-info">
-            <div class="channel-icon" :style="{ background: channel.color }">
-              <component :is="channel.icon" />
+    <div class="config-list-container">
+      <div class="list-header">
+        <span class="list-title">通知渠道配置</span>
+      </div>
+
+      <div class="config-list">
+        <div
+          v-for="channel in channels"
+          :key="channel.key"
+          class="config-card"
+          :class="{ active: editingChannel === channel.key }"
+        >
+          <div class="config-header">
+            <div class="config-name">
+              <div class="channel-icon" :style="{ background: channel.color }">
+                <component :is="channel.icon" />
+              </div>
+              <span class="name-text">{{ channel.name }}</span>
+              <el-tag v-if="isConfigured(channel.key)" type="success" size="small">已配置</el-tag>
+              <el-tag v-else type="danger" size="small">未配置</el-tag>
             </div>
-            <div>
-              <h3>{{ channel.name }}</h3>
-              <p class="channel-status">
-                <span :class="['status-badge', isChannelConfigured(channel.key) ? 'configured' : 'not-configured']">
-                  <Check v-if="isChannelConfigured(channel.key)" />
-                  <Close v-else />
-                  {{ isChannelConfigured(channel.key) ? '已配置' : '未配置' }}
-                </span>
-              </p>
+            <div class="config-actions">
+              <el-button type="text" @click="openEditModal(channel)">
+                <el-icon><Edit /></el-icon>
+                配置
+              </el-button>
             </div>
           </div>
-          <el-button
-            type="text"
-            class="expand-btn"
-            @click="toggleChannel(channel.key)"
-          >
-            <el-icon>
-              <SendIcon :style="{ transform: expandedChannels[channel.key] ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }" />
-            </el-icon>
+          <div class="config-body">
+            <div class="config-row">
+              <span class="label">Webhook 地址</span>
+              <span class="value" v-if="channel.key !== 'email'">{{ getDisplayValue(channel.key) }}</span>
+              <span class="value" v-else>{{ getDisplayValue(channel.key) }}</span>
+            </div>
+            <div v-if="channel.key === 'email' && form.value.smtp_username" class="config-row">
+              <span class="label">用户名</span>
+              <span class="value">{{ form.value.smtp_username }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <el-button @click="resetForm">重置</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="isLoading">保存配置</el-button>
+      </div>
+    </div>
+    </div>
+
+    <el-dialog
+      :title="`配置 ${editingForm.name}`"
+      v-model="modalVisible"
+      width="600px"
+    >
+      <div class="modal-form" v-if="editingForm.key !== 'email'">
+        <div class="form-row">
+          <div class="form-group full-width">
+            <label class="form-label required">Webhook URL</label>
+            <el-input
+              v-model="editingForm.webhook_url"
+              type="textarea"
+              :rows="4"
+              placeholder="请输入机器人 Webhook 地址"
+            />
+            <p class="form-hint">在对应平台的群聊中添加机器人，复制 Webhook 地址</p>
+          </div>
+        </div>
+        <div class="form-actions">
+          <el-button type="primary" @click="handleTest(editingForm.key as any)" :loading="isLoading">
+            测试发送
           </el-button>
         </div>
+      </div>
 
-        <div v-show="expandedChannels[channel.key]" class="card-body">
-          <div v-if="channel.key === 'dingtalk'" class="form-content">
-            <div class="form-group">
-              <label>Webhook URL</label>
-              <el-input
-                v-model="form.dingtalk_webhook_url"
-                type="textarea"
-                :rows="3"
-                placeholder="请输入钉钉机器人 Webhook 地址"
-              />
-              <p class="form-hint">在钉钉群中添加自定义机器人，复制 Webhook 地址</p>
-            </div>
-            <div class="form-actions">
-              <el-button
-                type="primary"
-                :loading="testingChannel === 'dingtalk'"
-                @click="handleTest('dingtalk')"
-              >
-                测试发送
-              </el-button>
-            </div>
+      <div class="modal-form" v-if="editingForm.key === 'email'">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label required">SMTP 服务器</label>
+            <el-input
+              v-model="editingForm.smtp_host"
+              placeholder="smtp.example.com"
+            />
           </div>
-
-          <div v-if="channel.key === 'wechat'" class="form-content">
-            <div class="form-group">
-              <label>Webhook URL</label>
-              <el-input
-                v-model="form.wechat_webhook_url"
-                type="textarea"
-                :rows="3"
-                placeholder="请输入企业微信机器人 Webhook 地址"
-              />
-              <p class="form-hint">在企业微信群中添加机器人，复制 Webhook 地址</p>
-            </div>
-            <div class="form-actions">
-              <el-button
-                type="primary"
-                :loading="testingChannel === 'wechat'"
-                @click="handleTest('wechat')"
-              >
-                测试发送
-              </el-button>
-            </div>
-          </div>
-
-          <div v-if="channel.key === 'feishu'" class="form-content">
-            <div class="form-group">
-              <label>Webhook URL</label>
-              <el-input
-                v-model="form.feishu_webhook_url"
-                type="textarea"
-                :rows="3"
-                placeholder="请输入飞书机器人 Webhook 地址"
-              />
-              <p class="form-hint">在飞书群中添加机器人，复制 Webhook 地址</p>
-            </div>
-            <div class="form-actions">
-              <el-button
-                type="primary"
-                :loading="testingChannel === 'feishu'"
-                @click="handleTest('feishu')"
-              >
-                测试发送
-              </el-button>
-            </div>
-          </div>
-
-          <div v-if="channel.key === 'email'" class="form-content">
-            <div class="form-row">
-              <div class="form-group">
-                <label>SMTP 服务器</label>
-                <el-input v-model="form.smtp_host" placeholder="smtp.example.com" />
-              </div>
-              <div class="form-group">
-                <label>SMTP 端口</label>
-                <el-input v-model.number="form.smtp_port" type="number" placeholder="587" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>用户名</label>
-                <el-input v-model="form.smtp_username" placeholder="邮箱账号" />
-              </div>
-              <div class="form-group">
-                <label>发件人邮箱</label>
-                <el-input v-model="form.smtp_from_email" placeholder="sender@example.com" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>密码/授权码</label>
-              <el-input v-model="form.smtp_password" type="password" placeholder="请输入密码或授权码" />
-              <p class="form-hint">建议使用邮箱授权码而非密码，例如 Gmail 使用 App Password</p>
-            </div>
-            <div class="form-actions">
-              <el-button
-                type="primary"
-                :loading="testingChannel === 'email'"
-                @click="handleTest('email')"
-              >
-                测试发送
-              </el-button>
-            </div>
+          <div class="form-group">
+            <label class="form-label">SMTP 端口</label>
+            <el-input
+              v-model.number="editingForm.smtp_port"
+              type="number"
+              placeholder="587"
+            />
           </div>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">用户名</label>
+            <el-input
+              v-model="editingForm.smtp_username"
+              placeholder="邮箱账号"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">发件人邮箱</label>
+            <el-input
+              v-model="editingForm.smtp_from_email"
+              placeholder="sender@example.com"
+            />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group full-width api-key-group">
+            <label class="form-label required">密码 / 授权码</label>
+            <div class="input-with-icon">
+              <el-input
+                v-model="editingForm.smtp_password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="请输入密码或授权码"
+              />
+              <el-button type="text" @click="showPassword = !showPassword" class="eye-btn">
+                <el-icon><Postcard /></el-icon>
+              </el-button>
+            </div>
+            <p class="form-hint">建议使用邮箱授权码而非密码，例如 Gmail 使用 App Password</p>
+          </div>
+        </div>
+        <div class="form-actions">
+          <el-button type="primary" @click="handleTest('email')" :loading="isLoading">
+            测试发送
+          </el-button>
+        </div>
       </div>
-    </div>
 
-    <div class="page-footer">
-      <el-button @click="resetForm">重置</el-button>
-      <el-button type="primary" @click="handleSubmit" :loading="isLoading">保存配置</el-button>
-    </div>
-  </div>
+      <template #footer>
+        <el-button @click="closeModal">取消</el-button>
+        <el-button type="primary" @click="saveEdit" :loading="isLoading">保存</el-button>
+      </template>
+    </el-dialog>
 </template>
+
+<script lang="ts">
+</script>
 
 <style scoped>
 .notification-settings-page {
@@ -261,66 +368,74 @@ const isChannelConfigured = (key: string) => {
 }
 
 .page-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
   margin-bottom: 24px;
 }
 
-.header-icon {
-  width: 56px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  font-size: 28px;
-  color: #fff;
-}
-
-.header-info h1 {
-  font-size: 22px;
+.page-header h1 {
+  font-size: 20px;
   font-weight: 600;
   color: #262626;
-  margin: 0 0 6px 0;
+  margin: 0 0 8px 0;
 }
 
-.header-info p {
+.page-header .description {
   font-size: 14px;
   color: #8c8c8c;
   margin: 0;
 }
 
-.channels-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.channel-card {
+.config-list-container {
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-  transition: all 0.3s ease;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.channel-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
+.list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer;
+  margin-bottom: 20px;
 }
 
-.channel-info {
+.list-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.config-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.config-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.config-card:hover {
+  border-color: #1890ff;
+}
+
+.config-card.active {
+  border-color: #1890ff;
+  background: #f0f5ff;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.config-name {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -337,89 +452,108 @@ const isChannelConfigured = (key: string) => {
   color: #fff;
 }
 
-.channel-info h3 {
-  font-size: 15px;
+.name-text {
+  font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin: 0 0 4px 0;
 }
 
-.channel-status {
-  font-size: 12px;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 12px;
-}
-
-.status-badge.configured {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.status-badge.not-configured {
-  background: #fff2f0;
-  color: #ff4d4f;
-}
-
-.expand-btn {
-  color: #8c8c8c;
-  font-size: 14px;
-}
-
-.card-body {
-  padding: 20px;
-}
-
-.form-content {
+.config-actions {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
+}
+
+.config-body {
+  display: grid;
+  gap: 8px;
+}
+
+.config-row {
+  display: flex;
+  gap: 8px;
+}
+
+.config-row .label {
+  font-size: 12px;
+  color: #8c8c8c;
+  min-width: 80px;
+}
+
+.config-row .value {
+  font-size: 12px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.modal-form {
+  padding: 8px 0;
 }
 
 .form-row {
   display: flex;
   gap: 16px;
+  margin-bottom: 16px;
 }
 
 .form-group {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  min-width: 150px;
 }
 
-.form-group label {
+.form-group.full-width {
+  flex: 100;
+}
+
+.form-label {
+  display: block;
   font-size: 13px;
   font-weight: 500;
-  color: #434343;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.form-label.required::before {
+  content: '*';
+  color: #ff4d4f;
+  margin-right: 4px;
 }
 
 .form-hint {
   font-size: 12px;
   color: #999;
-  margin: 0;
+  margin: 6px 0 0 0;
   padding-left: 4px;
 }
 
-.form-actions {
-  display: flex;
-  gap: 10px;
-  padding-top: 8px;
+.api-key-group {
+  position: relative;
 }
 
-.page-footer {
+.input-with-icon {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  align-items: center;
+}
+
+.input-with-icon .eye-btn {
+  margin-left: -40px;
+  z-index: 10;
+  padding: 0 10px;
+}
+
+.modal-form .form-actions {
+  border-top: none;
+  padding-top: 0;
+  justify-content: flex-start;
 }
 </style>
