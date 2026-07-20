@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Bell, Message, Postcard, Edit } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Message, Postcard, Edit } from '@element-plus/icons-vue'
 import { getNotificationSettings, updateNotificationSettings, testNotification } from '../../api/settings'
 import type { NotificationSettings } from '../../api/settings'
 
@@ -253,9 +253,9 @@ const getDisplayValue = (channelKey: string) => {
               <span class="value" v-if="channel.key !== 'email'">{{ getDisplayValue(channel.key) }}</span>
               <span class="value" v-else>{{ getDisplayValue(channel.key) }}</span>
             </div>
-            <div v-if="channel.key === 'email' && form.value.smtp_username" class="config-row">
+            <div v-if="channel.key === 'email' && form.smtp_username" class="config-row">
               <span class="label">用户名</span>
-              <span class="value">{{ form.value.smtp_username }}</span>
+              <span class="value">{{ form.smtp_username }}</span>
             </div>
           </div>
         </div>
@@ -265,7 +265,6 @@ const getDisplayValue = (channelKey: string) => {
         <el-button @click="resetForm">重置</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="isLoading">保存配置</el-button>
       </div>
-    </div>
     </div>
 
     <el-dialog
@@ -355,6 +354,7 @@ const getDisplayValue = (channelKey: string) => {
         <el-button type="primary" @click="saveEdit" :loading="isLoading">保存</el-button>
       </template>
     </el-dialog>
+  </div>
 </template>
 
 <script lang="ts">
