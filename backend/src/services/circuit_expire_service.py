@@ -74,6 +74,21 @@ class CircuitExpireService:
             existing_alert.current_value = (circuit.contract_end - datetime.now()).days
             await db.flush()
         else:
+            acknowledged_query = select(AlertRecord).where(
+                AlertRecord.alert_type == "circuit_expire",
+                AlertRecord.device_id == circuit.id,
+                AlertRecord.status == "acknowledged",
+                AlertRecord.acknowledged_at.isnot(None)
+            ).order_by(AlertRecord.acknowledged_at.desc()).limit(1)
+            acknowledged_result = await db.execute(acknowledged_query)
+            acknowledged_alert = acknowledged_result.scalar_one_or_none()
+            
+            if acknowledged_alert:
+                acknowledge_time = acknowledged_alert.acknowledged_at
+                if acknowledge_time and (datetime.now() - acknowledge_time).days < 7:
+                    print(f"专线 [{circuit.name}] 的到期告警已在 {acknowledge_time} 被确认，7天内不再重复通知")
+                    return
+            
             alert_record = AlertRecord(
                 rule_id=None,
                 device_id=circuit.id,
