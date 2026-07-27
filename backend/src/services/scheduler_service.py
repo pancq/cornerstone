@@ -6,6 +6,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from src.database import async_session
 from src.services.monitor_service import run_monitoring_task
+from src.services.circuit_expire_service import circuit_expire_service
 
 scheduler = None
 current_interval = 5  # 默认5分钟
@@ -26,6 +27,14 @@ async def scheduled_monitoring_task():
         await run_monitoring_task(db)
 
 
+async def scheduled_circuit_expire_task():
+    """定时执行的专线到期检查任务（每天凌晨1点执行）"""
+    print(f"[{datetime.now()}] Running scheduled circuit expire check...")
+    async with async_session() as db:
+        await circuit_expire_service.check_expiring_circuits(db, days_before=30)
+        await db.commit()
+
+
 def start_scheduler(interval_minutes: int = 5):
     """启动定时任务调度器"""
     global scheduler, current_interval
@@ -36,11 +45,20 @@ def start_scheduler(interval_minutes: int = 5):
     
     scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
     
-    # 添加定时任务
+    # 添加设备监控定时任务
     scheduler.add_job(
         scheduled_monitoring_task,
         trigger=IntervalTrigger(minutes=interval_minutes),
         id="monitoring_task",
+        replace_existing=True
+    )
+    
+    # 添加专线到期检查定时任务（每天凌晨1点执行）
+    from apscheduler.triggers.cron import CronTrigger
+    scheduler.add_job(
+        scheduled_circuit_expire_task,
+        trigger=CronTrigger(hour=1, minute=0),
+        id="circuit_expire_task",
         replace_existing=True
     )
     
