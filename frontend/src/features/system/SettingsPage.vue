@@ -52,13 +52,10 @@ const saveBrandSettings = async () => {
   brandLoading.value = true
   try {
     await api.put('/api/v1/settings/brand', {
-      brand_name_zh: brandForm.brand_name_zh,
-      brand_name_en: brandForm.brand_name_en,
       brand_slogan: brandForm.brand_slogan,
       brand_subtitle: brandForm.brand_subtitle,
       brand_logo_url: '',
     })
-    // 刷新品牌store
     await brandStore.loadBrand()
     ElMessage.success('品牌设置已更新')
   } catch (error: any) {
@@ -269,16 +266,17 @@ const handleLogoRemove = async () => {
       <div class="section-header">
         <el-icon class="section-icon"><Edit /></el-icon>
         <h2 class="section-title">品牌设置</h2>
-        <p class="section-desc">以下设置控制系统本身的名称和标语，适用于二次部署或品牌定制场景</p>
+        <p class="section-desc">系统名称已锁定，不可修改。您可以自定义标语和副标题</p>
       </div>
 
       <div class="brand-form" v-loading="brandFetchLoading">
         <el-form :model="brandForm" label-width="140px" size="large">
-          <el-form-item label="系统中文名称" required>
-            <el-input v-model="brandForm.brand_name_zh" placeholder="如「基石」" />
+          <el-form-item label="系统中文名称">
+            <el-input v-model="brandForm.brand_name_zh" disabled />
+            <div class="form-tip">系统名称已锁定，不可修改</div>
           </el-form-item>
-          <el-form-item label="系统英文名称" required>
-            <el-input v-model="brandForm.brand_name_en" placeholder="如「Cornerstone」" />
+          <el-form-item label="系统英文名称">
+            <el-input v-model="brandForm.brand_name_en" disabled />
           </el-form-item>
           <el-form-item label="系统标语" required>
             <el-input v-model="brandForm.brand_slogan" placeholder="如「看得见，管得住」" />
@@ -288,7 +286,6 @@ const handleLogoRemove = async () => {
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="saveBrandSettings" :loading="brandLoading">保存</el-button>
-            <el-button @click="resetBrandSettings" :loading="brandLoading">恢复默认</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -472,6 +469,13 @@ const handleLogoRemove = async () => {
   font-size: 13px;
   color: #595959;
   margin-bottom: 8px;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #faad14;
+  margin-top: 4px;
+  line-height: 1.5;
 }
 
 @media (max-width: 768px) {

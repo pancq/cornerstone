@@ -31,8 +31,6 @@ BRAND_SETTINGS_DEFAULTS = {
 }
 
 class BrandSettingsRequest(BaseModel):
-    brand_name_zh: str = "基石"
-    brand_name_en: str = "Cornerstone"
     brand_slogan: str = "智能运维，尽在掌控"
     brand_subtitle: str = "企业级IT基础设施智能运维平台"
     brand_logo_url: str = ""
@@ -84,11 +82,10 @@ async def update_brand_settings(
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_super_admin),
 ):
-    """更新品牌设置，仅超级管理员"""
-    # 如果提交空值，重置为默认值
+    """更新品牌设置，仅超级管理员。系统名称（基石/Cornerstone）已锁定，不可修改"""
     config_dict = {
-        "brand_name_zh": request.brand_name_zh or "基石",
-        "brand_name_en": request.brand_name_en or "Cornerstone",
+        "brand_name_zh": "基石",
+        "brand_name_en": "Cornerstone",
         "brand_slogan": request.brand_slogan or "智能运维，尽在掌控",
         "brand_subtitle": request.brand_subtitle or "企业级IT基础设施智能运维平台",
         "brand_logo_url": request.brand_logo_url,
