@@ -57,7 +57,7 @@ const router = createRouter({
     { path: '/system/settings', name: 'system-settings', component: SettingsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.settings' } },
     { path: '/system/ai-settings', name: 'ai-settings', component: AISettingsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.aiSettings' } },
     { path: '/system/logs-settings', name: 'logs-settings', component: LogsSettingsPage, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.logsSettings' } },
-    { path: '/system/users', name: 'system-users', component: UserManagement, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.userManagement' } },
+    { path: '/system/users', name: 'system-users', component: UserManagement, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.userManagement' } },
     { path: '/system/roles', name: 'system-roles', component: RoleManagement, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.roleManagement' } },
     { path: '/system/sso', name: 'system-sso', component: SSOSettingsPage, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.ssoSettings' } },
     { path: '/system/notifications', name: 'system-notifications', component: NotificationSettingsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.notifications' } },

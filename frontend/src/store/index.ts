@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { AppState, Circuit, Site, Device, Prefix, IPAddress, Backup, User, AuditLog, VlanGroup, Vlan } from '../types/domain'
+import type { AppState, Circuit, Site, Device, Prefix, IPAddress, Backup, User, AuditLog, VlanGroup, Vlan, Credential } from '../types/domain'
 import { seedState, STORE_KEY } from './seed'
 import { uid } from '../lib/utils'
 
@@ -22,11 +22,42 @@ function getEmptyState(): AppState {
 
 function loadState(): AppState {
   const saved = localStorage.getItem(STORE_KEY)
-  return saved ? JSON.parse(saved) : getEmptyState()
+  if (!saved) return getEmptyState()
+  try {
+    const parsed = JSON.parse(saved) as AppState
+    // 兜底：旧数据可能缺字段，合并空态保证结构完整
+    return { ...getEmptyState(), ...parsed }
+  } catch (e) {
+    // 脏数据致 JSON.parse 抛错：清除坏 key 回空态，避免全站白屏不可恢复
+    console.warn('[store] loadState failed, resetting to empty state:', e)
+    localStorage.removeItem(STORE_KEY)
+    return getEmptyState()
+  }
+}
+
+// 凭证敏感字段永不落盘（一次 XSS 即可全网设备口令+私钥泄露）
+const CREDENTIAL_SENSITIVE_KEYS: (keyof Credential)[] = [
+  'password',
+  'enablePassword',
+  'privateKey',
+  'jumpPassword',
+]
+
+function stripSensitiveCredentials(state: AppState): AppState {
+  return {
+    ...state,
+    credentials: state.credentials.map((c) => {
+      const safe: Credential = { ...c }
+      for (const key of CREDENTIAL_SENSITIVE_KEYS) {
+        delete safe[key]
+      }
+      return safe
+    }),
+  }
 }
 
 function saveState(state: AppState): void {
-  localStorage.setItem(STORE_KEY, JSON.stringify(state))
+  localStorage.setItem(STORE_KEY, JSON.stringify(stripSensitiveCredentials(state)))
 }
 
 export const useAppStore = defineStore('app', {

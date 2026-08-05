@@ -486,7 +486,7 @@ async function handleLogout() {
   min-height: 28px;
 }
 
-.enterprise-page-title.loading .page-title-loading {
+.enterprise-page-title .page-title-loading {
   display: inline-block;
   width: 120px;
   height: 24px;
@@ -843,5 +843,66 @@ async function handleLogout() {
 
 .enterprise-sidebar.collapsed .enterprise-nav-group-items {
   gap: 6px;
+}
+
+/* P0-3a: 折叠态侧边栏 tooltip——之前模板引用但样式未定义，撑坏布局 */
+.nav-tooltip {
+  position: fixed;
+  left: 64px;
+  z-index: 2000;
+  background: #fff;
+  color: #262626;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.nav-tooltip-submenu {
+  padding: 6px;
+  white-space: normal;
+  min-width: 160px;
+}
+
+.tooltip-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  padding: 4px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 4px;
+}
+
+.tooltip-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tooltip-subitem {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 4px;
+  color: #262626;
+  text-decoration: none;
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+
+.tooltip-subitem:hover {
+  background: #f0f7ff;
+  color: #1890ff;
+  text-decoration: none;
+}
+
+/* P0-3c: 登录页语言切换器定位——之前模板引用 .global-language-switcher 但无定义 */
+.global-language-switcher {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  z-index: 1000;
 }
 </style>
