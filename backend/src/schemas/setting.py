@@ -30,6 +30,7 @@ class NotificationSettingsRequest(BaseModel):
     smtp_port: Optional[int] = 25
     smtp_username: Optional[str] = None
     smtp_password: Optional[str] = None
+    smtp_from_email: Optional[str] = None
 
 class NotificationSettingsResponse(BaseModel):
     dingtalk_webhook_url: Optional[str] = None
