@@ -322,9 +322,22 @@ async def get_scan_tasks(
 
 
 @router.websocket("/ws/scan/{task_id}")
-async def websocket_scan(websocket: WebSocket, task_id: str):
+async def websocket_scan(
+    websocket: WebSocket,
+    task_id: str,
+    db: AsyncSession = Depends(get_db)
+):
     """WebSocket实时推送扫描进度"""
     await websocket.accept()
+    
+    # 验证用户身份
+    from .dependencies import get_ws_user
+    try:
+        await get_ws_user(websocket, db)
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": f"认证失败: {e}"})
+        await websocket.close(code=1008, reason="认证失败")
+        return
     
     if task_id not in scan_manager.active_tasks:
         await websocket.send_json({"type": "error", "message": "扫描任务不存在"})

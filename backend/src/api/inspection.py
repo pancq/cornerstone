@@ -430,6 +430,15 @@ async def inspection_ws(
     """WebSocket 推送巡检进度"""
     await websocket.accept()
     
+    # 验证用户身份
+    from .dependencies import get_ws_user
+    try:
+        await get_ws_user(websocket, db)
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": f"认证失败: {e}"})
+        await websocket.close(code=1008, reason="认证失败")
+        return
+    
     async def send_progress(data):
         try:
             import json

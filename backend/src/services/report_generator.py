@@ -105,12 +105,10 @@ async def get_brand_settings(db: AsyncSession) -> dict:
 
 async def collect_report_data(year: int, month: int, db: AsyncSession) -> MonthlyReportData:
     """从数据库收集月报所需数据"""
-    # 所有时间统一用 UTC 时区感知，避免 PostgreSQL DateTime(timezone=True) 列不匹配
-    utc = timezone.utc
-    month_start = datetime(year, month, 1, tzinfo=utc)
+    # 使用 naive datetime 配合 cast(column, Date) 避免 SQLite/PostgreSQL 时区不兼容
+    month_start = datetime(year, month, 1)
     next_month = datetime(
-        year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1,
-        tzinfo=utc
+        year + (1 if month == 12 else 0), 1 if month == 12 else month + 1, 1
     )
 
     # 用于展示的北京时间
@@ -161,12 +159,12 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
 
     # 计算网络可用性：从 inspection_device_results 表统计本月在线率
     from src.models.inspection import InspectionDeviceResult
-    # 使用时区感知区间过滤 scanned_at，避免字段名和时区不一致导致的错误
+    # 使用 cast(column, Date) 确保 SQLite/PostgreSQL 时区兼容
     avail_result = await db.execute(
         select(func.count(InspectionDeviceResult.id)).where(
             and_(
-                InspectionDeviceResult.scanned_at >= month_start,
-                InspectionDeviceResult.scanned_at < next_month
+                cast(InspectionDeviceResult.scanned_at, Date) >= month_start.date(),
+                cast(InspectionDeviceResult.scanned_at, Date) < next_month.date()
             )
         )
     )
@@ -175,8 +173,8 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     online_result = await db.execute(
         select(func.count(InspectionDeviceResult.id)).where(
             and_(
-                InspectionDeviceResult.scanned_at >= month_start,
-                InspectionDeviceResult.scanned_at < next_month,
+                cast(InspectionDeviceResult.scanned_at, Date) >= month_start.date(),
+                cast(InspectionDeviceResult.scanned_at, Date) < next_month.date(),
                 InspectionDeviceResult.is_online.is_(True)
             )
         )
@@ -189,8 +187,8 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     incidents_result = await db.execute(
         select(func.count(CircuitIncident.id))
         .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month
+            cast(CircuitIncident.created_at, Date) >= month_start.date(),
+            cast(CircuitIncident.created_at, Date) < next_month.date()
         ))
     )
     incident_count = incidents_result.scalar() or 0
@@ -198,8 +196,8 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     max_duration_min_result = await db.execute(
         select(func.coalesce(func.max(CircuitIncident.duration_minutes), 0))
         .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month
+            cast(CircuitIncident.created_at, Date) >= month_start.date(),
+            cast(CircuitIncident.created_at, Date) < next_month.date()
         ))
     )
     max_duration = float(max_duration_min_result.scalar() or 0) / 60.0
@@ -207,8 +205,8 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
     avg_recovery_min_result = await db.execute(
         select(func.coalesce(func.avg(CircuitIncident.duration_minutes), 0))
         .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month,
+            cast(CircuitIncident.created_at, Date) >= month_start.date(),
+            cast(CircuitIncident.created_at, Date) < next_month.date(),
             CircuitIncident.duration_minutes > 0
         ))
     )
@@ -225,8 +223,8 @@ async def collect_report_data(year: int, month: int, db: AsyncSession) -> Monthl
             CircuitIncident.id
         )
         .where(and_(
-            CircuitIncident.created_at >= month_start,
-            CircuitIncident.created_at < next_month
+            cast(CircuitIncident.created_at, Date) >= month_start.date(),
+            cast(CircuitIncident.created_at, Date) < next_month.date()
         ))
         .order_by(CircuitIncident.started_at.desc())
     )

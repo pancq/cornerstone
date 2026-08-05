@@ -21,10 +21,11 @@ app = FastAPI(
 # 设置日志
 logger = setup_logger()
 
-# CORS配置：始终允许所有来源（前端使用 JWT token 认证，不依赖 cookie credentials）
+# CORS配置：从环境变量读取允许的来源
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

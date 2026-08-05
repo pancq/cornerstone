@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const isLoggedIn = computed(() => !!token.value)
   const ssoConfig = ref<SSOConfig | null>(null)
+  const isRefreshing = ref(false)
   
   function hasPermission(module: string, action?: string): boolean {
     if (!user.value) return false
@@ -192,12 +193,24 @@ export const useAuthStore = defineStore('auth', () => {
         user.value = response.data
         return
       } catch (error: any) {
-        // 如果是401错误，尝试刷新token
         if (error.response?.status === 401) {
-          await refreshAccessToken()
-          return
+          if (isRefreshing.value) {
+            return
+          }
+          isRefreshing.value = true
+          try {
+            const refreshed = await refreshAccessToken()
+            if (refreshed) {
+              isRefreshing.value = false
+              continue
+            } else {
+              return
+            }
+          } catch {
+            isRefreshing.value = false
+            return
+          }
         }
-        // 连接被拒绝时重试
         const isConnectionError = error.code === 'ECONNREFUSED' || 
           error.message?.includes('ECONNREFUSED') ||
           error.errno === 'ECONNREFUSED'
@@ -214,7 +227,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!refreshToken.value) {
       logout()
       window.location.href = '/login'
-      return
+      return false
     }
     
     try {
@@ -228,11 +241,12 @@ export const useAuthStore = defineStore('auth', () => {
       refreshToken.value = response.data.refresh_token
       localStorage.setItem('access_token', response.data.access_token)
       localStorage.setItem('refresh_token', response.data.refresh_token || '')
-      await fetchUser()
+      return true
     } catch (error) {
       console.error('Refresh token failed:', error)
       logout()
       window.location.href = '/login'
+      return false
     }
   }
 

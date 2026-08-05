@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, WebSocket, WebSocketException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -140,3 +140,42 @@ def require_permissions(permissions: List[str]):
             detail=f"缺少必要权限，需要以下任一权限: {', '.join(permissions)}"
         )
     return permissions_check
+
+async def get_ws_user(
+    websocket: WebSocket,
+    db: AsyncSession
+) -> User:
+    """WebSocket 鉴权：从 query 参数提取 token 并验证用户"""
+    token = websocket.query_params.get("token")
+    if not token:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="缺少认证 token")
+    
+    payload = decode_access_token(token)
+    if payload is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="无效的认证 token")
+    
+    username = payload.get("sub")
+    user_id = payload.get("user_id")
+    jti = payload.get("jti")
+    
+    if username is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="token 无效")
+    
+    stmt = select(UserSession).where(
+        UserSession.jti == jti,
+        UserSession.is_revoked == False
+    )
+    result = await db.execute(stmt)
+    session = result.scalar_one_or_none()
+    
+    if not session:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="会话已被撤销")
+    
+    stmt = select(User).options(joinedload(User.role)).where(User.username == username)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if user is None or not user.is_active:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="用户不存在或已禁用")
+    
+    return user

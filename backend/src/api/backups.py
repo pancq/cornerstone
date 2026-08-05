@@ -259,39 +259,7 @@ async def read_backups(
     
     return backups
 
-# 获取单个备份
-@router.get("/{backup_id}", response_model=BackupResponse)
-async def read_backup(
-    backup_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
-):
-    result = await db.execute(select(Backup).where(Backup.id == backup_id))
-    backup = result.scalar_one_or_none()
-    if backup is None:
-        raise HTTPException(status_code=404, detail="Backup not found")
-    return backup
-
-# 获取备份配置内容
-@router.get("/{backup_id}/content")
-async def get_backup_content(
-    backup_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
-):
-    result = await db.execute(select(Backup).where(Backup.id == backup_id))
-    backup = result.scalar_one_or_none()
-    if backup is None:
-        raise HTTPException(status_code=404, detail="Backup not found")
-    
-    # 从文件或数据库获取内容
-    content = backup.content
-    if backup.file_path:
-        content = load_config_from_file(backup.file_path)
-    
-    return {"content": content}
-
-# Diff对比
+# Diff对比（必须在 /{backup_id} 之前注册，否则会被吞掉）
 @router.get("/diff")
 async def get_backup_diff(
     backup_id_a: int = Query(...),
@@ -331,6 +299,38 @@ async def get_backup_diff(
         "diff_text": change_result.diff_text,
         "change_summary": change_result.change_summary
     }
+
+# 获取单个备份
+@router.get("/{backup_id}", response_model=BackupResponse)
+async def read_backup(
+    backup_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    result = await db.execute(select(Backup).where(Backup.id == backup_id))
+    backup = result.scalar_one_or_none()
+    if backup is None:
+        raise HTTPException(status_code=404, detail="Backup not found")
+    return backup
+
+# 获取备份配置内容
+@router.get("/{backup_id}/content")
+async def get_backup_content(
+    backup_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_active_user)
+):
+    result = await db.execute(select(Backup).where(Backup.id == backup_id))
+    backup = result.scalar_one_or_none()
+    if backup is None:
+        raise HTTPException(status_code=404, detail="Backup not found")
+    
+    # 从文件或数据库获取内容
+    content = backup.content
+    if backup.file_path:
+        content = load_config_from_file(backup.file_path)
+    
+    return {"content": content}
 
 # 更新备份标签
 @router.patch("/{backup_id}/tag")
@@ -729,8 +729,20 @@ async def restore_backup(
 
 # WebSocket实时推送
 @router.websocket("/ws/{task_id}")
-async def websocket_scan(websocket: WebSocket, task_id: str):
+async def websocket_scan(
+    websocket: WebSocket,
+    task_id: str,
+    db: AsyncSession = Depends(get_db)
+):
     await websocket.accept()
+    
+    # 验证用户身份
+    from .dependencies import get_ws_user
+    try:
+        await get_ws_user(websocket, db)
+    except Exception as e:
+        await websocket.close(code=1008, reason=str(e))
+        return
     
     if task_id not in active_connections:
         active_connections[task_id] = []
