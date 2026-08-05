@@ -76,6 +76,56 @@ class AlertService:
                         "severity": rule.severity,
                         "message": alert_record.message
                     })
+                else:
+                    # 更新现有告警信息
+                    old_severity = existing_alert.severity
+                    existing_alert.message = AlertService._generate_message(rule, latency, packet_loss, status)
+                    existing_alert.current_value = AlertService._get_current_value(rule, latency, packet_loss, status)
+                    await db.flush()
+                    
+                    # 检查是否需要重新发送通知
+                    severity_order = {"info": 0, "warning": 1, "critical": 2}
+                    old_level = severity_order.get(old_severity, 0)
+                    new_level = severity_order.get(rule.severity, 0)
+                    
+                    should_send = False
+                    reason = ""
+                    
+                    if new_level > old_level:
+                        # 严重度升级，需要重新发送通知
+                        should_send = True
+                        reason = f"告警严重度升级: {old_severity} -> {rule.severity}"
+                    else:
+                        # 检查上次通知时间
+                        last_notification_query = select(AlertNotification).where(
+                            AlertNotification.record_id == existing_alert.id,
+                            AlertNotification.status == "sent"
+                        ).order_by(AlertNotification.sent_at.desc()).limit(1)
+                        last_notification_result = await db.execute(last_notification_query)
+                        last_notification = last_notification_result.scalar_one_or_none()
+                        
+                        if not last_notification:
+                            # 从未发送过通知
+                            should_send = True
+                            reason = "告警从未发送过通知"
+                        elif last_notification.sent_at:
+                            hours_since_last = (datetime.now() - last_notification.sent_at).total_seconds() / 3600
+                            if hours_since_last >= 24:
+                                # 超过24小时，重新发送
+                                should_send = True
+                                reason = f"告警已超过24小时（{hours_since_last:.1f}h），重新发送"
+                    
+                    if should_send:
+                        print(f"设备 [{device_id}] 告警需要重新发送通知: {reason}")
+                        await AlertService._send_notifications(db, existing_alert)
+                    
+                    alerts.append({
+                        "id": existing_alert.id,
+                        "rule_id": rule.id,
+                        "device_id": device_id,
+                        "severity": rule.severity,
+                        "message": existing_alert.message
+                    })
         
         return alerts
     

@@ -69,10 +69,39 @@ class CircuitExpireService:
         existing_alert = existing_result.scalar_one_or_none()
         
         if existing_alert:
+            # 检查是否需要重新发送通知
+            old_severity = existing_alert.severity
             existing_alert.message = message
             existing_alert.severity = severity
             existing_alert.current_value = (circuit.contract_end - datetime.now()).days
             await db.flush()
+            
+            # 如果严重度升级，需要重新发送通知
+            severity_order = {"info": 0, "warning": 1, "critical": 2}
+            old_level = severity_order.get(old_severity, 0)
+            new_level = severity_order.get(severity, 0)
+            
+            if new_level > old_level:
+                print(f"专线 [{circuit.name}] 告警严重度升级: {old_severity} -> {severity}, 重新发送通知")
+                await CircuitExpireService._send_expire_notifications(db, existing_alert)
+            else:
+                # 检查上次通知时间，如果超过24小时则重新发送
+                last_notification_query = select(AlertNotification).where(
+                    AlertNotification.record_id == existing_alert.id,
+                    AlertNotification.status == "sent"
+                ).order_by(AlertNotification.sent_at.desc()).limit(1)
+                last_notification_result = await db.execute(last_notification_query)
+                last_notification = last_notification_result.scalar_one_or_none()
+                
+                if last_notification and last_notification.sent_at:
+                    hours_since_last_notification = (datetime.now() - last_notification.sent_at).total_seconds() / 3600
+                    if hours_since_last_notification >= 24:
+                        print(f"专线 [{circuit.name}] 告警已超过24小时，重新发送通知")
+                        await CircuitExpireService._send_expire_notifications(db, existing_alert)
+                elif not last_notification:
+                    # 从未发送过通知，立即发送
+                    print(f"专线 [{circuit.name}] 告警从未发送过通知，立即发送")
+                    await CircuitExpireService._send_expire_notifications(db, existing_alert)
         else:
             acknowledged_query = select(AlertRecord).where(
                 AlertRecord.alert_type == "circuit_expire",

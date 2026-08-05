@@ -47,3 +47,6 @@ frontend/dist/
 frontend/.env
 frontend/.env.*
 !frontend/.env.example
+
+# docs 目录下的 md 文件不入库
+docs/*.md
