@@ -1,35 +1,36 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import DashboardPage from '../features/dashboard/DashboardPage.vue'
-import CircuitsPage from '../features/circuits/CircuitsPage.vue'
-import CircuitDetail from '../features/circuits/CircuitDetail.vue'
-
-import CircuitChanges from '../features/circuits/CircuitChanges.vue'
-import IpamPage from '../features/ipam/IpamPage.vue'
-import VlanList from '../features/ipam/VlanList.vue'
-import DevicesPage from '../features/devices/DevicesPage.vue'
-import DeviceLinksList from '../features/devices/DeviceLinksList.vue'
-import BackupsPage from '../features/backups/BackupsPage.vue'
-import CredentialList from '../features/backups/CredentialList.vue'
-import BackupTaskList from '../features/backups/BackupTaskList.vue'
-import AlertsPage from '../features/alerts/AlertsPage.vue'
-import SystemPage from '../features/system/SystemPage.vue'
-import LogsPage from '../features/system/LogsPage.vue'
-import SettingsPage from '../features/system/SettingsPage.vue'
-import AISettingsPage from '../features/system/AISettingsPage.vue'
-import SitesPage from '../features/sites/SitesPage.vue'
-import SiteTopology from '../features/topology/SiteTopology.vue'
-import DeviceTopology from '../features/topology/DeviceTopology.vue'
-import LinkMonitor from '../features/monitoring/LinkMonitor.vue'
-import AlertManagement from '../features/monitoring/AlertManagement.vue'
 import LoginPage from '../features/auth/LoginPage.vue'
 import ForbiddenPage from '../features/errors/ForbiddenPage.vue'
-import ProfilePage from '../features/system/ProfilePage.vue'
-import InspectionPage from '../features/inspection/InspectionPage.vue'
-import UserManagement from '../features/system/UserManagement.vue'
-import RoleManagement from '../features/system/RoleManagement.vue'
-import SSOSettingsPage from '../features/system/SSOSettingsPage.vue'
-import NotificationSettingsPage from '../features/system/NotificationSettingsPage.vue'
-import LogsSettingsPage from '../features/system/LogsSettingsPage.vue'
+
+// 路由懒加载：首屏只加载 login/403，其余按需加载，预计减少 60%+ 首屏 JS 体积
+const DashboardPage = () => import('../features/dashboard/DashboardPage.vue')
+const CircuitsPage = () => import('../features/circuits/CircuitsPage.vue')
+const CircuitDetail = () => import('../features/circuits/CircuitDetail.vue')
+const CircuitChanges = () => import('../features/circuits/CircuitChanges.vue')
+const IpamPage = () => import('../features/ipam/IpamPage.vue')
+const VlanList = () => import('../features/ipam/VlanList.vue')
+const DevicesPage = () => import('../features/devices/DevicesPage.vue')
+const DeviceLinksList = () => import('../features/devices/DeviceLinksList.vue')
+const BackupsPage = () => import('../features/backups/BackupsPage.vue')
+const CredentialList = () => import('../features/backups/CredentialList.vue')
+const BackupTaskList = () => import('../features/backups/BackupTaskList.vue')
+const AlertsPage = () => import('../features/alerts/AlertsPage.vue')
+const SystemPage = () => import('../features/system/SystemPage.vue')
+const LogsPage = () => import('../features/system/LogsPage.vue')
+const SettingsPage = () => import('../features/system/SettingsPage.vue')
+const AISettingsPage = () => import('../features/system/AISettingsPage.vue')
+const SitesPage = () => import('../features/sites/SitesPage.vue')
+const SiteTopology = () => import('../features/topology/SiteTopology.vue')
+const DeviceTopology = () => import('../features/topology/DeviceTopology.vue')
+const LinkMonitor = () => import('../features/monitoring/LinkMonitor.vue')
+const AlertManagement = () => import('../features/monitoring/AlertManagement.vue')
+const ProfilePage = () => import('../features/system/ProfilePage.vue')
+const InspectionPage = () => import('../features/inspection/InspectionPage.vue')
+const UserManagement = () => import('../features/system/UserManagement.vue')
+const RoleManagement = () => import('../features/system/RoleManagement.vue')
+const SSOSettingsPage = () => import('../features/system/SSOSettingsPage.vue')
+const NotificationSettingsPage = () => import('../features/system/NotificationSettingsPage.vue')
+const LogsSettingsPage = () => import('../features/system/LogsSettingsPage.vue')
 
 const router = createRouter({
   history: createWebHistory(),

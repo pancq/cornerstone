@@ -73,7 +73,9 @@
     "more": "More",
     "note": "Note",
     "notePlaceholder": "Enter notes",
-    "distribution": "Distribution"
+    "distribution": "Distribution",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar"
   },
   "login": {
     "title": "Login",

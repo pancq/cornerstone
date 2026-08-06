@@ -84,7 +84,9 @@
     "userLogin": "用户登录",
     "loginSuccess": "登录成功",
     "loginFailed": "登录失败",
-    "distribution": "分布"
+    "distribution": "分布",
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "收起侧边栏"
   },
   "login": {
     "title": "登录",
