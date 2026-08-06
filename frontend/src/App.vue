@@ -8,6 +8,7 @@ import GlobalSearch from './components/GlobalSearch.vue'
 import { useGlobalShortcut } from './lib/shortcuts'
 import api from './api/axios'
 import { useI18n } from 'vue-i18n'
+import { menuConfig } from './config/menuConfig'
 import { 
   DataBoard, 
   Location,
@@ -77,7 +78,9 @@ const hideTooltip = () => {
 onMounted(() => {
   brandStore.loadBrand()
   if (authStore.isLoggedIn) {
-    authStore.fetchUser()
+    authStore.fetchUser().catch(() => {
+      // fetchUser 失败（token 过期等），axios 拦截器已处理跳转，这里静默即可
+    })
   }
   loadLogo()
 })
@@ -121,7 +124,7 @@ const isLoginPage = computed(() => {
   return route.path === '/login'
 })
 
-// 菜单权限配置
+// 菜单渲染配置 —— 从 menuConfig 派生，加 icon 和翻译
 interface MenuItem {
   path?: string
   name: string
@@ -131,86 +134,64 @@ interface MenuItem {
   children?: Array<{ path: string; name: string; permission: string | null }>
 }
 
+const iconMap: Record<string, typeof DataBoard> = {
+  DataBoard,
+  Location,
+  Connection,
+  Files,
+  Bell,
+  Setting,
+  User,
+  SwitchButton,
+  TrendCharts,
+}
+
 const menuItems = computed((): Array<{ group: string; items: MenuItem[] }> => {
-  return [
-    {
-      group: '',  // 首页无分组标题
-      items: [
-        { path: '/', name: t('dashboard.title'), icon: DataBoard, permission: null }
-      ]
-    },
-    {
-      group: t('menuGroups.resourceManagement'),
-      items: [
-        { path: '/sites', name: t('sites.title'), icon: Location, permission: 'sites:read' },
-        { path: '/circuits', name: t('circuits.title'), icon: Connection, permission: 'circuits:read' },
-        { 
-          key: 'ipam',
-          name: t('ipam.title'), 
-          icon: Files,
-          children: [
-            { path: '/ipam', name: t('ipam.ipAddress'), permission: 'ipam:read' },
-            { path: '/ipam/vlans', name: t('ipam.vlans'), permission: 'ipam:read' }
-          ],
-          permission: 'ipam:read'
-        }
-      ]
-    },
-    {
-      group: t('menuGroups.operationsCenter'),
-      items: [
-        { path: '/devices', name: t('devices.title'), icon: DataBoard, permission: 'devices:read' },
-        { 
-          key: 'topology',
-          name: t('topology.title'), 
-          icon: Connection,
-          children: [
-            { path: '/topology/sites', name: t('topology.siteTopology'), permission: 'topology:read' },
-            { path: '/topology/devices', name: t('topology.deviceTopology'), permission: 'topology:read' },
-            { path: '/monitor', name: t('monitor.title'), permission: 'topology:read' }
-          ],
-          permission: 'topology:read'
-        },
-        { 
-          key: 'backups',
-          name: t('backups.title'), 
-          icon: Files,
-          children: [
-            { path: '/backups', name: t('backups.backupHistory'), permission: 'backups:read' },
-            { path: '/backups/credentials', name: t('backups.credentials'), permission: 'backups:read' },
-            { path: '/backups/tasks', name: t('backups.tasks'), permission: 'backups:read' }
-          ],
-          permission: 'backups:read'
-        },
-        { path: '/alerts', name: t('alerts.title'), icon: Bell, permission: 'alerts:read' },
-        { path: '/inspection', name: t('inspection.title'), icon: TrendCharts, permission: 'system:read' }
-      ]
-    },
-    {
-      group: t('menuGroups.systemManagement'),
-      items: [
-        { path: '/system/users', name: t('system.userManagement'), icon: User, permission: 'system:admin' },
-        { path: '/system/roles', name: t('system.roleManagement'), icon: Setting, permission: 'system:admin' },
-        { path: '/system/sso', name: t('system.ssoSettings'), icon: Connection, permission: 'system:admin' }
-      ]
-    },
-    {
-      group: t('menuGroups.systemSettings'),
-      items: [
-        { path: '/system/settings', name: t('system.settings'), icon: Setting, permission: 'system:read' },
-        { path: '/system/notifications', name: t('system.notifications'), icon: Bell, permission: 'system:read' },
-        { path: '/system/ai-settings', name: t('system.aiSettings'), icon: SwitchButton, permission: 'system:read' },
-        { path: '/system/logs-settings', name: t('system.logsSettings'), icon: Files, permission: 'system:admin' }
-      ]
-    },
-    {
-      group: '',  // 审计日志无分组标题
-      items: [
-        { path: '/system/logs', name: t('system.logs'), icon: Files, permission: 'logs:read' }
-      ]
-    }
-  ]
+  return menuConfig.map((group) => ({
+    group: group.groupKey ? t(group.groupKey) : '',
+    items: group.items.map((item) => {
+      const iconName = getIconForItem(item.nameKey)
+      const result: MenuItem = {
+        path: item.path,
+        name: t(item.nameKey),
+        key: item.key,
+        icon: iconMap[iconName] || DataBoard,
+        permission: item.permission,
+      }
+      if (item.children) {
+        result.children = item.children.map((child) => ({
+          path: child.path,
+          name: t(child.nameKey),
+          permission: child.permission,
+        }))
+      }
+      return result
+    }),
+  }))
 })
+
+function getIconForItem(nameKey: string): string {
+  const iconMap: Record<string, string> = {
+    'dashboard.title': 'DataBoard',
+    'sites.title': 'Location',
+    'circuits.title': 'Connection',
+    'ipam.title': 'Files',
+    'devices.title': 'DataBoard',
+    'topology.title': 'Connection',
+    'backups.title': 'Files',
+    'alerts.title': 'Bell',
+    'inspection.title': 'TrendCharts',
+    'system.userManagement': 'User',
+    'system.roleManagement': 'Setting',
+    'system.ssoSettings': 'Connection',
+    'system.settings': 'Setting',
+    'system.notifications': 'Bell',
+    'system.aiSettings': 'SwitchButton',
+    'system.logsSettings': 'Files',
+    'system.logs': 'Files',
+  }
+  return iconMap[nameKey] || 'DataBoard'
+}
 
 // 检查菜单项是否有权限
 function hasMenuPermission(permission: string | null): boolean {

@@ -195,7 +195,7 @@ export const useAuthStore = defineStore('auth', () => {
       } catch (error: any) {
         if (error.response?.status === 401) {
           if (isRefreshing.value) {
-            return
+            throw error
           }
           isRefreshing.value = true
           try {
@@ -204,11 +204,11 @@ export const useAuthStore = defineStore('auth', () => {
               isRefreshing.value = false
               continue
             } else {
-              return
+              throw error
             }
           } catch {
             isRefreshing.value = false
-            return
+            throw error
           }
         }
         const isConnectionError = error.code === 'ECONNREFUSED' || 
@@ -219,14 +219,15 @@ export const useAuthStore = defineStore('auth', () => {
           continue
         }
         console.error('Fetch user failed:', error)
+        throw error
       }
     }
+    throw new Error('fetchUser failed after retries')
   }
 
   async function refreshAccessToken() {
     if (!refreshToken.value) {
       logout()
-      window.location.href = '/login'
       return false
     }
     
@@ -245,7 +246,6 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       console.error('Refresh token failed:', error)
       logout()
-      window.location.href = '/login'
       return false
     }
   }

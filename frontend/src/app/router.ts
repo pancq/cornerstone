@@ -98,10 +98,14 @@ router.beforeEach(async (to, _from) => {
         await authStore.fetchUser()
       } catch (error) {
         // token无效，清除并重定向到登录页
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.setItem('redirect_after_login', to.fullPath)
-        return '/login'
+        // axios 拦截器可能已触发跳转，这里加守卫避免重复
+        if (router.currentRoute.value.path !== '/login') {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.setItem('redirect_after_login', to.fullPath)
+          return '/login'
+        }
+        return false
       }
     }
     
@@ -121,5 +125,19 @@ router.afterEach(async (to) => {
   const titleKey = to.meta.titleKey as string
   brandStore.updateDocumentTitle(titleKey || undefined)
 })
+
+/**
+ * 提取路由权限映射 —— 用于与菜单配置做一致性断言
+ * 返回 path → permission 的 Map（仅包含 requiresAuth 且有 permission 的路由）
+ */
+export function extractRoutePermissions(): Map<string, string | null> {
+  const map = new Map<string, string | null>()
+  for (const r of router.options.routes) {
+    if (r.meta?.requiresAuth && r.meta.permission !== undefined) {
+      map.set(r.path, r.meta.permission as string | null)
+    }
+  }
+  return map
+}
 
 export default router

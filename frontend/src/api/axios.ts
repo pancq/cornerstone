@@ -1,4 +1,5 @@
 import axios from 'axios'
+import router from '../app/router'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -14,6 +15,69 @@ function normalizeUrl(url?: string) {
 }
 
 const NO_AUTH_ROUTES = ['/auth/token', '/auth/login-with-captcha', '/auth/captcha', '/auth/sso/config', '/auth/sso/authorize', '/auth/sso/callback', '/auth/sso/saml/callback', '/auth/ldap/enabled', '/auth/ldap/login', '/settings/public/brand', '/settings/logo']
+
+// 正在进行中的 refresh Promise（用于多个 401 请求串行化 refresh）
+let refreshPromise: Promise<string | null> | null = null
+
+async function handle401(error: any) {
+  const config = error.config
+  const originalRequest = { ...config }
+
+  // 已被标记为重试过的请求，不再重试，直接清 token 跳登录
+  if (originalRequest._retry) {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    if (router.currentRoute.value.path !== '/login') {
+      localStorage.setItem('redirect_after_login', router.currentRoute.value.fullPath)
+      router.push('/login')
+    }
+    return Promise.reject(error)
+  }
+
+  // 如果正在 refresh，等待同一轮 refresh 结果
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = localStorage.getItem('refresh_token')
+      if (!refreshToken) {
+        return null
+      }
+      try {
+        const resp = await axios.post('/api/v1/auth/refresh', {}, {
+          headers: {
+            'X-Refresh-Token': refreshToken,
+          },
+        })
+        const newAccessToken = resp.data.access_token
+        const newRefreshToken = resp.data.refresh_token
+        localStorage.setItem('access_token', newAccessToken)
+        localStorage.setItem('refresh_token', newRefreshToken || '')
+        return newAccessToken
+      } catch {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        return null
+      } finally {
+        refreshPromise = null
+      }
+    })()
+  }
+
+  const newToken = await refreshPromise
+  if (newToken) {
+    originalRequest._retry = true
+    originalRequest.headers = originalRequest.headers || {}
+    originalRequest.headers.Authorization = `Bearer ${newToken}`
+    // 重新发原请求
+    return api.request(originalRequest)
+  } else {
+    // refresh 失败，清 token 跳登录
+    if (router.currentRoute.value.path !== '/login') {
+      localStorage.setItem('redirect_after_login', router.currentRoute.value.fullPath)
+      router.push('/login')
+    }
+    return Promise.reject(error)
+  }
+}
 
 api.interceptors.request.use(
   (config) => {
@@ -35,12 +99,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // token 过期或未认证，强制登出并重定向到登录页
-      localStorage.removeItem('access_token')
-      // 避免重复重定向
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login'
+      const url = normalizeUrl(error.config?.url)
+      // refresh 接口本身返回 401 直接清 token，不走 refresh 流程
+      if (url === '/auth/refresh') {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        if (router.currentRoute.value.path !== '/login') {
+          localStorage.setItem('redirect_after_login', router.currentRoute.value.fullPath)
+          router.push('/login')
+        }
+        return Promise.reject(error)
       }
+      return handle401(error)
     }
     return Promise.reject(error)
   }
