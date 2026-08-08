@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert, delete, update
 
 from ..database import get_db
-from ..models import Role, Permission, RolePermission, User, UserRole
+from ..models import Role, Permission, RolePermission, User
 from ..schemas import RoleResponse, PermissionResponse, UserRoleUpdate
 from .dependencies import get_current_active_user, get_current_superuser, require_permission
 
@@ -55,7 +55,8 @@ async def delete_role(
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     
-    await db.execute(delete(UserRole).where(UserRole.role_id == role_id))
+    # User 通过单一 role_id 关联角色，删除前先解除该角色的用户关联
+    await db.execute(update(User).where(User.role_id == role_id).values(role_id=None))
     await db.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
     await db.execute(delete(Role).where(Role.id == role_id))
     await db.commit()
@@ -83,14 +84,14 @@ async def assign_role_to_user(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Role not found")
     
+    # User 用单一 role_id 关联角色，重复分配时返回 400
     result = await db.execute(
-        select(UserRole).where(UserRole.user_id == user_id, UserRole.role_id == role_update.role_id)
+        select(User).where(User.id == user_id, User.role_id == role_update.role_id)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Role already assigned")
     
-    stmt = insert(UserRole).values(user_id=user_id, role_id=role_update.role_id)
-    await db.execute(stmt)
+    await db.execute(update(User).where(User.id == user_id).values(role_id=role_update.role_id))
     await db.commit()
 
 @router.delete("/users/{user_id}/roles/{role_id}", status_code=204)
@@ -101,12 +102,12 @@ async def remove_role_from_user(
     current_user: User = Depends(require_permission("users:write"))
 ):
     result = await db.execute(
-        select(UserRole).where(UserRole.user_id == user_id, UserRole.role_id == role_id)
+        select(User).where(User.id == user_id, User.role_id == role_id)
     )
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="User role not found")
     
-    await db.execute(delete(UserRole).where(UserRole.user_id == user_id, UserRole.role_id == role_id))
+    await db.execute(update(User).where(User.id == user_id).values(role_id=None))
     await db.commit()
 
 @router.get("/users/{user_id}/permissions", response_model=list[str])
