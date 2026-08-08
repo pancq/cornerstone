@@ -286,6 +286,7 @@ const handleLogoRemove = async () => {
           </el-form-item>
           <el-form-item>
             <el-button type="primary" @click="saveBrandSettings" :loading="brandLoading">保存</el-button>
+            <el-button @click="resetBrandSettings" :loading="brandLoading" :disabled="brandFetchLoading">恢复默认</el-button>
           </el-form-item>
         </el-form>
       </div>

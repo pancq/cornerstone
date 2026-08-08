@@ -345,6 +345,15 @@ async function handleLogout() {
     <main class="enterprise-workspace" :class="{ 'route-loading': !isRouteReady }">
       <header class="enterprise-topbar">
         <div class="enterprise-topbar-left">
+          <button
+            class="mobile-menu-btn"
+            @click="sidebarCollapsed = !sidebarCollapsed"
+            :aria-label="sidebarCollapsed ? t('common.expandSidebar') : t('common.collapseSidebar')"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M3 12h18M3 18h18"/>
+            </svg>
+          </button>
           <h1 class="enterprise-page-title">
             <span v-if="pageTitle">{{ pageTitle }}</span>
             <span v-else class="page-title-loading"></span>
@@ -894,5 +903,81 @@ async function handleLogout() {
   top: 16px;
   right: 24px;
   z-index: 1000;
+}
+
+/* #12b 移动端适配：<768px 侧边栏可叠加展开/收起，顶栏加汉堡按钮 */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary, #262626);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--bg-secondary, #f5f7fa);
+}
+
+@media (max-width: 768px) {
+  .enterprise-sidebar {
+    width: 0;
+    overflow-x: hidden;
+    box-shadow: none;
+    transition: width 0.3s ease;
+  }
+
+  .enterprise-sidebar:not(.collapsed) {
+    width: 240px;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 1500;
+  }
+
+  .enterprise-sidebar.collapsed {
+    width: 0;
+  }
+
+  .enterprise-workspace {
+    margin-left: 0 !important;
+  }
+
+  .enterprise-topbar {
+    padding: 0 12px;
+    height: 56px;
+  }
+
+  .enterprise-content {
+    padding: 12px;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .search-btn-text,
+  .search-btn-kbd {
+    display: none;
+  }
+
+  .global-search-btn {
+    padding: 8px 10px;
+  }
+
+  /* 登录页语言切换器：适配移动端 */
+  .global-language-switcher {
+    top: 10px;
+    right: 12px;
+  }
+}
+
+/* 中等屏幕：<1024px 内容区缩减内边距 */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .enterprise-content {
+    padding: 16px;
+  }
 }
 </style>
