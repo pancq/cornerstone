@@ -447,9 +447,10 @@ onMounted(async () => {
         height="calc(100vh - 360px)"
         @selection-change="(val: Circuit[]) => selectedRows = val.map((r: Circuit) => r.id)"
         :row-class-name="getRowClass"
+        class="circuits-table"
       >
-        <el-table-column type="selection" width="55" fixed="left" />
-        <el-table-column prop="name" :label="t('circuits.name')" width="180" fixed="left">
+        <el-table-column type="selection" width="50" fixed="left" />
+        <el-table-column prop="name" :label="t('circuits.name')" min-width="160" fixed="left">
           <template #default="{ row }">
             <div class="circuit-name-cell">
               <div class="circuit-name-main" @click="viewDetail(row)">{{ row.name }}</div>
@@ -457,21 +458,21 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="siteId" :label="t('sites.title')" width="100">
+        <el-table-column prop="siteId" :label="t('sites.title')" min-width="100">
           <template #default="{ row }">{{ siteName(row.siteId) }}</template>
         </el-table-column>
-        <el-table-column prop="provider" :label="t('circuits.provider')" width="80" />
-        <el-table-column prop="type" :label="t('circuits.type')" width="80" />
-        <el-table-column prop="bandwidth" :label="t('circuits.bandwidth')" width="80">
+        <el-table-column prop="provider" :label="t('circuits.provider')" min-width="100" />
+        <el-table-column prop="type" :label="t('circuits.type')" min-width="110" />
+        <el-table-column prop="bandwidth" :label="t('circuits.bandwidth')" min-width="90">
           <template #default="{ row }">{{ row.bandwidth }} Mbps</template>
         </el-table-column>
-        <el-table-column prop="publicIp" :label="t('circuits.publicIp')" width="120" />
-        <el-table-column prop="contractStart" :label="t('circuits.contractStart')" width="100">
+        <el-table-column prop="publicIp" :label="t('circuits.publicIp')" min-width="130" show-overflow-tooltip />
+        <el-table-column prop="contractStart" :label="t('circuits.contractStart')" min-width="110">
           <template #default="{ row }">
             <div class="expiry-date">{{ formatDate(row.contractStart) }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="contractEnd" :label="t('circuits.contractEnd')" width="120">
+        <el-table-column prop="contractEnd" :label="t('circuits.contractEnd')" min-width="120">
           <template #default="{ row }">
             <div class="expiry-cell">
               <el-tag :type="getExpiryDisplay(row.contractEnd).type" size="small" effect="dark">
@@ -482,17 +483,17 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" :label="t('common.status')" width="80">
+        <el-table-column prop="status" :label="t('common.status')" min-width="80">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="dark">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="monthlyCost" :label="t('circuits.monthlyCost')" width="90">
+        <el-table-column prop="monthlyCost" :label="t('circuits.monthlyCost')" min-width="140" class-name="cost-column">
           <template #default="{ row }">
             <span class="cost-value">¥{{ money(row.monthlyCost) }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.actions')" width="120" fixed="right">
+        <el-table-column :label="t('common.actions')" width="110" fixed="right">
           <template #default="{ row }">
             <el-dropdown trigger="click">
               <el-button link type="primary" size="small">
@@ -797,7 +798,7 @@ onMounted(async () => {
   gap: 12px;
   align-items: center;
   padding: 4px 0;
-  min-width: max-content;
+  flex-wrap: wrap;
 }
 
 .table-actions {
@@ -845,6 +846,39 @@ onMounted(async () => {
   font-weight: 600;
   color: #262626;
   font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  white-space: nowrap;
+}
+
+.circuits-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.circuits-table :deep(.cell .cost-value) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.circuits-table :deep(.cost-column .cell) {
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.circuits-table :deep(.cost-column .cell .cost-value) {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.circuits-table :deep(.cell .expiry-date) {
+  white-space: nowrap;
+}
+
+.circuits-table :deep(.cell .circuit-name-main) {
+  white-space: nowrap;
+}
+
+.circuits-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 
 :deep(.fault-row) {
@@ -861,5 +895,31 @@ onMounted(async () => {
 
 :deep(.expiry-row:hover) {
   background-color: #fffbe6 !important;
+}
+
+@media (max-width: 1024px) {
+  .overview-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .overview-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .table-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .table-filters-wrapper {
+    overflow-x: auto;
+  }
+  
+  .table-actions {
+    justify-content: flex-end;
+  }
 }
 </style>

@@ -598,21 +598,21 @@ onMounted(() => {
           </span>
         </div>
         <div class="incident-content">
-          <el-table :data="monthlyIncidents?.incidents || []" style="width: 100%">
+          <el-table class="dashboard-incidents-table" :data="monthlyIncidents?.incidents || []" style="width: 100%">
             <el-table-column prop="title" label="故障标题" min-width="150" />
             <el-table-column prop="circuit_name" label="专线" min-width="100" />
-            <el-table-column prop="severity" label="严重程度" width="80">
+            <el-table-column prop="severity" label="严重程度" min-width="80">
               <template #default="{ row }">
                 <el-tag :type="row.severity === 'critical' ? 'danger' : row.severity === 'major' ? 'warning' : 'info'" size="small">
                   {{ row.severity }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="started_at" label="开始时间" width="120" />
-            <el-table-column prop="duration_hours" label="持续时长" width="80">
+            <el-table-column prop="started_at" label="开始时间" min-width="120" />
+            <el-table-column prop="duration_hours" label="持续时长" min-width="80">
               <template #default="{ row }">{{ row.duration_hours }}h</template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="70">
+            <el-table-column prop="status" label="状态" min-width="70">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'open' ? 'danger' : 'success'" size="small">
                   {{ row.status === 'open' ? '未解决' : '已解决' }}
@@ -1144,5 +1144,13 @@ onMounted(() => {
   gap: 8px;
   color: #67C23A;
   font-size: 14px;
+}
+
+.dashboard-incidents-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.dashboard-incidents-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

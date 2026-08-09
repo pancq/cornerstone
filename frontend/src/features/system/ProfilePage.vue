@@ -111,9 +111,9 @@
                 {{ t('profile.loginHistory') }} ({{ t('profile.recentFive') }})
               </div>
             </template>
-            <el-table :data="loginHistory" border :show-header="false">
-              <el-table-column prop="time" :label="t('profile.time')" width="180" />
-              <el-table-column prop="ip" :label="t('profile.ipAddress')" width="150" />
+            <el-table class="profile-login-history-table" :data="loginHistory" border :show-header="false">
+              <el-table-column prop="time" :label="t('profile.time')" min-width="180" />
+              <el-table-column prop="ip" :label="t('profile.ipAddress')" min-width="150" />
               <el-table-column prop="device" :label="t('profile.device')" />
             </el-table>
           </el-card>
@@ -654,5 +654,13 @@ onMounted(() => {
 .upload-hint {
   font-size: 12px;
   color: #909399;
+}
+
+.profile-login-history-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.profile-login-history-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

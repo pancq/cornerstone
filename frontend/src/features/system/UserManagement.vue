@@ -558,6 +558,7 @@ onMounted(() => {
 
     <!-- 用户列表表格 -->
     <el-table 
+      class="user-management-table"
       :data="users" 
       :loading="loading"
       border
@@ -615,7 +616,7 @@ onMounted(() => {
           <span v-else class="text-gray">{{ t('system.neverLoggedIn') }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('common.actions')" min-width="280" fixed="right">
+      <el-table-column :label="t('common.actions')" width="280" fixed="right">
         <template #default="scope">
           <div class="action-buttons">
             <el-button 
@@ -817,7 +818,7 @@ onMounted(() => {
           <Lock class="el-icon" />
           {{ t('system.revokeAllSessions') }}
         </el-button>
-        <el-table :data="sessions" border style="width: 100%; margin-top: 16px;">
+        <el-table class="user-sessions-table" :data="sessions" border style="width: 100%; margin-top: 16px;">
           <el-table-column prop="ip_address" :label="t('system.ipAddress')" min-width="120" />
           <el-table-column prop="user_agent" :label="t('system.device')" min-width="200" />
           <el-table-column prop="created_at" :label="t('system.loginTime')" min-width="160" />
@@ -1151,5 +1152,15 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 2px;
+}
+
+.user-management-table :deep(.cell),
+.user-sessions-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.user-management-table :deep(.el-table__cell),
+.user-sessions-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

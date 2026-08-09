@@ -524,7 +524,7 @@ onMounted(() => {
               </el-button>
             </div>
             
-            <el-table :data="tasks" v-loading="loading" @selection-change="handleSelectionChange">
+            <el-table class="inspection-task-table" :data="tasks" v-loading="loading" @selection-change="handleSelectionChange">
               <el-table-column type="selection" width="55" />
               <el-table-column prop="name" :label="t('inspection.taskName')" min-width="200" />
               <el-table-column prop="scan_type" :label="t('inspection.scanType')" min-width="100">
@@ -564,7 +564,7 @@ onMounted(() => {
                   {{ row.last_run_at ? formatTime(row.last_run_at) : '-' }}
                 </template>
               </el-table-column>
-              <el-table-column :label="t('common.actions')" width="320">
+              <el-table-column :label="t('common.actions')" min-width="320">
                 <template #default="{ row }">
                   <div style="display: flex; gap: 8px; flex-wrap: nowrap;">
                     <el-button 
@@ -632,7 +632,7 @@ onMounted(() => {
               </div>
               
               <div v-if="selectedCategory && categoryDevices.length > 0" class="category-devices">
-                <el-table :data="categoryDevices" v-loading="categoryLoading">
+                <el-table class="inspection-category-table" :data="categoryDevices" v-loading="categoryLoading">
                   <el-table-column prop="ip_address" label="IP地址" min-width="120" />
                   <el-table-column prop="sys_name" label="设备名称" min-width="150" />
                   <el-table-column prop="vendor" label="厂商" min-width="100" />
@@ -659,7 +659,7 @@ onMounted(() => {
               </div>
             </div>
             
-            <el-table :data="records" v-loading="loading">
+            <el-table class="inspection-records-table" :data="records" v-loading="loading">
               <el-table-column prop="id" :label="t('inspection.recordId')" min-width="80" />
               <el-table-column prop="scan_type" :label="t('inspection.scanType')" min-width="100">
                 <template #default="{ row }">{{ getScanTypeName(row.scan_type) }}</template>
@@ -697,7 +697,7 @@ onMounted(() => {
         <!-- 设备指纹 -->
         <el-tab-pane :label="t('inspection.fingerprints')" name="fingerprints">
           <div class="tab-content">
-            <el-table :data="fingerprints" v-loading="loading">
+            <el-table class="inspection-fingerprints-table" :data="fingerprints" v-loading="loading">
               <el-table-column prop="ip_address" :label="t('inspection.ipAddress')" min-width="110" />
               <el-table-column prop="sys_name" :label="t('inspection.deviceName')" min-width="120" />
               <el-table-column prop="vendor" :label="t('inspection.vendor')" min-width="100" />
@@ -1035,5 +1035,19 @@ onMounted(() => {
 .empty-category {
   text-align: center;
   padding: 40px;
+}
+
+.inspection-task-table :deep(.cell),
+.inspection-category-table :deep(.cell),
+.inspection-records-table :deep(.cell),
+.inspection-fingerprints-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.inspection-task-table :deep(.el-table__cell),
+.inspection-category-table :deep(.el-table__cell),
+.inspection-records-table :deep(.el-table__cell),
+.inspection-fingerprints-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

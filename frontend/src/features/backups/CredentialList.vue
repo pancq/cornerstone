@@ -275,6 +275,7 @@ onMounted(() => {
       </template>
 
       <el-table
+        class="credential-table"
         :data="credentials"
         style="width: 100%"
         stripe
@@ -292,20 +293,20 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="protocol" label="协议" width="100" align="center">
+        <el-table-column prop="protocol" label="协议" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.protocol === 'ssh' ? 'success' : 'warning'" size="small">
               {{ row.protocol?.toUpperCase() }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="port" label="端口" width="80" align="center">
+        <el-table-column prop="port" label="端口" min-width="80" align="center">
           <template #default="{ row }">{{ row.port }}</template>
         </el-table-column>
-        <el-table-column prop="username" label="用户名" width="120">
+        <el-table-column prop="username" label="用户名" min-width="120">
           <template #default="{ row }">{{ row.username }}</template>
         </el-table-column>
-        <el-table-column prop="password" label="密码" width="120" align="center">
+        <el-table-column prop="password" label="密码" min-width="120" align="center">
           <template #default>
             <span class="password-masked">********</span>
           </template>
@@ -316,7 +317,7 @@ onMounted(() => {
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="authType" label="认证方式" width="100" align="center">
+        <el-table-column prop="authType" label="认证方式" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.authType === 'key' ? 'info' : 'primary'" size="small">
               {{ row.authType === 'key' ? '密钥' : '密码' }}
@@ -575,5 +576,13 @@ onMounted(() => {
   color: #8c8c8c;
   font-size: 12px;
   margin-top: 4px;
+}
+
+.credential-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.credential-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

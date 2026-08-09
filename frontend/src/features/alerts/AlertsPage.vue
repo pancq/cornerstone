@@ -863,6 +863,7 @@ function goToAISettings() {
 
           <el-table
             v-else
+            class="alerts-ip-expire-table"
             :data="filteredExpiringIPs"
             style="width: 100%"
             stripe
@@ -935,7 +936,7 @@ function goToAISettings() {
             <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noDeviceWarrantyAlerts')" />
           </div>
 
-          <el-table v-else :data="filteredDeviceAlerts" style="width: 100%" stripe border>
+          <el-table v-else class="alerts-device-table" :data="filteredDeviceAlerts" style="width: 100%" stripe border>
             <el-table-column :label="t('alerts.alertType')" min-width="100">
               <template #default="{ row }">
                 <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
@@ -988,7 +989,7 @@ function goToAISettings() {
             <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noCircuitContractAlerts')" />
           </div>
 
-          <el-table v-else :data="filteredCircuitAlerts" style="width: 100%" stripe border>
+          <el-table v-else class="alerts-circuit-table" :data="filteredCircuitAlerts" style="width: 100%" stripe border>
             <el-table-column :label="t('alerts.alertType')" min-width="100">
               <template #default="{ row }">
                 <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
@@ -1041,7 +1042,7 @@ function goToAISettings() {
             <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noBackupFailures')" />
           </div>
 
-          <el-table v-else :data="filteredBackupAlerts" style="width: 100%" stripe border>
+          <el-table v-else class="alerts-backup-table" :data="filteredBackupAlerts" style="width: 100%" stripe border>
             <el-table-column :label="t('alerts.alertType')" min-width="100">
               <template #default="{ row }">
                 <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
@@ -1094,7 +1095,7 @@ function goToAISettings() {
             <el-empty :description="searchKeyword || selectedLevel !== 'all' ? t('alerts.noMatchingResults') : t('alerts.noSubnetCapacityAlerts')" />
           </div>
 
-          <el-table v-else :data="filteredPrefixAlerts" style="width: 100%" stripe border>
+          <el-table v-else class="alerts-prefix-table" :data="filteredPrefixAlerts" style="width: 100%" stripe border>
             <el-table-column :label="t('alerts.alertType')" min-width="100">
               <template #default="{ row }">
                 <el-tag :type="getLevelType(row.level)" effect="dark" size="small">{{ row.type }}</el-tag>
@@ -1759,5 +1760,21 @@ function goToAISettings() {
     width: 100%;
     margin-top: 12px;
   }
+}
+
+.alerts-ip-expire-table :deep(.cell),
+.alerts-device-table :deep(.cell),
+.alerts-circuit-table :deep(.cell),
+.alerts-backup-table :deep(.cell),
+.alerts-prefix-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.alerts-ip-expire-table :deep(.el-table__cell),
+.alerts-device-table :deep(.el-table__cell),
+.alerts-circuit-table :deep(.el-table__cell),
+.alerts-backup-table :deep(.el-table__cell),
+.alerts-prefix-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

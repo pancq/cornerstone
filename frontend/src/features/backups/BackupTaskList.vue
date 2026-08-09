@@ -450,6 +450,7 @@ onMounted(async () => {
       </template>
 
       <el-table
+        class="backup-task-table"
         :data="tasks"
         style="width: 100%"
         stripe
@@ -468,24 +469,24 @@ onMounted(async () => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="deviceCount" :label="t('backups.deviceCount')" width="80" align="center">
+        <el-table-column prop="deviceCount" :label="t('backups.deviceCount')" min-width="80" align="center">
           <template #default="{ row }">{{ row.deviceCount || 0 }}</template>
         </el-table-column>
-        <el-table-column prop="credentialName" :label="t('backups.credentialName')" width="150">
+        <el-table-column prop="credentialName" :label="t('backups.credentialName')" min-width="150">
           <template #default="{ row }">{{ row.credentialName || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="cronExpr" :label="t('backups.cronExpr')" width="150">
+        <el-table-column prop="cronExpr" :label="t('backups.cronExpr')" min-width="150">
           <template #default="{ row }">
             <el-tag size="small">{{ getCronLabel(row.cronExpr) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastRunAt" :label="t('backups.lastRunAt')" width="160">
+        <el-table-column prop="lastRunAt" :label="t('backups.lastRunAt')" min-width="160">
           <template #default="{ row }">
             <span v-if="row.lastRunAt">{{ formatDateTime(row.lastRunAt) }}</span>
             <span v-else class="text-muted">{{ t('backups.neverRun') }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="lastRunStatus" :label="t('backups.lastRunStatus')" width="100" align="center">
+        <el-table-column prop="lastRunStatus" :label="t('backups.lastRunStatus')" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.lastRunStatus" :type="getStatusType(row.lastRunStatus)" size="small">
               {{ row.lastRunStatus === 'success' ? t('backups.success') : row.lastRunStatus === 'partial_fail' ? t('backups.partialFail') : t('backups.failed') }}
@@ -493,7 +494,7 @@ onMounted(async () => {
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="isEnabled" :label="t('common.status')" width="80" align="center">
+        <el-table-column prop="isEnabled" :label="t('common.status')" min-width="80" align="center">
           <template #default="{ row }">
             <el-switch
               v-model="row.isEnabled"
@@ -629,26 +630,27 @@ onMounted(async () => {
       width="800px"
     >
       <el-table
+        class="backup-history-table"
         :data="taskHistory"
         stripe
         border
         v-loading="historyLoading"
         max-height="400"
       >
-        <el-table-column prop="time" :label="t('backups.execTime')" width="180">
+        <el-table-column prop="time" :label="t('backups.execTime')" min-width="180">
           <template #default="{ row }">{{ row.time }}</template>
         </el-table-column>
-        <el-table-column prop="total" :label="t('backups.totalDevices')" width="100" align="center">
+        <el-table-column prop="total" :label="t('backups.totalDevices')" min-width="100" align="center">
           <template #default="{ row }">{{ row.total }}</template>
         </el-table-column>
-        <el-table-column :label="t('backups.successFail')" width="120" align="center">
+        <el-table-column :label="t('backups.successFail')" min-width="120" align="center">
           <template #default="{ row }">
             <span class="success-text">{{ row.success }}</span>
             <span> / </span>
             <span class="fail-text">{{ row.failed }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.status')" width="100" align="center">
+        <el-table-column :label="t('common.status')" min-width="100" align="center">
           <template #default="{ row }">
             <el-tag v-if="row.failed === 0" type="success" size="small">{{ t('backups.allSuccess') }}</el-tag>
             <el-tag v-else-if="row.success === 0" type="danger" size="small">{{ t('backups.allFailed') }}</el-tag>
@@ -722,5 +724,21 @@ onMounted(async () => {
 
 .fail-text {
   color: #ff4d4f;
+}
+
+.backup-task-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.backup-task-table :deep(.el-table__cell) {
+  padding: 8px 12px;
+}
+
+.backup-history-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.backup-history-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

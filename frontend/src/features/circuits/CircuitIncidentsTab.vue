@@ -190,7 +190,7 @@ onMounted(() => {
       </el-button>
     </div>
 
-    <el-table :data="incidents" v-loading="loading" border>
+    <el-table class="circuit-incidents-table" :data="incidents" v-loading="loading" border>
       <el-table-column prop="title" label="故障标题" min-width="200">
         <template #default="{ row }">
           <div class="incident-title">
@@ -199,20 +199,20 @@ onMounted(() => {
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="started_at" label="开始时间" width="150">
+      <el-table-column prop="started_at" label="开始时间" min-width="150">
         <template #default="{ row }">{{ formatTime(row.started_at) }}</template>
       </el-table-column>
-      <el-table-column label="持续时长" width="120">
+      <el-table-column label="持续时长" min-width="120">
         <template #default="{ row }">{{ formatDuration(row.duration_minutes) }}</template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="status" label="状态" min-width="100">
         <template #default="{ row }">
           <el-tag :type="row.status === 'open' ? 'danger' : 'success'" size="small">
             {{ statusLabels[row.status] }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150">
+      <el-table-column label="操作" min-width="150">
         <template #default="{ row }">
           <el-button size="small" @click="handleViewDetail(row)">查看详情</el-button>
           <el-button v-if="row.status === 'open'" size="small" type="success" @click="selectedIncident = row; showResolveDialog = true">
@@ -454,5 +454,13 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.circuit-incidents-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.circuit-incidents-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

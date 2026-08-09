@@ -149,6 +149,7 @@ const formatDateTime = (dateString: string) => {
       </div>
 
       <el-table
+        class="logs-table"
         :data="filteredLogs"
         style="width: 100%"
         stripe
@@ -369,5 +370,13 @@ const formatDateTime = (dateString: string) => {
   .overview-cards {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.logs-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.logs-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

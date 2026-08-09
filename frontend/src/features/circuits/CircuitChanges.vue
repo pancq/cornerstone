@@ -23,8 +23,8 @@
         <p>暂无变更记录</p>
       </div>
       
-      <el-table v-else :data="changes" border stripe>
-        <el-table-column prop="id" label="ID" width="80" />
+      <el-table class="circuit-changes-table" v-else :data="changes" border stripe>
+        <el-table-column prop="id" label="ID" min-width="80" />
         <el-table-column prop="change_type" label="变更类型">
           <template #default="scope">
             <el-tag :type="getChangeTypeTag(scope.row.change_type)">
@@ -172,5 +172,13 @@ onMounted(async () => {
 
 .empty-state p {
   margin-top: 16px;
+}
+
+.circuit-changes-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.circuit-changes-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

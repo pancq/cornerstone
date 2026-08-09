@@ -15,8 +15,8 @@
       </div>
     </div>
 
-    <el-table :data="deviceLinks" style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="60" />
+    <el-table class="device-links-table" :data="deviceLinks" style="width: 100%" v-loading="loading">
+      <el-table-column prop="id" label="ID" min-width="60" />
       <el-table-column label="源">
         <template #default="{ row }">
           <span>{{ getSourceName(row) }}</span>
@@ -29,19 +29,19 @@
           <span v-if="row.target_interface" class="interface-label">{{ row.target_interface }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="link_type" label="连接类型" width="100">
+      <el-table-column prop="link_type" label="连接类型" min-width="100">
         <template #default="{ row }">
           <el-tag :type="getLinkTypeTagType(row.link_type)" size="small">
             {{ getLinkTypeText(row.link_type) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="confidence" label="置信度" width="80">
+      <el-table-column prop="confidence" label="置信度" min-width="80">
         <template #default="{ row }">
           <span :class="getConfidenceClass(row.confidence)">{{ row.confidence }}%</span>
         </template>
       </el-table-column>
-      <el-table-column prop="discovered_at" label="发现时间" width="180" />
+      <el-table-column prop="discovered_at" label="发现时间" min-width="180" />
       <el-table-column prop="note" label="备注" />
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
@@ -488,5 +488,13 @@ onMounted(() => {
 .confidence-low {
   color: #f56c6c;
   font-weight: bold;
+}
+
+.device-links-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.device-links-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

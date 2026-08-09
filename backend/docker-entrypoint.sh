@@ -26,7 +26,10 @@ else:
 PY
 fi
 
-echo "[entrypoint] 初始化数据库..."
+echo "[entrypoint] 应用 Alembic 迁移（建表/升级 schema）..."
+alembic upgrade head
+
+echo "[entrypoint] 初始化种子数据..."
 python init_db.py
 
 echo "[entrypoint] 启动应用: $*"

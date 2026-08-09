@@ -265,7 +265,7 @@ onMounted(() => {
         </el-button>
       </div>
 
-      <el-table :data="displayRoles" :loading="loading" border stripe style="width: 100%;" highlight-current-row>
+      <el-table class="role-management-table" :data="displayRoles" :loading="loading" border stripe style="width: 100%;" highlight-current-row>
         <el-table-column prop="display_name" :label="t('system.roleName')" min-width="140">
           <template #default="scope">
             {{ getRoleDisplayName(scope.row.name) }}
@@ -284,7 +284,7 @@ onMounted(() => {
             <el-tag type="info" size="small">{{ (scope.row.permissions || []).length }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.actions')" min-width="180" fixed="right">
+        <el-table-column :label="t('common.actions')" width="180" fixed="right">
           <template #default="scope">
             <el-button size="small" @click="openEditRoleModal(scope.row)" v-permission="'system:write'" :disabled="scope.row.is_builtin" class="action-btn">
               <Edit class="el-icon" />
@@ -438,5 +438,13 @@ onMounted(() => {
 
 .form-container {
   padding: 20px;
+}
+
+.role-management-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.role-management-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

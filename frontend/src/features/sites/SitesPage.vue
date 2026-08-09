@@ -342,6 +342,7 @@ onMounted(() => {
 
       <el-table
         v-else
+        class="sites-table"
         :data="filteredSites"
         style="width: 100%"
         stripe
@@ -349,7 +350,7 @@ onMounted(() => {
         height="calc(100vh - 380px)"
         :row-class-name="getRowClass"
       >
-        <el-table-column prop="name" :label="t('sites.siteName')" width="240">
+        <el-table-column prop="name" :label="t('sites.siteName')" min-width="240">
           <template #default="{ row }">
             <div class="site-name-cell">
               <div class="site-name-main">
@@ -359,7 +360,7 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('sites.location')" width="200">
+        <el-table-column :label="t('sites.location')" min-width="200">
           <template #default="{ row }">
             <div class="location-cell">
               <div class="location-city">{{ row.city }}</div>
@@ -367,12 +368,12 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('sites.contact')" width="150">
+        <el-table-column :label="t('sites.contact')" min-width="150">
           <template #default="{ row }">
             {{ row.contact }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('sites.contactPhone')" width="150">
+        <el-table-column :label="t('sites.contactPhone')" min-width="150">
           <template #default="{ row }">
             <div class="phone-cell">
               <span class="phone-text">{{ row.contactPhone }}</span>
@@ -385,14 +386,14 @@ onMounted(() => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column v-if="!isViewer" :label="t('sites.circuitCount')" width="120" align="center">
+        <el-table-column v-if="!isViewer" :label="t('sites.circuitCount')" min-width="120" align="center">
           <template #default="{ row }">
             <el-tag type="info" effect="light">
               {{ getCircuitCount(row.id) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('sites.status')" width="180" align="center">
+        <el-table-column :label="t('sites.status')" min-width="180" align="center">
           <template #default="{ row }">
             <a 
               href="#" 
@@ -676,6 +677,20 @@ onMounted(() => {
 
 .el-table .alert-row:hover {
   background-color: #fff1f0 !important;
+}
+
+.sites-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.sites-table :deep(.el-table__cell) {
+  padding: 8px 12px;
+}
+
+.sites-table .location-cell,
+.sites-table .phone-cell,
+.sites-table .site-name-cell {
+  white-space: nowrap;
 }
 
 @media (max-width: 1200px) {

@@ -382,38 +382,39 @@ onMounted(() => {
 
         <div class="table-container">
           <el-table
+            class="vlan-table"
             :data="filteredVlans"
             style="width: 100%; min-width: 900px"
             stripe
             border
             height="calc(100vh - 360px)"
           >
-            <el-table-column prop="vid" :label="t('vlan.vlanId')" width="100">
+            <el-table-column prop="vid" :label="t('vlan.vlanId')" min-width="100">
               <template #default="{ row }">
                 <code class="vid-code">{{ row.vid }}</code>
               </template>
             </el-table-column>
-            <el-table-column prop="name" :label="t('vlan.name')" width="140">
+            <el-table-column prop="name" :label="t('vlan.name')" min-width="140">
               <template #default="{ row }">{{ row.name || '-' }}</template>
             </el-table-column>
-            <el-table-column prop="groupId" :label="t('vlan.group')" width="140">
+            <el-table-column prop="groupId" :label="t('vlan.group')" min-width="140">
               <template #default="{ row }">
                 {{ vlanGroups.find(g => g.id === row.groupId)?.name || '-' }}
               </template>
             </el-table-column>
-            <el-table-column prop="siteId" :label="t('vlan.site')" width="140">
+            <el-table-column prop="siteId" :label="t('vlan.site')" min-width="140">
               <template #default="{ row }">
                 {{ siteName(row.siteId) }}
               </template>
             </el-table-column>
-            <el-table-column prop="status" :label="t('vlan.status')" width="100">
+            <el-table-column prop="status" :label="t('vlan.status')" min-width="100">
               <template #default="{ row }">
                 <el-tag :type="getStatusTag(row.status).type" effect="light">
                   {{ getStatusTag(row.status).text }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column :label="t('vlan.prefixCount')" width="120">
+            <el-table-column :label="t('vlan.prefixCount')" min-width="120">
               <template #default="{ row }">
                 <el-button
                   link
@@ -720,5 +721,13 @@ onMounted(() => {
   background: #e6f7ff;
   padding: 4px 8px;
   border-radius: 4px;
+}
+
+.vlan-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.vlan-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>

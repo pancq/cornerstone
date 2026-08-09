@@ -734,16 +734,17 @@ const handleDeleteIP = async (ip: IPAddress) => {
           />
         </div>
         <el-table
+          class="ipam-prefix-table"
           :data="filteredPrefixes"
           style="width: 100%"
           stripe
           border
           height="calc(100vh - 420px)"
         >
-          <el-table-column prop="siteId" :label="t('ipam.site')" width="140">
+          <el-table-column prop="siteId" :label="t('ipam.site')" min-width="140">
             <template #default="{ row }">{{ siteName(row.siteId) }}</template>
           </el-table-column>
-          <el-table-column prop="network" :label="t('ipam.subnet')" width="200">
+          <el-table-column prop="network" :label="t('ipam.subnet')" min-width="200">
             <template #default="{ row }">
               <div class="network-cell">
                 <div class="network-name">
@@ -763,10 +764,10 @@ const handleDeleteIP = async (ip: IPAddress) => {
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="vlan" :label="t('ipam.vlan')" width="100">
+          <el-table-column prop="vlan" :label="t('ipam.vlan')" min-width="100">
             <template #default="{ row }">{{ row.vlan || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="usage" :label="t('ipam.usage')" width="180">
+          <el-table-column prop="usage" :label="t('ipam.usage')" min-width="180">
             <template #default="{ row }">{{ row.usage || '-' }}</template>
           </el-table-column>
           <el-table-column :label="t('common.actions')" width="280" fixed="right" align="center">
@@ -820,30 +821,31 @@ const handleDeleteIP = async (ip: IPAddress) => {
           />
         </div>
         <el-table
+          class="ipam-ip-table"
           :data="filteredIPs"
           style="width: 100%"
           stripe
           border
           height="calc(100vh - 420px)"
         >
-          <el-table-column prop="address" label="IP 地址" width="160">
+          <el-table-column prop="address" label="IP 地址" min-width="160">
             <template #default="{ row }">
               <code class="ip-address">{{ row.address }}</code>
             </template>
           </el-table-column>
-          <el-table-column prop="prefixId" label="子网" width="160">
+          <el-table-column prop="prefixId" label="子网" min-width="160">
             <template #default="{ row }">{{ getPrefixNetwork(row.prefixId) }}</template>
           </el-table-column>
-          <el-table-column prop="deviceId" label="设备" width="180">
+          <el-table-column prop="deviceId" label="设备" min-width="180">
             <template #default="{ row }">{{ deviceName(row.deviceId) || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="usage" label="用途" width="160">
+          <el-table-column prop="usage" label="用途" min-width="160">
             <template #default="{ row }">{{ row.usage || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="owner" label="负责人" width="140">
+          <el-table-column prop="owner" label="负责人" min-width="140">
             <template #default="{ row }">{{ row.owner || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="120">
+          <el-table-column prop="status" label="状态" min-width="120">
             <template #default="{ row }">
               <el-tag :type="getStatusType(row.status)" effect="light">
                 {{ getStatusText(row.status) }}
@@ -1381,5 +1383,15 @@ const handleDeleteIP = async (ip: IPAddress) => {
 .available-count {
   color: #67c23a;
   font-weight: 600;
+}
+
+.ipam-prefix-table :deep(.cell),
+.ipam-ip-table :deep(.cell) {
+  line-height: 1.5;
+}
+
+.ipam-prefix-table :deep(.el-table__cell),
+.ipam-ip-table :deep(.el-table__cell) {
+  padding: 8px 12px;
 }
 </style>
