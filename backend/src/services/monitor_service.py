@@ -130,11 +130,11 @@ async def monitor_device(db: AsyncSession, device: Device) -> None:
             ip_query = select(IPAddress).where(IPAddress.id == device.mgmt_ip_id)
             ip_result = await db.execute(ip_query)
             ip_addr = ip_result.scalar_one_or_none()
-            
+
             if ip_addr:
                 latency, packet_loss = await ping_host(ip_addr.address)
                 status = determine_status(latency, packet_loss)
-                
+
                 # 保存监控数据（不在这里提交，由调用方统一提交）
                 monitor_data = LinkMonitor(
                     device_id=device.id,
@@ -144,8 +144,61 @@ async def monitor_device(db: AsyncSession, device: Device) -> None:
                     status=status
                 )
                 db.add(monitor_data)
+
+                # 评估告警规则，产生 AlertRecord（修复：接入预警链路）
+                from src.services.alert_service import AlertService
+                # ping 失败时 latency/packet_loss 可能为 None，规则评估需要数值
+                eval_latency = latency if latency is not None else 0
+                eval_packet_loss = packet_loss if packet_loss is not None else 100
+                try:
+                    triggered = await AlertService.evaluate_rules(
+                        db,
+                        device_id=device.id,
+                        target_ip=ip_addr.address,
+                        latency=eval_latency,
+                        packet_loss=eval_packet_loss,
+                        status=status,
+                    )
+                    if triggered:
+                        print(f"[monitor] 设备 {device.name} 触发 {len(triggered)} 条告警")
+                except Exception as alert_err:
+                    # 告警评估失败不影响监控数据写入
+                    print(f"[monitor] 设备 {device.name} 告警评估失败: {alert_err}")
+
+                # 自动恢复：监控恢复正常时关闭该设备活动告警
+                if status == "normal":
+                    try:
+                        await _auto_recover_alerts(db, device.id)
+                    except Exception as recover_err:
+                        print(f"[monitor] 设备 {device.name} 告警恢复失败: {recover_err}")
     except Exception as e:
         print(f"Error monitoring device {device.name}: {e}")
+
+
+async def _auto_recover_alerts(db: AsyncSession, device_id: int) -> int:
+    """
+    自动恢复：设备监控状态恢复正常时，关闭该设备的活动告警。
+    返回关闭的告警数量。需由调用方统一 commit。
+    """
+    from src.models.alert import AlertRecord
+    from datetime import datetime
+
+    query = select(AlertRecord).where(
+        AlertRecord.device_id == device_id,
+        AlertRecord.status == "active",
+    )
+    result = await db.execute(query)
+    active_alerts = result.scalars().all()
+
+    recovered = 0
+    for alert in active_alerts:
+        alert.status = "resolved"
+        alert.resolved_at = datetime.now()
+        recovered += 1
+
+    if recovered:
+        print(f"[monitor] 设备 {device_id} 自动恢复 {recovered} 条活动告警")
+    return recovered
 
 
 async def run_monitoring_task(db: AsyncSession) -> None:

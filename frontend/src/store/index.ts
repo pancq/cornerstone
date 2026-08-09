@@ -17,6 +17,7 @@ function getEmptyState(): AppState {
     auditLogs: [],
     vlanGroups: [],
     vlans: [],
+    racks: [],
   }
 }
 

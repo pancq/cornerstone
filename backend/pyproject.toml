@@ -14,7 +14,7 @@ sqlalchemy = "^2.0.23"
 alembic = "^1.12.1"
 pydantic = "2.13.4"
 pydantic-settings = "^2.2.1"
-python-jose = "^3.3.0"
+python-jose = ">=3.4.0"  # 3.4.0 修复 CVE-2024-33664 (JWE 炸弹) 与 CVE-2024-33663 (算法混淆)
 passlib = "^1.7.4"
 bcrypt = "^3.2.0"
 netmiko = "^4.3.0"
@@ -23,12 +23,12 @@ asyncpg = "^0.29.0"
 psycopg2-binary = "^2.9.9"
 aiosqlite = "^0.22.0"
 redis = "^5.0.1"
-python-multipart = "^0.0.6"
+python-multipart = ">=0.0.31"  # 修复 9 个 CVE (路径穿越/DoS/参数走私)
 python-dotenv = "^1.0.0"
-cryptography = "^41.0.0"
+cryptography = "^50.0.0"  # 修复 12 个 CVE (PKCS12/NULL 指针/缓冲区溢出)
 apscheduler = "^3.10.4"
 ping3 = "^4.0.1"
-pillow = "^10.1.0"
+pillow = "^12.3.0"  # 修复 20+ 个 CVE (堆溢出/越界/DoS)
 captcha = "^0.5.0"
 greenlet = "^3.0.0"
 email-validator = "^2.2.0"
@@ -37,10 +37,17 @@ openpyxl = "^3.1.5"
 reportlab = "^4.2.0"
 scapy = "^2.5.0"
 ldap3 = "^2.9.1"
+pyasn1 = ">=0.6.4"  # 修复 4 个 CVE (paramiko/python-jose 传递依赖)
 
 [tool.poetry.dev-dependencies]
-pytest = "^7.4.3"
+pytest = "^9.0.3"  # 修复 PYSEC-2026-1845
 pytest-asyncio = "^0.21.1"
+httpx = "^0.25.2"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

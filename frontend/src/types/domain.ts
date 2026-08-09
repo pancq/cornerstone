@@ -71,12 +71,46 @@ export interface Device {
   siteId: number | null
   location: string
   mgmtIpId: number | null
+  rackId: number | null
+  uPosition: number | null
+  uSize: number
   status: string
   purchaseDate: string
   warrantyEnd: string
   purchaseAmount: number
   owner: string
   note: string
+}
+
+export interface Rack {
+  id: number
+  name: string
+  siteId: number | null
+  room: string | null
+  rowPosition: number
+  totalU: number
+  status: string
+  description: string | null
+}
+
+export interface RackStats {
+  totalU: number
+  usedU: number
+  freeU: number
+  utilization: number
+  deviceCount: number
+}
+
+export interface RackDevice {
+  id: number
+  name: string
+  type: string | null
+  vendor: string | null
+  model: string | null
+  sn: string | null
+  uPosition: number | null
+  uSize: number
+  status: string
 }
 
 export interface Credential {
@@ -195,6 +229,7 @@ export interface AppState {
   prefixes: Prefix[]
   ipAddresses: IPAddress[]
   devices: Device[]
+  racks: Rack[]
   credentials: Credential[]
   backups: Backup[]
   users: User[]

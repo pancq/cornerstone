@@ -9,12 +9,16 @@ from email.mime.text import MIMEText
 from email.utils import formataddr
 import smtplib
 import json
+import logging
 
 from src.models.alert import AlertRule, AlertRecord, AlertNotification
 from src.models.device import Device
 from src.models.link_monitor import LinkMonitor
 from src.models.setting import Setting
 from src.config import settings
+from src.utils.logger import get_logger
+
+logger = get_logger()
 
 NOTIFICATION_SETTINGS_KEY = "notification_settings"
 
@@ -39,9 +43,14 @@ class AlertService:
         )
         result = await db.execute(query)
         rules = result.scalars().all()
+        logger.info(f"[evaluate_rules] device_id={device_id} target_ip={target_ip} "
+                    f"latency={latency} packet_loss={packet_loss} status={status} "
+                    f"found {len(rules)} enabled rules")
         
         for rule in rules:
             if await AlertService._check_condition(rule, latency, packet_loss, status):
+                logger.info(f"[evaluate_rules] device_id={device_id} rule={rule.id} name={rule.name} "
+                            f"condition_type={rule.condition_type} severity={rule.severity} condition matched")
                 # 检查是否已有相同类型的活动告警
                 existing_query = select(AlertRecord).where(
                     AlertRecord.device_id == device_id,
@@ -52,6 +61,7 @@ class AlertService:
                 existing_alert = existing_result.scalar_one_or_none()
                 
                 if not existing_alert:
+                    logger.info(f"[evaluate_rules] device_id={device_id} rule={rule.id} no existing active alert, creating new")
                     # 创建新告警
                     alert_record = AlertRecord(
                         rule_id=rule.id,
@@ -68,7 +78,13 @@ class AlertService:
                     
                     # 发送通知
                     await AlertService._send_notifications(db, alert_record)
-                    
+
+                    # critical 告警触发 AI 根因分析
+                    if rule.severity == "critical":
+                        logger.info(f"[evaluate_rules] device_id={device_id} rule={rule.id} new critical alert, triggering AI analysis")
+                        await AlertService._perform_ai_analysis(db, alert_record)
+
+                    logger.info(f"[evaluate_rules] device_id={device_id} rule={rule.id} new alert created, id={alert_record.id}")
                     alerts.append({
                         "id": alert_record.id,
                         "rule_id": rule.id,
@@ -78,6 +94,7 @@ class AlertService:
                     })
                 else:
                     # 更新现有告警信息
+                    logger.info(f"[evaluate_rules] device_id={device_id} rule={rule.id} existing active alert exists, updating")
                     old_severity = existing_alert.severity
                     existing_alert.message = AlertService._generate_message(rule, latency, packet_loss, status)
                     existing_alert.current_value = AlertService._get_current_value(rule, latency, packet_loss, status)
@@ -95,6 +112,7 @@ class AlertService:
                         # 严重度升级，需要重新发送通知
                         should_send = True
                         reason = f"告警严重度升级: {old_severity} -> {rule.severity}"
+                        logger.info(f"[evaluate_rules] device_id={device_id} rule={rule.id} {reason}, will resend notification")
                     else:
                         # 检查上次通知时间
                         last_notification_query = select(AlertNotification).where(
@@ -116,8 +134,12 @@ class AlertService:
                                 reason = f"告警已超过24小时（{hours_since_last:.1f}h），重新发送"
                     
                     if should_send:
-                        print(f"设备 [{device_id}] 告警需要重新发送通知: {reason}")
+                        logger.info(f"设备 [{device_id}] 告警重新发送通知: {reason}")
                         await AlertService._send_notifications(db, existing_alert)
+
+                        # 升级到 critical 时触发 AI 根因分析
+                        if new_level > old_level and rule.severity == "critical":
+                            await AlertService._perform_ai_analysis(db, existing_alert)
                     
                     alerts.append({
                         "id": existing_alert.id,
@@ -159,12 +181,20 @@ class AlertService:
     @staticmethod
     def _generate_message(rule: AlertRule, latency: float, packet_loss: float, status: str) -> str:
         """生成告警消息"""
+        status_text: dict[str, str] = {
+            "critical": "严重",
+            "warning": "警告",
+            "info": "提示",
+            "normal": "正常",
+        }
+        status_cn = status_text.get(status, status)
+
         if rule.condition_type == "latency":
             return f"设备延迟过高: 当前 {latency}ms, 阈值 {rule.threshold}ms"
         elif rule.condition_type == "packet_loss":
             return f"设备丢包率过高: 当前 {packet_loss}%, 阈值 {rule.threshold}%"
         elif rule.condition_type == "status":
-            return f"设备状态异常: {status}"
+            return f"设备状态异常: {statusCn}"
         return f"告警触发: {rule.name}"
     
     @staticmethod
@@ -177,6 +207,61 @@ class AlertService:
         return None
     
     @staticmethod
+    async def _perform_ai_analysis(db: AsyncSession, alert_record: AlertRecord):
+        """对 critical 告警执行 AI 根因分析，结果存入 ai_analysis 字段"""
+        try:
+            from src.services.ai_client import get_ai_config, call_ai
+
+            ai_config = await get_ai_config(db)
+            if not ai_config:
+                logger.debug("[AI根因分析] 无AI配置，跳过根因分析")
+                return
+
+            # 获取设备信息
+            device = await db.get(Device, alert_record.device_id)
+            device_name = device.name if device else "未知设备"
+            device_type = device.type if device else "未知"
+            device_brand = getattr(device, "brand", "") or ""
+            device_model = getattr(device, "model", "") or ""
+
+            logger.info(f"[AI根因分析] alert_id={alert_record.id} device={device_name} "
+                        f"provider={ai_config.provider} model={ai_config.model} 开始调用AI")
+
+            prompt = (
+                f"请对以下 IT 基础设施告警进行根因分析，给出可能的故障原因和处理建议。\n\n"
+                f"告警信息：\n"
+                f"- 设备名称：{device_name}\n"
+                f"- 设备类型：{device_type}\n"
+                f"- 品牌/型号：{device_brand} {device_model}\n"
+                f"- 目标IP：{alert_record.target_ip or 'N/A'}\n"
+                f"- 告警类型：{alert_record.alert_type}\n"
+                f"- 严重级别：{alert_record.severity}\n"
+                f"- 告警消息：{alert_record.message}\n"
+                f"- 当前值：{alert_record.current_value}\n"
+                f"- 阈值：{alert_record.threshold}\n\n"
+                f"请按以下格式输出：\n"
+                f"1. 可能根因（列出 2-3 个最可能的原因，按可能性排序）\n"
+                f"2. 排查步骤（每个根因对应的排查方法）\n"
+                f"3. 处理建议（优先级排序的修复方案）"
+            )
+
+            system = (
+                "你是一位资深的 IT 基础设施运维专家，擅长网络设备、服务器、存储等基础设施的故障诊断。"
+                "请基于告警信息进行专业、准确的根因分析，输出简洁实用的分析报告。"
+            )
+
+            result = await call_ai(prompt, system, ai_config, max_tokens=1500, timeout=20)
+            result_len = len(result) if result else 0
+            alert_record.ai_analysis = result
+            await db.flush()
+            logger.info(f"[AI根因分析] alert_id={alert_record.id} device={device_name} "
+                        f"分析完成，结果长度={result_len} 已存入告警记录")
+
+        except Exception as e:
+            import traceback
+            logger.warning(f"[AI根因分析] alert_id={alert_record.id} 失败（不影响告警流程）: {e}\n{traceback.format_exc()}")
+
+    @staticmethod
     async def _send_notifications(db: AsyncSession, alert_record: AlertRecord):
         """发送告警通知"""
         # 获取规则配置的通知渠道
@@ -185,9 +270,11 @@ class AlertService:
         rule = result.scalar_one_or_none()
         
         if not rule:
+            logger.warning(f"[_send_notifications] alert_id={alert_record.id} rule not found (rule_id={alert_record.rule_id}), skipping")
             return
         
         channels = rule.notification_channels or []
+        logger.info(f"[_send_notifications] alert_id={alert_record.id} rule={rule.id} sending to channels={channels}")
         
         for channel in channels:
             notification = AlertNotification(
@@ -197,15 +284,18 @@ class AlertService:
                 status="pending"
             )
             db.add(notification)
+            logger.info(f"[_send_notifications] alert_id={alert_record.id} channel={channel} starting send")
             
             # 模拟发送通知
             try:
                 await AlertService._send_notification(db, channel, alert_record)
                 notification.status = "sent"
                 notification.sent_at = datetime.now()
+                logger.info(f"[_send_notifications] alert_id={alert_record.id} channel={channel} sent successfully")
             except Exception as e:
                 notification.status = "failed"
                 notification.error_message = str(e)
+                logger.error(f"[_send_notifications] alert_id={alert_record.id} channel={channel} send failed: {e}")
     
     @staticmethod
     async def _get_notification_config(db: AsyncSession) -> dict:
@@ -260,7 +350,7 @@ class AlertService:
     async def _send_dingtalk_notification(webhook_url: str, message: str):
         """发送钉钉机器人通知"""
         if not webhook_url:
-            print("钉钉Webhook地址未配置")
+            logger.warning("钉钉Webhook地址未配置")
             return
         
         async with httpx.AsyncClient() as client:
@@ -273,18 +363,18 @@ class AlertService:
             try:
                 response = await client.post(webhook_url, json=payload, timeout=10)
                 response.raise_for_status()
-                print(f"钉钉通知发送成功: {message}")
+                logger.info(f"钉钉通知发送成功: {message}")
             except Exception as e:
-                print(f"钉钉通知发送失败: {e}")
+                logger.error(f"钉钉通知发送失败: {e}")
                 raise
     
     @staticmethod
     async def _send_wechat_notification(webhook_url: str, message: str):
         """发送企业微信机器人通知"""
         if not webhook_url:
-            print("企业微信Webhook地址未配置")
+            logger.warning("企业微信Webhook地址未配置")
             return
-        
+
         async with httpx.AsyncClient() as client:
             payload = {
                 "msgtype": "text",
@@ -295,18 +385,18 @@ class AlertService:
             try:
                 response = await client.post(webhook_url, json=payload, timeout=10)
                 response.raise_for_status()
-                print(f"企业微信通知发送成功: {message}")
+                logger.info(f"企业微信通知发送成功: {message}")
             except Exception as e:
-                print(f"企业微信通知发送失败: {e}")
+                logger.error(f"企业微信通知发送失败: {e}")
                 raise
     
     @staticmethod
     async def _send_feishu_notification(webhook_url: str, message: str):
         """发送飞书机器人通知"""
         if not webhook_url:
-            print("飞书Webhook地址未配置")
+            logger.warning("飞书Webhook地址未配置")
             return
-        
+
         async with httpx.AsyncClient() as client:
             payload = {
                 "msg_type": "text",
@@ -317,9 +407,9 @@ class AlertService:
             try:
                 response = await client.post(webhook_url, json=payload, timeout=10)
                 response.raise_for_status()
-                print(f"飞书通知发送成功: {message}")
+                logger.info(f"飞书通知发送成功: {message}")
             except Exception as e:
-                print(f"飞书通知发送失败: {e}")
+                logger.error(f"飞书通知发送失败: {e}")
                 raise
     
     @staticmethod
@@ -332,27 +422,27 @@ class AlertService:
         smtp_from_email = config["smtp_from_email"]
         
         if not all([smtp_host, smtp_username, smtp_password, smtp_from_email]):
-            print("邮件服务器配置未完整")
+            logger.warning("邮件服务器配置未完整")
             return
-        
+
         try:
             msg = MIMEText(message, 'plain', 'utf-8')
             msg['From'] = formataddr(('Cornerstone告警系统', smtp_from_email))
             msg['Subject'] = "【告警通知】"
-            
+
             with smtplib.SMTP(smtp_host, smtp_port) as server:
                 server.starttls()
                 server.login(smtp_username, smtp_password)
                 server.sendmail(smtp_from_email, [smtp_from_email], msg.as_string())
-            print(f"邮件通知发送成功: {message}")
+            logger.info(f"邮件通知发送成功: {message}")
         except Exception as e:
-            print(f"邮件通知发送失败: {e}")
+            logger.error(f"邮件通知发送失败: {e}")
             raise
-    
+
     @staticmethod
     async def _send_custom_webhook(message: str):
         """发送自定义Webhook通知"""
-        print(f"自定义Webhook通知: {message}")
+        logger.info(f"自定义Webhook通知: {message}")
     
     @staticmethod
     async def acknowledge_alert(db: AsyncSession, alert_id: int, user_id: int):

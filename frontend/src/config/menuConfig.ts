@@ -51,6 +51,7 @@ export const menuConfig: MenuGroup[] = [
     groupKey: 'menuGroups.operationsCenter',
     items: [
       { path: '/devices', nameKey: 'devices.title', permission: 'devices:read' },
+      { path: '/rack-view', nameKey: 'rack.title', permission: 'devices:read' },
       {
         key: 'topology',
         nameKey: 'topology.title',
@@ -72,7 +73,8 @@ export const menuConfig: MenuGroup[] = [
         ]
       },
       { path: '/alerts', nameKey: 'alerts.title', permission: 'alerts:read' },
-      { path: '/inspection', nameKey: 'inspection.title', permission: 'system:read' }
+      { path: '/inspection', nameKey: 'inspection.title', permission: 'system:read' },
+      { path: '/reports', nameKey: 'reports.title', permission: 'system:read' }
     ]
   },
   {

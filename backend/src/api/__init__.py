@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .auth import router as auth_router
 from .ldap import router as ldap_router
 from .sites import router as sites_router
+from .racks import router as racks_router
 from .circuits import router as circuits_router
 from .circuit_incidents import router as circuit_incidents_router
 from .ipam import router as ipam_router
@@ -31,6 +32,7 @@ api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(ldap_router, prefix="/auth", tags=["ldap"])
 api_router.include_router(sites_router, prefix="/sites", tags=["sites"])
+api_router.include_router(racks_router, prefix="/racks", tags=["racks"])
 api_router.include_router(circuits_router, prefix="/circuits", tags=["circuits"])
 api_router.include_router(circuit_incidents_router, prefix="/circuit-incidents", tags=["circuit-incidents"])
 api_router.include_router(ipam_router, prefix="/ipam", tags=["ipam"])

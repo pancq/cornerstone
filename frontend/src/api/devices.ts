@@ -10,6 +10,9 @@ export interface DeviceResponse {
   site_id: number | null
   location: string | null
   mgmt_ip_id: number | null
+  rack_id: number | null
+  u_position: number | null
+  u_size: number
   status: string
   purchase_date: string | null
   warranty_end: string | null

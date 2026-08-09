@@ -13,8 +13,10 @@ from ..models.audit_log import AuditLog
 from ..config import settings as app_config
 from ..services.alert_service import AlertService
 from ..api.dependencies import require_super_admin
+from ..utils.logger import get_logger
 
 router = APIRouter()
+logger = get_logger()
 
 NOTIFICATION_SETTINGS_KEY = "notification_settings"
 LOG_SETTINGS_KEY = "log_settings"
@@ -29,6 +31,61 @@ BRAND_SETTINGS_DEFAULTS = {
     "brand_subtitle": "企业级IT基础设施智能运维平台",
     "brand_logo_url": "",
 }
+
+# 需要脱敏的字段（含密码/密钥）
+_SENSITIVE_FIELDS = {"smtp_password", "api_key", "password", "secret", "token"}
+
+
+def _mask_setting_value(key: str, value: str | None) -> str:
+    """对配置值脱敏后返回，便于安全输出到日志。"""
+    if value is None:
+        return "<None>"
+    # company_logo 是 base64 图片，过长，只记录长度
+    if key == "company_logo":
+        return f"<base64 image, {len(value)} chars>"
+    # 通知设置等 JSON 含敏感字段，逐项脱敏
+    try:
+        data = json.loads(value)
+        if isinstance(data, dict):
+            masked = {
+                k: ("***" if any(s in k.lower() for s in _SENSITIVE_FIELDS) else v)
+                for k, v in data.items()
+            }
+            return json.dumps(masked, ensure_ascii=False)
+        if isinstance(data, list):
+            masked = [
+                {kk: ("***" if any(s in kk.lower() for s in _SENSITIVE_FIELDS) else vv) for kk, vv in item.items()}
+                if isinstance(item, dict) else item
+                for item in data
+            ]
+            return json.dumps(masked, ensure_ascii=False)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    # 普通字符串超长则截断
+    return value if len(value) <= 500 else value[:500] + f"...(truncated, {len(value)} chars)"
+
+
+def _log_setting_before(user: str, action: str, key: str, old_setting: Setting | None) -> None:
+    """记录配置变更前的状态。"""
+    if old_setting:
+        logger.info(
+            "[配置变更-前] user=%s action=%s key=%s 存在=是 旧值=%s",
+            user, action, key, _mask_setting_value(key, old_setting.value),
+        )
+    else:
+        logger.info(
+            "[配置变更-前] user=%s action=%s key=%s 存在=否（将新建）",
+            user, action, key,
+        )
+
+
+def _log_setting_after(user: str, action: str, key: str, new_value: str | None, created: bool) -> None:
+    """记录配置变更后的状态。"""
+    logger.info(
+        "[配置变更-后] user=%s action=%s key=%s 结果=%s 新值=%s",
+        user, action, key, "新建" if created else ("删除" if new_value is None else "更新"),
+        _mask_setting_value(key, new_value) if new_value is not None else "<已删除>",
+    )
 
 class BrandSettingsRequest(BaseModel):
     brand_slogan: str = "智能运维，尽在掌控"
@@ -91,18 +148,21 @@ async def update_brand_settings(
         "brand_logo_url": request.brand_logo_url,
     }
     config_json = json.dumps(config_dict, ensure_ascii=False)
-    
+
     result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
     setting = result.scalars().first()
-    
+    _log_setting_before(current_user.username, "更新品牌设置", BRAND_SETTINGS_KEY, setting)
+
+    created = setting is None
     if setting:
         setting.value = config_json
     else:
         setting = Setting(key=BRAND_SETTINGS_KEY, value=config_json)
         db.add(setting)
-    
+
     await db.commit()
-    
+    _log_setting_after(current_user.username, "更新品牌设置", BRAND_SETTINGS_KEY, config_json, created)
+
     return {"message": "品牌设置更新成功"}
 
 @router.post("/brand/reset", response_model=dict)
@@ -113,11 +173,13 @@ async def reset_brand_settings(
     """重置为默认品牌设置"""
     result = await db.execute(select(Setting).filter(Setting.key == BRAND_SETTINGS_KEY))
     setting = result.scalars().first()
-    
+    _log_setting_before(current_user.username, "重置品牌设置", BRAND_SETTINGS_KEY, setting)
+
     if setting:
         await db.delete(setting)
         await db.commit()
-    
+    _log_setting_after(current_user.username, "重置品牌设置", BRAND_SETTINGS_KEY, None, False)
+
     return {"message": "已恢复为默认品牌设置"}
 
 
@@ -196,16 +258,20 @@ async def upload_logo(
         raise HTTPException(status_code=400, detail="图片大小不能超过2MB")
     
     # 存储到数据库
+    logo_value = base64.b64encode(content).decode('ascii')
     result = await db.execute(select(Setting).filter(Setting.key == "company_logo"))
     setting = result.scalars().first()
-    
+    _log_setting_before(current_user.username, "上传Logo", "company_logo", setting)
+
+    created = setting is None
     if setting:
-        setting.value = base64.b64encode(content).decode('ascii')
+        setting.value = logo_value
     else:
-        setting = Setting(key="company_logo", value=base64.b64encode(content).decode('ascii'))
+        setting = Setting(key="company_logo", value=logo_value)
         db.add(setting)
     await db.commit()
-    
+    _log_setting_after(current_user.username, "上传Logo", "company_logo", logo_value, created)
+
     return {"message": "Logo上传成功"}
 
 @router.delete("/logo")
@@ -216,9 +282,13 @@ async def delete_logo(
     """删除Logo"""
     result = await db.execute(select(Setting).filter(Setting.key == "company_logo"))
     setting = result.scalars().first()
+    _log_setting_before(current_user.username, "删除Logo", "company_logo", setting)
+
     if setting:
         await db.delete(setting)
         await db.commit()
+    _log_setting_after(current_user.username, "删除Logo", "company_logo", None, False)
+
     return {"message": "Logo已删除"}
 
 @router.get("/notification", response_model=NotificationSettingsResponse)
@@ -255,9 +325,6 @@ async def update_notification_settings(
     current_user = Depends(require_super_admin)
 ):
     """更新通知渠道配置"""
-    result = await db.execute(select(Setting).filter(Setting.key == NOTIFICATION_SETTINGS_KEY))
-    setting = result.scalars().first()
-    
     config_dict = {
         "dingtalk_webhook_url": request.dingtalk_webhook_url,
         "wechat_webhook_url": request.wechat_webhook_url,
@@ -268,17 +335,23 @@ async def update_notification_settings(
         "smtp_password": request.smtp_password,
         "smtp_from_email": request.smtp_from_email
     }
-    
+
     config_json = json.dumps(config_dict)
-    
+
+    result = await db.execute(select(Setting).filter(Setting.key == NOTIFICATION_SETTINGS_KEY))
+    setting = result.scalars().first()
+    _log_setting_before(current_user.username, "更新通知设置", NOTIFICATION_SETTINGS_KEY, setting)
+
+    created = setting is None
     if setting:
         setting.value = config_json
     else:
         setting = Setting(key=NOTIFICATION_SETTINGS_KEY, value=config_json)
         db.add(setting)
-    
+
     await db.commit()
-    
+    _log_setting_after(current_user.username, "更新通知设置", NOTIFICATION_SETTINGS_KEY, config_json, created)
+
     return NotificationSettingsResponse(**config_dict)
 
 
@@ -383,18 +456,21 @@ async def update_log_settings(
     }
     
     config_json = json.dumps(config_dict)
-    
+
     result = await db.execute(select(Setting).filter(Setting.key == LOG_SETTINGS_KEY))
     setting = result.scalars().first()
-    
+    _log_setting_before(current_user.username, "更新日志设置", LOG_SETTINGS_KEY, setting)
+
+    created = setting is None
     if setting:
         setting.value = config_json
     else:
         setting = Setting(key=LOG_SETTINGS_KEY, value=config_json)
         db.add(setting)
-    
+
     await db.commit()
-    
+    _log_setting_after(current_user.username, "更新日志设置", LOG_SETTINGS_KEY, config_json, created)
+
     return LogSettingsResponse(**config_dict)
 
 
@@ -501,16 +577,19 @@ async def update_company_info(
     """保存公司信息配置"""
     config_dict = request.model_dump()
     config_json = json.dumps(config_dict, ensure_ascii=False)
-    
+
     result = await db.execute(select(Setting).filter(Setting.key == COMPANY_INFO_KEY))
     setting = result.scalars().first()
-    
+    _log_setting_before(current_user.username, "更新公司信息", COMPANY_INFO_KEY, setting)
+
+    created = setting is None
     if setting:
         setting.value = config_json
     else:
         setting = Setting(key=COMPANY_INFO_KEY, value=config_json)
         db.add(setting)
-    
+
     await db.commit()
-    
+    _log_setting_after(current_user.username, "更新公司信息", COMPANY_INFO_KEY, config_json, created)
+
     return {"message": "公司信息已更新"}

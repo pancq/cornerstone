@@ -11,6 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.database import Base
 from src.config import settings
+import src.models  # noqa: F401  # 注册所有模型到 Base.metadata，供 autogenerate 检测
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url_sync)

@@ -23,9 +23,10 @@ const SitesPage = () => import('../features/sites/SitesPage.vue')
 const SiteTopology = () => import('../features/topology/SiteTopology.vue')
 const DeviceTopology = () => import('../features/topology/DeviceTopology.vue')
 const LinkMonitor = () => import('../features/monitoring/LinkMonitor.vue')
-const AlertManagement = () => import('../features/monitoring/AlertManagement.vue')
 const ProfilePage = () => import('../features/system/ProfilePage.vue')
 const InspectionPage = () => import('../features/inspection/InspectionPage.vue')
+const ReportsPage = () => import('../features/reports/ReportsPage.vue')
+const RackViewPage = () => import('../features/rack/RackView.vue')
 const UserManagement = () => import('../features/system/UserManagement.vue')
 const RoleManagement = () => import('../features/system/RoleManagement.vue')
 const SSOSettingsPage = () => import('../features/system/SSOSettingsPage.vue')
@@ -51,7 +52,6 @@ const router = createRouter({
     { path: '/backups/credentials', name: 'backup-credentials', component: CredentialList, meta: { requiresAuth: true, permission: 'backups:read', titleKey: 'backups.credentials' } },
     { path: '/backups/tasks', name: 'backup-tasks', component: BackupTaskList, meta: { requiresAuth: true, permission: 'backups:read', titleKey: 'backups.tasks' } },
     { path: '/monitor', name: 'monitor', component: LinkMonitor, meta: { requiresAuth: true, permission: 'topology:read', titleKey: 'monitor.title' } },
-    { path: '/monitor/alerts', name: 'monitor-alerts', component: AlertManagement, meta: { requiresAuth: true, permission: 'topology:read', titleKey: 'monitor.title' } },
     { path: '/alerts', name: 'alerts', component: AlertsPage, meta: { requiresAuth: true, permission: 'alerts:read', titleKey: 'alerts.title' } },
     { path: '/system', name: 'system', component: SystemPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.title' } },
     { path: '/system/logs', name: 'system-logs', component: LogsPage, meta: { requiresAuth: true, permission: 'logs:read', titleKey: 'system.logs' } },
@@ -67,7 +67,9 @@ const router = createRouter({
     { path: '/topology/sites', name: 'topology-sites', component: SiteTopology, meta: { requiresAuth: true, permission: 'topology:read', titleKey: 'topology.siteTopology' } },
     { path: '/topology/devices', name: 'topology-devices', component: DeviceTopology, meta: { requiresAuth: true, permission: 'topology:read', titleKey: 'topology.deviceTopology' } },
     { path: '/topology', redirect: '/topology/sites' },
-    { path: '/inspection', name: 'inspection', component: InspectionPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'inspection.title' } }
+    { path: '/inspection', name: 'inspection', component: InspectionPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'inspection.title' } },
+    { path: '/reports', name: 'reports', component: ReportsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'reports.title' } },
+    { path: '/rack-view', name: 'rack-view', component: RackViewPage, meta: { requiresAuth: true, permission: 'devices:read', titleKey: 'rack.title' } }
   ]
 })
 
@@ -124,7 +126,9 @@ router.afterEach(async (to) => {
   const { useBrandStore } = await import('../store/brand')
   const brandStore = useBrandStore()
   const titleKey = to.meta.titleKey as string
-  brandStore.updateDocumentTitle(titleKey || undefined)
+  const { i18n } = await import('../i18n')
+  const translatedTitle = titleKey ? i18n.global.t(titleKey) : undefined
+  brandStore.updateDocumentTitle(translatedTitle)
 })
 
 /**

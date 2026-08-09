@@ -2,6 +2,7 @@
 统一的 AI 调用客户端
 从数据库 settings 表读取 AI 配置，支持 OpenAI / Anthropic / 通义千问 / DeepSeek / 自定义
 """
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -120,13 +121,34 @@ async def call_ai(
     返回模型的文本响应
     """
     provider = ai_config.provider
+    model = ai_config.model
+    max_retries = 2
+    last_error = None
 
-    if provider in OPENAI_COMPATIBLE:
-        return await _call_openai_compatible(prompt, system, ai_config, max_tokens, timeout)
-    elif provider == "anthropic":
-        return await _call_anthropic(prompt, system, ai_config, max_tokens, timeout)
-    else:
-        raise ValueError(f"不支持的 AI 提供商: {provider}")
+    logger.info(f"[call_ai] provider={provider} model={model} max_tokens={max_tokens} timeout={timeout} max_retries={max_retries} starting")
+
+    for attempt in range(max_retries + 1):
+        try:
+            if provider in OPENAI_COMPATIBLE:
+                result = await _call_openai_compatible(prompt, system, ai_config, max_tokens, timeout)
+            elif provider == "anthropic":
+                result = await _call_anthropic(prompt, system, ai_config, max_tokens, timeout)
+            else:
+                raise ValueError(f"不支持的 AI 提供商: {provider}")
+
+            result_len = len(result)
+            logger.info(f"[call_ai] provider={provider} model={model} attempt={attempt+1} completed, response length={result_len}")
+            return result
+        except Exception as e:
+            last_error = e
+            if attempt < max_retries:
+                logger.warning(f"[call_ai] provider={provider} model={model} attempt={attempt+1} failed: {e}, retrying in 1s...")
+                await asyncio.sleep(1)
+            else:
+                logger.error(f"[call_ai] provider={provider} model={model} all {max_retries+1} attempts failed: {e}")
+
+    # 所有重试都失败
+    raise last_error
 
 
 async def _call_openai_compatible(
@@ -138,6 +160,8 @@ async def _call_openai_compatible(
 ) -> str:
     """调用 OpenAI 兼容接口（OpenAI / DeepSeek / 通义千问 / 智谱 / 自定义）"""
     url = f"{config.api_base}/chat/completions"
+    logger.debug(f"[_call_openai_compatible] url={url} model={config.model} max_tokens={max_tokens}")
+
     headers = {
         "Authorization": f"Bearer {config.api_key}",
         "Content-Type": "application/json",
@@ -156,7 +180,9 @@ async def _call_openai_compatible(
         resp = await client.post(url, headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"].strip()
+        content = data["choices"][0]["message"]["content"].strip()
+        logger.debug(f"[_call_openai_compatible] url={url} completed, {len(content)} chars")
+        return content
 
 
 async def _call_anthropic(
@@ -168,6 +194,8 @@ async def _call_anthropic(
 ) -> str:
     """调用 Anthropic Claude API"""
     url = f"{config.api_base}/v1/messages"
+    logger.debug(f"[_call_anthropic] url={url} model={config.model} max_tokens={max_tokens}")
+
     headers = {
         "x-api-key": config.api_key,
         "anthropic-version": "2023-06-01",
@@ -185,4 +213,6 @@ async def _call_anthropic(
         resp = await client.post(url, headers=headers, json=body)
         resp.raise_for_status()
         data = resp.json()
-        return data["content"][0]["text"].strip()
+        content = data["content"][0]["text"].strip()
+        logger.debug(f"[_call_anthropic] url={url} completed, {len(content)} chars")
+        return content

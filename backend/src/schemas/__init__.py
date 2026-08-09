@@ -7,6 +7,10 @@ from .circuit import CircuitCreate, CircuitUpdate, CircuitResponse
 from .aggregate import AggregateCreate, AggregateUpdate, AggregateResponse
 from .prefix import PrefixCreate, PrefixUpdate, PrefixResponse
 from .ip_address import IPAddressCreate, IPAddressUpdate, IPAddressResponse, IPExpiringResponse
+from .rack import (
+    RackCreate, RackUpdate, RackResponse, RackDetailResponse,
+    RackStats, RackDevice, DevicePositionUpdate
+)
 from .device import DeviceCreate, DeviceUpdate, DeviceResponse
 from .credential import CredentialCreate, CredentialUpdate, CredentialResponse
 from .backup import BackupCreate, BackupResponse
@@ -23,6 +27,8 @@ __all__ = [
     'AggregateCreate', 'AggregateUpdate', 'AggregateResponse',
     'PrefixCreate', 'PrefixUpdate', 'PrefixResponse',
     'IPAddressCreate', 'IPAddressUpdate', 'IPAddressResponse', 'IPExpiringResponse',
+    'RackCreate', 'RackUpdate', 'RackResponse', 'RackDetailResponse',
+    'RackStats', 'RackDevice', 'DevicePositionUpdate',
     'DeviceCreate', 'DeviceUpdate', 'DeviceResponse',
     'CredentialCreate', 'CredentialUpdate', 'CredentialResponse',
     'BackupCreate', 'BackupResponse',

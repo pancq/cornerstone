@@ -20,6 +20,13 @@ const store = useAppStore()
 const authStore = useAuthStore()
 const route = useRoute()
 
+const statusText: Record<string, string> = {
+  online: t('devices.online'),
+  offline: t('devices.offline'),
+  active: t('devices.active'),
+  inactive: t('devices.inactive'),
+}
+
 const isViewer = computed(() => authStore.isReadOnly())
 const highlightedDeviceId = ref<number | null>(null)
 
@@ -375,6 +382,9 @@ const convertToDevice = (response: DeviceResponse): Device => ({
   siteId: response.site_id,
   location: response.location || '',
   mgmtIpId: response.mgmt_ip_id,
+  rackId: response.rack_id ?? null,
+  uPosition: response.u_position ?? null,
+  uSize: response.u_size ?? 1,
   status: response.status,
   purchaseDate: response.purchase_date || '',
   warrantyEnd: response.warranty_end || '',
@@ -676,7 +686,7 @@ onMounted(async () => {
         <el-table-column prop="status" :label="t('common.status')" min-width="80">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" effect="light" size="small">
-              {{ row.status }}
+              {{ statusText[row.status] || row.status }}
             </el-tag>
           </template>
         </el-table-column>

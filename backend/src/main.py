@@ -48,7 +48,7 @@ async def startup_event():
     """应用启动时执行的初始化操作"""
     from .services.permission_service import init_permissions, init_roles, init_default_admin
     
-    # 导入所有模型以确保表结构被创建
+    # 导入所有模型以确保注册到 Base.metadata（建表由 Alembic 迁移负责）
     from .models import User, Role, Permission, RolePermission, UserSession
     from .models.site import Site
     from .models.device import Device
@@ -60,12 +60,7 @@ async def startup_event():
     from .models.system_config import SystemConfig
     from .models.backup_analysis import BackupAnalysis
     from .models.inspection import InspectionTask, InspectionResult, InspectionDeviceResult, DeviceFingerprint
-    
-    # 创建所有表
-    from .database import async_engine, Base
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables created")
+    from .models.rack import Rack
     
     # 初始化权限和角色
     async with async_session() as session:

@@ -1,5 +1,5 @@
 """告警相关模型"""
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, JSON, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from src.database import Base
@@ -42,6 +42,7 @@ class AlertRecord(Base):
     acknowledged_by = Column(Integer, ForeignKey("users.id"), nullable=True, comment="确认人")
     acknowledged_at = Column(DateTime, comment="确认时间")
     resolved_at = Column(DateTime, comment="恢复时间")
+    ai_analysis = Column(Text, nullable=True, comment="AI根因分析结果")
     created_at = Column(DateTime, server_default=func.now())
     
     rule = relationship("AlertRule")

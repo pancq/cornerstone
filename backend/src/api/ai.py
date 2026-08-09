@@ -689,7 +689,7 @@ async def ai_root_cause(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """根因分析：基于告警和设备状态分析故障根因"""
+    """根因分析：基于告警和设备状态分析故障根因。有 AI 配置时调用大模型，否则 fallback 规则模板"""
     # 获取离线设备
     offline_devices = await db.execute(
         select(Device).where(Device.status == "offline").limit(5)
@@ -711,6 +711,68 @@ async def ai_root_cause(
     )
     active_alerts_list = active_alerts.scalars().all()
 
+    # 尝试调用 AI 大模型做根因分析
+    try:
+        from src.services.ai_client import get_ai_config, call_ai
+        ai_config = await get_ai_config(db)
+        if ai_config:
+            # 构建上下文
+            ctx_lines = []
+            if offline_devices_list:
+                ctx_lines.append(f"离线设备（{len(offline_devices_list)} 台）：")
+                for d in offline_devices_list:
+                    ctx_lines.append(f"  - {d.name}（{d.type or '未知'}，{getattr(d,'brand','') or ''} {d.model or ''}）")
+            if offline_circuits_list:
+                ctx_lines.append(f"断开专线（{len(offline_circuits_list)} 条）：")
+                for c in offline_circuits_list:
+                    ctx_lines.append(f"  - {c.name}（{c.provider or '未知运营商'}，{c.bandwidth or 'N/A'}）")
+            if active_alerts_list:
+                ctx_lines.append(f"活跃告警（{len(active_alerts_list)} 条）：")
+                for a in active_alerts_list:
+                    ctx_lines.append(f"  - [{a.severity}] {a.message}（IP: {a.target_ip or 'N/A'}）")
+                    if a.ai_analysis:
+                        ctx_lines.append(f"    已有AI分析: {a.ai_analysis[:200]}...")
+
+            if not ctx_lines:
+                return AIPredictionResponse(
+                    id=_generate_id("rc"),
+                    type="root_cause",
+                    title="根因分析结果",
+                    content="✅ 当前系统运行正常，未发现明显故障。\n",
+                    confidence=0.98,
+                    suggestion="系统运行正常，请继续保持",
+                    timestamp=_now_str(),
+                )
+
+            prompt = (
+                "请对以下 IT 基础设施当前状态进行根因分析，给出整体故障判断和处理建议。\n\n"
+                "当前系统状态：\n" + "\n".join(ctx_lines) + "\n\n"
+                "请按以下格式输出：\n"
+                "1. 整体故障判断（是否有关联性，是否指向同一根因）\n"
+                "2. 可能根因（列出 2-3 个最可能的原因，按可能性排序）\n"
+                "3. 排查步骤（每个根因对应的排查方法）\n"
+                "4. 处理建议（优先级排序的修复方案）"
+            )
+            system = (
+                "你是一位资深的 IT 基础设施运维专家，擅长网络设备、服务器、存储等基础设施的故障诊断。"
+                "请基于系统当前状态进行专业、准确的根因分析，输出简洁实用的分析报告。"
+            )
+            content = await call_ai(prompt, system, ai_config, max_tokens=2000, timeout=20)
+            return AIPredictionResponse(
+                id=_generate_id("rc"),
+                type="root_cause",
+                title="根因分析结果（AI）",
+                content=content,
+                confidence=0.92,
+                suggestion="请根据上述分析报告排查和处理",
+                timestamp=_now_str(),
+            )
+    except Exception as e:
+        # AI 调用失败，fallback 到规则模板
+        import logging
+        logging.getLogger("cornerstone").warning(f"[AI根因分析] 调用失败，使用规则模板: {e}")
+
+    # 获取活跃告警（fallback 规则模板，复用前面已查的数据）
     # 构建分析
     content_lines = []
     content_lines.append("根据系统数据分析，当前主要问题及可能原因如下：\n")
