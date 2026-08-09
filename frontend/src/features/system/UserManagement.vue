@@ -616,7 +616,7 @@ onMounted(() => {
           <span v-else class="text-gray">{{ t('system.neverLoggedIn') }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('common.actions')" width="280" fixed="right">
+      <el-table-column :label="t('common.actions')" width="320" fixed="right">
         <template #default="scope">
           <div class="action-buttons">
             <el-button 
@@ -1053,12 +1053,14 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .action-btn {
-  margin-right: 8px;
+  margin-right: 4px;
+  white-space: nowrap;
 }
 
 .form-container {
@@ -1157,10 +1159,12 @@ onMounted(() => {
 .user-management-table :deep(.cell),
 .user-sessions-table :deep(.cell) {
   line-height: 1.5;
+  white-space: nowrap;
 }
 
 .user-management-table :deep(.el-table__cell),
 .user-sessions-table :deep(.el-table__cell) {
   padding: 8px 12px;
+  overflow: visible;
 }
 </style>
