@@ -56,14 +56,33 @@ function formatMoney(amount: number): string {
 }
 
 function getCircuitTypeColor(type: string): string {
-  const colorMap: Record<string, string> = {
+  // 已知类型固定颜色
+  const fixedColorMap: Record<string, string> = {
     '互联网专线': '#67C23A',    // 绿色
     'MPLS': '#E6A23C',         // 橙色
     'SD-WAN': '#409EFF',       // 蓝色
     '裸光纤': '#F56C6C',       // 红色
-    '云专线': '#909399',       // 灰色（其他）
+    '云专线': '#909399',       // 灰色
   }
-  return colorMap[type] || '#909399'  // 默认灰色
+  if (fixedColorMap[type]) {
+    return fixedColorMap[type]
+  }
+  
+  // 预设颜色数组，新增类型自动从中选择
+  const presetColors = [
+    '#606266', '#409EFF', '#67C23A', '#E6A23C', '#F56C6C',
+    '#722ED1', '#36BFFA', '#F7BA1E', '#909399', '#00CED1',
+    '#FF6347', '#4682B4', '#32CD32', '#FFD700', '#9932CC',
+  ]
+  
+  // 简单 hash 算法，同一个类型总是得到同一个颜色
+  let hash = 0
+  for (let i = 0; i < type.length; i++) {
+    hash = ((hash << 5) - hash) + type.charCodeAt(i)
+    hash = hash & hash
+  }
+  const index = Math.abs(hash) % presetColors.length
+  return presetColors[index]
 }
 
 function getTrendIcon(trend: string | null) {
