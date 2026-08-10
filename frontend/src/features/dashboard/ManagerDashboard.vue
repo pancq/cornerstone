@@ -55,6 +55,17 @@ function formatMoney(amount: number): string {
   return `¥${amount.toLocaleString()}`
 }
 
+function getCircuitTypeColor(type: string): string {
+  const colorMap: Record<string, string> = {
+    '互联网专线': '#67C23A',    // 绿色
+    'MPLS': '#E6A23C',         // 橙色
+    'SD-WAN': '#409EFF',       // 蓝色
+    '裸光纤': '#F56C6C',       // 红色
+    '云专线': '#909399',       // 灰色（其他）
+  }
+  return colorMap[type] || '#909399'  // 默认灰色
+}
+
 function getTrendIcon(trend: string | null) {
   if (trend === 'up') return ArrowUp
   if (trend === 'down') return ArrowDown
@@ -108,16 +119,19 @@ function initCostChart() {
   ]
 
   const byType = costTrendData.value?.by_type as Record<string, number[]> | undefined
-  typeList.forEach(({ name, key }) => {
-    const typeData = byType?.[key]
-    if (typeData) {
+  // 动态获取所有存在费用数据的类型（支持新增类型）
+  const allTypes = byType ? Object.keys(byType) : []
+  allTypes.forEach(typeKey => {
+    const typeData = byType[typeKey]
+    if (typeData && typeData.some(v => v > 0)) {
+      const color = getCircuitTypeColor(typeKey)
       series.push({
-        name,
+        name: typeKey,
         type: 'line',
         data: typeData,
         smooth: true,
-        lineStyle: { width: 2 },
-        itemStyle: { color: '#909399' }
+        lineStyle: { width: 2, color },
+        itemStyle: { color }
       })
     }
   })
@@ -577,8 +591,8 @@ onMounted(() => {
         <div id="cost-trend-chart" class="chart-container"></div>
         <div class="cost-breakdown">
           <div v-for="(costs, type) in costTrendData?.by_type" :key="type" class="cost-item">
-            <span class="cost-label">{{ type }}</span>
-            <span class="cost-value">¥{{ costs[costs.length - 1]?.toLocaleString() || 0 }}</span>
+            <span class="cost-label" :style="{ color: getCircuitTypeColor(type) }">{{ type }}</span>
+            <span class="cost-value" :style="{ color: getCircuitTypeColor(type) }">¥{{ costs[costs.length - 1]?.toLocaleString() || 0 }}</span>
           </div>
         </div>
       </div>
