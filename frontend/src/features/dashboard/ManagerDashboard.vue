@@ -168,12 +168,13 @@ function initCostChart() {
     },
     legend: {
       data: (series || []).map(s => s.name),
-      bottom: 0
+      bottom: 10,
+      type: 'scroll'
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '15%',
+      bottom: '25%',
       top: '10%',
       containLabel: true
     },
