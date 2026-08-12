@@ -90,18 +90,6 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
       
-      // 添加登录日志
-      const appStore = useAppStore()
-      appStore.addAuditLog({
-        user: username,
-        action: '用户登录',
-        resource: '认证',
-        detail: `用户 ${username} 登录系统`,
-        ipAddress: null,
-        createdAt: new Date().toISOString(),
-        success: 'true'
-      })
-      
       await fetchAuditLogs()
       return { success: true }
     } catch (error: any) {
@@ -146,18 +134,6 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
       
-      // 添加登录日志
-      const appStore = useAppStore()
-      appStore.addAuditLog({
-        user: username,
-        action: '用户登录',
-        resource: '认证',
-        detail: `用户 ${username} 登录系统`,
-        ipAddress: null,
-        createdAt: new Date().toISOString(),
-        success: 'true'
-      })
-      
       await fetchAuditLogs()
       return { success: true }
     } catch (error: any) {
@@ -178,6 +154,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response.ok) {
         const logs = await response.json()
         appStore.$patch({ auditLogs: logs })
+        appStore.save()
       }
     } catch (error) {
       console.error('Fetch audit logs failed:', error)
@@ -337,18 +314,6 @@ export const useAuthStore = defineStore('auth', () => {
         }
       }
       
-      // 添加登录日志
-      const appStore = useAppStore()
-      appStore.addAuditLog({
-        user: data.user?.username || 'SSO User',
-        action: '用户登录',
-        resource: '认证',
-        detail: `用户通过SSO登录系统`,
-        ipAddress: null,
-        createdAt: new Date().toISOString(),
-        success: 'true'
-      })
-      
       await fetchAuditLogs()
       return { success: true }
     } catch (error: any) {
@@ -368,6 +333,7 @@ export const useAuthStore = defineStore('auth', () => {
     loginWithCaptcha,
     logout,
     fetchUser,
+    fetchAuditLogs,
     refreshAccessToken,
     changePassword,
     fetchSSOConfig,

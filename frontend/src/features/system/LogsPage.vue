@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAppStore } from '../../store'
 import { useAuthStore } from '../../store/auth'
 import { storeToRefs } from 'pinia'
@@ -11,6 +11,10 @@ const { t, locale } = useI18n()
 const store = useAppStore()
 const authStore = useAuthStore()
 const { auditLogs } = storeToRefs(store)
+
+onMounted(() => {
+  authStore.fetchAuditLogs()
+})
 
 const isViewer = computed(() => authStore.isReadOnly())
 
@@ -156,7 +160,7 @@ const formatDateTime = (dateString: string) => {
         border
         max-height="calc(100vh - 400px)"
       >
-        <el-table-column :label="t('logs.operationTime')" min-width="160">
+        <el-table-column :label="t('logs.operationTime')" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="time-cell">
               <el-icon class="time-icon"><Clock /></el-icon>
@@ -164,24 +168,24 @@ const formatDateTime = (dateString: string) => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operationType')" min-width="100" align="center">
+        <el-table-column :label="t('logs.operationType')" min-width="100" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag :type="getActionType(row.action).type">
               {{ getActionType(row.action).label }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operationDescription')" min-width="150">
+        <el-table-column :label="t('logs.operationDescription')" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.action }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operationTarget')" min-width="120">
+        <el-table-column :label="t('logs.operationTarget')" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="target-text">{{ row.resource }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.operator')" min-width="100">
+        <el-table-column :label="t('logs.operator')" min-width="100" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="user-cell">
               <el-icon class="user-icon"><User /></el-icon>
@@ -189,17 +193,17 @@ const formatDateTime = (dateString: string) => {
             </div>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.sourceIP')" min-width="110">
+        <el-table-column :label="t('logs.sourceIP')" min-width="110" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="ip-text">{{ row.ipAddress || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('logs.detailInfo')" min-width="150">
+        <el-table-column :label="t('logs.detailInfo')" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="detail-text">{{ row.detail }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('common.result')" min-width="80" align="center">
+        <el-table-column :label="t('common.result')" min-width="100" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag :type="getStatusText(row).type">
               {{ getStatusText(row).text }}

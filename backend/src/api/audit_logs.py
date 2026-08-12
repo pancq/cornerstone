@@ -3,13 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert
 
 from ..database import get_db
-from ..models import AuditLog
+from ..models import AuditLog, Role
 from ..schemas import AuditLogResponse
 from .dependencies import get_current_active_user
 
 router = APIRouter()
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 @router.get("/")
 async def read_logs(
@@ -19,27 +19,27 @@ async def read_logs(
     action: str = None,
     category: str = None,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_active_user)
+    current_user=Depends(get_current_active_user)
 ):
     query = select(AuditLog)
 
+    # 获取用户角色名
+    role_name = current_user.role.name if current_user.role else None
+
     # viewer 角色强制只返回登录和高危操作
-    VIEWER_ACTIONS = [
-        'user_login', 'user_logout', 'login_failed',
-        'device_delete', 'circuit_delete', 'backup_rollback',
-        'user_create', 'user_role_change', 'user_delete'
+    LOGIN_ACTIONS = ['用户登录', '用户登出', '登录失败']
+    DANGEROUS_ACTIONS = [
+        '删除设备', '删除专线', '回滚', '配置回滚',
+        '创建用户', '修改角色', '删除用户', '启用用户', '停用用户'
     ]
 
-    if current_user.get('role') == 'viewer':
-        query = query.where(AuditLog.action.in_(VIEWER_ACTIONS))
+    if role_name == 'viewer':
+        query = query.where(AuditLog.action.in_(LOGIN_ACTIONS + DANGEROUS_ACTIONS))
     elif category:
         if category == 'login':
-            query = query.where(AuditLog.action.in_(['user_login', 'user_logout', 'login_failed']))
+            query = query.where(AuditLog.action.in_(LOGIN_ACTIONS))
         elif category == 'dangerous':
-            query = query.where(AuditLog.action.in_([
-                'device_delete', 'circuit_delete', 'backup_rollback',
-                'user_create', 'user_role_change', 'user_delete'
-            ]))
+            query = query.where(AuditLog.action.in_(DANGEROUS_ACTIONS))
 
     if user:
         query = query.where(AuditLog.user.like(f"%{user}%"))
@@ -49,15 +49,15 @@ async def read_logs(
     result = await db.execute(query.offset(skip).limit(limit))
     logs = result.scalars().all()
     
-    # 手动序列化并确保时间带时区标记
+    # 手动序列化并确保时间带 UTC 时区标记
     result = []
     for log in logs:
         created_at = log.created_at
         if created_at:
-            # 确保时间带时区信息
+            # 数据库存储的是 UTC 时间，标记为 UTC
             if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone(timedelta(hours=8)))
-            created_at_str = created_at.isoformat().replace("+08:00", "Z")
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at_str = created_at.isoformat()
         else:
             created_at_str = None
         
