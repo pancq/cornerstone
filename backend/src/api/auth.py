@@ -468,7 +468,7 @@ async def login_with_captcha(
     request: Request,
     body: CaptchaLoginRequest,
     db: AsyncSession = Depends(get_db),
-    redis: Depends(get_redis),
+    redis=Depends(get_redis)
 ):
     """带验证码的登录接口"""
     stored_code = await redis.get(f"captcha:{body.captcha_id}")
