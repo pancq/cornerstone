@@ -3,7 +3,8 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth'
 import { useI18n } from 'vue-i18n'
-import { Setting, User, Connection, Bell, Shield } from '@element-plus/icons-vue'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+const { Setting, User, Connection, Bell, Shield } = ElementPlusIconsVue
 
 const { t } = useI18n()
 import UserManagement from './UserManagement.vue'
