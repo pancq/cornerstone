@@ -3,7 +3,7 @@ import random
 import string
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, update, delete, func
@@ -13,6 +13,7 @@ from ..database import get_db
 from ..models import User, Role, Permission, RolePermission, UserSession, AuditLog
 from ..schemas import UserCreate, UserUpdate, UserResponse, ResetPasswordResponse, UserSessionResponse, RoleResponse, RoleCreate, PermissionResponse
 from ..utils.security import get_password_hash, validate_password
+from ..utils.ip_whitelist import get_client_ip_from_request
 from .dependencies import get_current_active_user, get_current_superuser
 
 router = APIRouter()
@@ -163,13 +164,14 @@ async def update_user_settings(
     
     return UserSettingsResponse(locale=current_user.locale or "zh-CN")
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
+    request: Request,
     user: UserCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser)
 ):
-    """创建用户（仅super_admin可访问）"""
+    """创建用户（仅超级管理员）"""
     # 检查用户名是否已存在
     result = await db.execute(select(User).where(User.username == user.username))
     existing_user = result.scalar_one_or_none()
@@ -201,12 +203,14 @@ async def create_user(
     result = await db.execute(stmt)
     new_user = result.scalar_one()
     
+    client_ip = get_client_ip_from_request(request)
     # 记录审计日志
     stmt = insert(AuditLog).values(
         user=current_user.username,
         action="创建用户",
         resource="用户",
         detail=f"创建用户 {new_user.username}",
+        ip_address=client_ip,
         success="true"
     )
     await db.execute(stmt)
@@ -216,6 +220,7 @@ async def create_user(
 
 @router.put("/{user_id}", response_model=UserResponse)
 async def update_user(
+    request: Request,
     user_id: int,
     user: UserUpdate,
     db: AsyncSession = Depends(get_db),
@@ -253,11 +258,13 @@ async def update_user(
     # 记录审计日志
     if update_data:
         changes = ", ".join([f"{k}={v}" for k, v in update_data.items()])
+        client_ip = get_client_ip_from_request(request)
         stmt = insert(AuditLog).values(
             user=current_user.username,
             action="编辑用户",
             resource="用户",
             detail=f"编辑用户 {updated_user.username}，修改内容: {changes}",
+            ip_address=client_ip,
             success="true"
         )
         await db.execute(stmt)
@@ -267,6 +274,7 @@ async def update_user(
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
+    request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser)
@@ -297,12 +305,14 @@ async def delete_user(
         UserSession.user_id == user_id
     ).values(is_revoked=True))
     
+    client_ip = get_client_ip_from_request(request)
     # 记录审计日志
     stmt = insert(AuditLog).values(
         user=current_user.username,
         action="删除用户",
         resource="用户",
         detail=f"删除用户 {user.username}",
+        ip_address=client_ip,
         success="true"
     )
     await db.execute(stmt)
@@ -312,6 +322,7 @@ async def delete_user(
 
 @router.patch("/{user_id}/toggle", response_model=UserResponse)
 async def toggle_user_status(
+    request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser)
@@ -349,6 +360,7 @@ async def toggle_user_status(
             UserSession.user_id == user_id
         ).values(is_revoked=True))
     
+    client_ip = get_client_ip_from_request(request)
     # 记录审计日志
     status_text = "启用" if new_status else "停用"
     stmt = insert(AuditLog).values(
@@ -356,6 +368,7 @@ async def toggle_user_status(
         action=f"{status_text}用户",
         resource="用户",
         detail=f"{status_text}用户 {user.username}",
+        ip_address=client_ip,
         success="true"
     )
     await db.execute(stmt)
@@ -365,6 +378,7 @@ async def toggle_user_status(
 
 @router.post("/{user_id}/reset-password", response_model=ResetPasswordResponse)
 async def reset_password(
+    request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser)
@@ -389,12 +403,14 @@ async def reset_password(
     ).returning(User)
     result = await db.execute(stmt)
     
+    client_ip = get_client_ip_from_request(request)
     # 记录审计日志
     stmt = insert(AuditLog).values(
         user=current_user.username,
         action="重置密码",
         resource="用户",
         detail=f"重置用户 {user.username} 的密码",
+        ip_address=client_ip,
         success="true"
     )
     await db.execute(stmt)
@@ -423,6 +439,7 @@ async def get_user_sessions(
 
 @router.post("/{user_id}/revoke-sessions")
 async def revoke_user_sessions(
+    request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser)
@@ -443,12 +460,14 @@ async def revoke_user_sessions(
     ).values(is_revoked=True)
     await db.execute(stmt)
     
+    client_ip = get_client_ip_from_request(request)
     # 记录审计日志
     stmt = insert(AuditLog).values(
         user=current_user.username,
         action="强制下线",
         resource="用户",
         detail=f"强制用户 {user.username} 所有会话下线",
+        ip_address=client_ip,
         success="true"
     )
     await db.execute(stmt)

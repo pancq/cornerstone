@@ -252,7 +252,8 @@ class PrefixImportExport(ImportExportService):
         db: AsyncSession,
         file_content: bytes,
         file_type: str,
-        user: str
+        user: str,
+        client_ip: str | None = None
     ) -> Dict[str, Any]:
         """导入子网（覆盖重复）"""
         if file_type == "excel":
@@ -319,7 +320,8 @@ class PrefixImportExport(ImportExportService):
             "prefix",
             0,
             "批量导入子网",
-            {"success_count": success_count, "failed_count": failed_count}
+            {"success_count": success_count, "failed_count": failed_count},
+            client_ip
         )
 
         return {
@@ -403,7 +405,8 @@ class DeviceImportExport(ImportExportService):
         db: AsyncSession,
         file_content: bytes,
         file_type: str,
-        user: str
+        user: str,
+        client_ip: str | None = None
     ) -> Dict[str, Any]:
         """导入设备"""
         # 解析文件
@@ -462,7 +465,8 @@ class DeviceImportExport(ImportExportService):
             "device",
             0,
             "批量导入设备",
-            {"success_count": success_count, "failed_count": failed_count}
+            {"success_count": success_count, "failed_count": failed_count},
+            client_ip
         )
         
         return {
@@ -536,7 +540,8 @@ class IPAddressImportExport(ImportExportService):
         file_content: bytes,
         file_type: str,
         user: str,
-        prefix_id: Optional[int] = None
+        prefix_id: Optional[int] = None,
+        client_ip: str | None = None
     ) -> Dict[str, Any]:
         """导入IP地址"""
         # 解析文件
@@ -603,7 +608,8 @@ class IPAddressImportExport(ImportExportService):
             "ip_address",
             0,
             "批量导入IP地址",
-            {"success_count": success_count, "failed_count": failed_count}
+            {"success_count": success_count, "failed_count": failed_count},
+            client_ip
         )
 
         return {
@@ -692,7 +698,8 @@ class CircuitImportExport(ImportExportService):
         db: AsyncSession,
         file_content: bytes,
         file_type: str,
-        user: str
+        user: str,
+        client_ip: str | None = None
     ) -> Dict[str, Any]:
         """导入电路"""
         # 解析文件
@@ -772,7 +779,8 @@ class CircuitImportExport(ImportExportService):
             "circuit",
             0,
             "批量导入电路",
-            {"success_count": success_count, "failed_count": failed_count}
+            {"success_count": success_count, "failed_count": failed_count},
+            client_ip
         )
         
         return {

@@ -1,11 +1,12 @@
 """数据导入导出API"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 import io
 
 from ..database import get_db
 from ..models import User
+from ..utils.ip_whitelist import get_client_ip_from_request
 from ..api.dependencies import get_current_active_user
 from ..services.import_export_service import (
     DeviceImportExport,
@@ -49,6 +50,7 @@ async def export_devices(
 
 @router.post("/devices/import")
 async def import_devices(
+    request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -65,6 +67,7 @@ async def import_devices(
     
     # 读取文件内容
     file_content = await file.read()
+    client_ip = get_client_ip_from_request(request)
     
     # 执行导入
     try:
@@ -72,7 +75,8 @@ async def import_devices(
             db=db,
             file_content=file_content,
             file_type=file_type,
-            user=current_user.username
+            user=current_user.username,
+            client_ip=client_ip
         )
         return result
     except ValueError as e:
@@ -200,6 +204,7 @@ async def get_prefix_template():
 
 @router.post("/prefixes/import")
 async def import_prefixes(
+    request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -214,9 +219,10 @@ async def import_prefixes(
         raise HTTPException(status_code=400, detail="不支持的文件格式，请上传Excel或CSV文件")
 
     file_content = await file.read()
+    client_ip = get_client_ip_from_request(request)
 
     try:
-        result = await PrefixImportExport.import_prefixes(db=db, file_content=file_content, file_type=file_type, user=current_user.username)
+        result = await PrefixImportExport.import_prefixes(db=db, file_content=file_content, file_type=file_type, user=current_user.username, client_ip=client_ip)
         return {"success_count": result["success_count"], "failed_count": result["failed_count"], "errors": result["errors"]}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -257,6 +263,7 @@ async def export_ip_addresses(
 
 @router.post("/ip-addresses/import")
 async def import_ip_addresses(
+    request: Request,
     file: UploadFile = File(...),
     prefix_id: int = Query(None, description="子网ID"),
     db: AsyncSession = Depends(get_db),
@@ -274,6 +281,7 @@ async def import_ip_addresses(
     
     # 读取文件内容
     file_content = await file.read()
+    client_ip = get_client_ip_from_request(request)
     
     # 执行导入
     try:
@@ -282,7 +290,8 @@ async def import_ip_addresses(
             file_content=file_content,
             file_type=file_type,
             user=current_user.username,
-            prefix_id=prefix_id
+            prefix_id=prefix_id,
+            client_ip=client_ip
         )
         return result
     except ValueError as e:
@@ -373,6 +382,7 @@ async def export_circuits(
 
 @router.post("/circuits/import")
 async def import_circuits(
+    request: Request,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -389,6 +399,7 @@ async def import_circuits(
     
     # 读取文件内容
     file_content = await file.read()
+    client_ip = get_client_ip_from_request(request)
     
     # 执行导入
     try:
@@ -396,7 +407,8 @@ async def import_circuits(
             db=db,
             file_content=file_content,
             file_type=file_type,
-            user=current_user.username
+            user=current_user.username,
+            client_ip=client_ip
         )
         return result
     except ValueError as e:

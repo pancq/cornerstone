@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Body, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, delete, update, desc, func
 from datetime import datetime, timezone, timedelta
@@ -11,6 +11,7 @@ from ..models import BackupTask, Backup, Credential, Device, Site
 from ..tasks.backup_scheduler import add_task_to_scheduler, remove_task_from_scheduler, \
     run_backup_task, reload_tasks
 from ..utils.logger import audit_log
+from ..utils.ip_whitelist import get_client_ip_from_request
 from .dependencies import get_current_active_user
 
 router = APIRouter()
@@ -99,6 +100,7 @@ async def get_backup_task(
 # 创建任务
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_backup_task(
+    request: Request,
     name: str = Body(..., embed=True),
     cron_expr: str = Body(..., embed=True),
     credential_id: int = Body(..., embed=True),
@@ -154,13 +156,15 @@ async def create_backup_task(
     if is_enabled:
         add_task_to_scheduler(task.id, cron_expr)
     
-    await audit_log(db, current_user.id, "backup_task", task.id, "create", {"name": name})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup_task", task.id, "create", {"name": name}, client_ip)
     
     return {c.name: getattr(task, c.name) for c in task.__table__.columns}
 
 # 更新任务
 @router.put("/{task_id}")
 async def update_backup_task(
+    request: Request,
     task_id: int,
     name: str = Body(None, embed=True),
     cron_expr: str = Body(None, embed=True),
@@ -220,13 +224,15 @@ async def update_backup_task(
             else:
                 remove_task_from_scheduler(task.id)
     
-    await audit_log(db, current_user.id, "backup_task", task_id, "update", {"name": name})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup_task", task_id, "update", {"name": name}, client_ip)
     
     return {c.name: getattr(task, c.name) for c in task.__table__.columns}
 
 # 删除任务
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_backup_task(
+    request: Request,
     task_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -243,11 +249,13 @@ async def delete_backup_task(
     await db.execute(delete(BackupTask).where(BackupTask.id == task_id))
     await db.commit()
     
-    await audit_log(db, current_user.id, "backup_task", task_id, "delete", {})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup_task", task_id, "delete", {}, client_ip)
 
 # 启用/停用任务
 @router.patch("/{task_id}/toggle")
 async def toggle_backup_task(
+    request: Request,
     task_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -267,13 +275,15 @@ async def toggle_backup_task(
     else:
         remove_task_from_scheduler(task.id)
     
-    await audit_log(db, current_user.id, "backup_task", task_id, "toggle", {"is_enabled": task.is_enabled})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup_task", task_id, "toggle", {"is_enabled": task.is_enabled}, client_ip)
     
     return {"is_enabled": task.is_enabled}
 
 # 立即执行任务
 @router.post("/{task_id}/run-now")
 async def run_backup_task_now(
+    request: Request,
     task_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -287,7 +297,8 @@ async def run_backup_task_now(
     import asyncio
     asyncio.create_task(run_backup_task(task_id, "manual"))
     
-    await audit_log(db, current_user.id, "backup_task", task_id, "run_now", {})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup_task", task_id, "run_now", {}, client_ip)
     
     return {"message": "任务已启动，请在几秒后刷新历史记录查看结果"}
 

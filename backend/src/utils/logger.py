@@ -27,7 +27,7 @@ def get_logger() -> logging.Logger:
     return logger
 
 async def audit_log(db_session, user_id: int, resource_type: str, resource_id: int, 
-                   action: str, details: dict = None):
+                   action: str, details: dict = None, ip_address: str | None = None):
     """记录审计日志到数据库"""
     from ..models import AuditLog
     import json
@@ -36,7 +36,8 @@ async def audit_log(db_session, user_id: int, resource_type: str, resource_id: i
         user=str(user_id),
         resource=f"{resource_type}:{resource_id}",
         action=action,
-        detail=json.dumps(details or {})
+        detail=json.dumps(details or {}),
+        ip_address=ip_address
     )
     db_session.add(log_entry)
     await db_session.commit()

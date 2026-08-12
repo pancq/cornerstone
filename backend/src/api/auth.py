@@ -309,12 +309,17 @@ async def change_password(
     )
     await db.execute(stmt)
     
+    # 获取客户端 IP
+    from ...utils.ip_whitelist import get_client_ip_from_request
+    client_ip = get_client_ip_from_request(request)
+
     # 记录审计日志
     stmt = insert(AuditLog).values(
         user=current_user.username,
         action="修改密码",
         resource="用户",
         detail=f"用户 {current_user.username} 修改了自己的密码",
+        ip_address=client_ip,
         success="true"
     )
     await db.execute(stmt)
@@ -420,11 +425,13 @@ async def refresh_token(
     await db.execute(stmt)
 
     from datetime import timezone
+    from ...utils.ip_whitelist import get_client_ip_from_request
+    client_ip = get_client_ip_from_request(request)
     session_expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7)
     new_session = UserSession(
         user_id=user.id,
         jti=jti,
-        ip_address=None,
+        ip_address=client_ip,
         user_agent=request.headers.get("User-Agent", ""),
         expires_at=session_expire
     )

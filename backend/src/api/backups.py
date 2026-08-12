@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, Request
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, insert, delete, update, desc, func
@@ -16,6 +16,7 @@ from ..services.backup_collector import collect_device_config, detect_config_cha
     test_device_connection
 from ..utils.crypto import encrypt_password, decrypt_password
 from ..utils.logger import audit_log
+from ..utils.ip_whitelist import get_client_ip_from_request
 from .dependencies import get_current_active_user
 
 router = APIRouter()
@@ -75,6 +76,7 @@ async def get_credential(
 # 创建凭证
 @router.post("/credentials", status_code=status.HTTP_201_CREATED)
 async def create_credential(
+    request: Request,
     credential: CredentialCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -101,7 +103,8 @@ async def create_credential(
     
     new_credential = result.scalar_one()
     
-    await audit_log(db, current_user.id, "credential", new_credential.id, "create", {"name": credential.name})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "credential", new_credential.id, "create", {"name": credential.name}, client_ip)
     
     # 返回时隐藏密码
     cred_dict = {c.name: getattr(new_credential, c.name) for c in new_credential.__table__.columns}
@@ -115,6 +118,7 @@ async def create_credential(
 # 更新凭证
 @router.put("/credentials/{credential_id}")
 async def update_credential(
+    request: Request,
     credential_id: int,
     credential: CredentialUpdate,
     db: AsyncSession = Depends(get_db),
@@ -144,7 +148,8 @@ async def update_credential(
     
     await db.refresh(existing)
     
-    await audit_log(db, current_user.id, "credential", credential_id, "update", {"name": credential.name})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "credential", credential_id, "update", {"name": credential.name}, client_ip)
     
     # 返回时隐藏密码
     cred_dict = {c.name: getattr(existing, c.name) for c in existing.__table__.columns}
@@ -158,6 +163,7 @@ async def update_credential(
 # 删除凭证
 @router.delete("/credentials/{credential_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_credential(
+    request: Request,
     credential_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -171,7 +177,8 @@ async def delete_credential(
     await db.execute(delete(Credential).where(Credential.id == credential_id))
     await db.commit()
     
-    await audit_log(db, current_user.id, "credential", credential_id, "delete", {})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "credential", credential_id, "delete", {}, client_ip)
 
 # 测试凭证连通性
 @router.post("/credentials/{credential_id}/test")
@@ -335,6 +342,7 @@ async def get_backup_content(
 # 更新备份标签
 @router.patch("/{backup_id}/tag")
 async def update_backup_tag(
+    request: Request,
     backup_id: int,
     tag: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
@@ -349,13 +357,15 @@ async def update_backup_tag(
     await db.commit()
     await db.refresh(backup)
     
-    await audit_log(db, current_user.id, "backup", backup_id, "update", {"tag": tag})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup", backup_id, "update", {"tag": tag}, client_ip)
     
     return backup
 
 # 删除备份
 @router.delete("/{backup_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_backup(
+    request: Request,
     backup_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
@@ -377,11 +387,13 @@ async def delete_backup(
     await db.execute(delete(Backup).where(Backup.id == backup_id))
     await db.commit()
     
-    await audit_log(db, current_user.id, "backup", backup_id, "delete", {})
+    client_ip = get_client_ip_from_request(request)
+    await audit_log(db, current_user.id, "backup", backup_id, "delete", {}, client_ip)
 
 # 手动触发单台设备备份
 @router.post("/trigger")
 async def trigger_backup(
+    request: Request,
     device_id: int = Body(..., embed=True),
     tag: str = Body("", embed=True),
     db: AsyncSession = Depends(get_db),
@@ -499,7 +511,8 @@ async def trigger_backup(
         for conn in active_connections.get(task_id, []):
             await conn.send_json(message)
         
-        await audit_log(db, current_user.id, "backup", backup.id, "create", {"device_id": device_id})
+        client_ip = get_client_ip_from_request(request)
+        await audit_log(db, current_user.id, "backup", backup.id, "create", {"device_id": device_id}, client_ip)
         
         return {"task_id": task_id, "success": result.success, "message": result.error_message}
     
@@ -638,7 +651,9 @@ async def trigger_batch_backup(
 # 还原配置到设备
 @router.post("/{backup_id}/restore")
 async def restore_backup(
+    request: Request,
     backup_id: int,
+    ip_address: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_active_user)
 ):
@@ -662,17 +677,6 @@ async def restore_backup(
     
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
-    
-    # 获取管理IP地址
-    ip_address = None
-    if device.mgmt_ip_id:
-        result = await db.execute(select(IPAddress).where(IPAddress.id == device.mgmt_ip_id))
-        ip = result.scalar_one_or_none()
-        if ip:
-            ip_address = ip.address
-    
-    if not ip_address:
-        raise HTTPException(status_code=400, detail="Device has no management IP")
     
     # 获取凭证（优先设备凭证，然后找共享凭证）
     result = await db.execute(select(Credential).where(Credential.device_id == backup.device_id))
@@ -719,7 +723,8 @@ async def restore_backup(
     result = await apply_config_to_device(device_dict, credential_dict, config_content)
     
     if result.success:
-        await audit_log(db, current_user.id, "backup", backup_id, "restore", {"device_id": backup.device_id})
+        client_ip = get_client_ip_from_request(request)
+        await audit_log(db, current_user.id, "backup", backup_id, "restore", {"device_id": backup.device_id}, client_ip)
     
     return {
         "success": result.success,
