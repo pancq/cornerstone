@@ -3,12 +3,13 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth'
 import { useI18n } from 'vue-i18n'
-import { Setting, User, Connection, Bell } from '@element-plus/icons-vue'
+import { Setting, User, Connection, Bell, Shield } from '@element-plus/icons-vue'
 
 const { t } = useI18n()
 import UserManagement from './UserManagement.vue'
 import SSOSettings from './SSOSettings.vue'
 import NotificationSettings from './NotificationSettings.vue'
+import SecuritySettings from './SecuritySettings.vue'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -21,7 +22,7 @@ const userManagementRef = ref<InstanceType<typeof UserManagement> | null>(null)
 
 // 处理hash变化的通用方法
 function handleHashChange(hash: string) {
-  if (['users', 'sso', 'notification', 'roles'].includes(hash)) {
+  if (['users', 'sso', 'notification', 'security', 'roles'].includes(hash)) {
     if (hash === 'roles') {
       // roles在UserManagement内部
       activeTab.value = 'users'
@@ -31,7 +32,7 @@ function handleHashChange(hash: string) {
         }
       })
     } else {
-      // sso, notification, users 直接设置对应的Tab
+      // sso, notification, security, users 直接设置对应的Tab
       activeTab.value = hash
     }
   }
@@ -136,6 +137,19 @@ defineExpose({
           <NotificationSettings v-if="authStore.hasPermission('system', 'write')" />
           <div v-else class="no-permission">
             {{ t('system.noNotificationPermission') }}
+          </div>
+        </el-tab-pane>
+
+        <el-tab-pane :label="t('system.security')" name="security">
+          <template #label>
+            <span class="tab-label">
+              <Shield class="tab-icon" />
+              {{ t('system.security') }}
+            </span>
+          </template>
+          <SecuritySettings v-if="authStore.hasPermission('system', 'write')" />
+          <div v-else class="no-permission">
+            {{ t('system.noSystemPermission') }}
           </div>
         </el-tab-pane>
       </el-tabs>

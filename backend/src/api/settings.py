@@ -22,6 +22,7 @@ NOTIFICATION_SETTINGS_KEY = "notification_settings"
 LOG_SETTINGS_KEY = "log_settings"
 COMPANY_INFO_KEY = "company_info"
 BRAND_SETTINGS_KEY = "brand_settings"
+IP_WHITELIST_KEY = "security.ip_whitelist"
 
 # 默认品牌设置
 BRAND_SETTINGS_DEFAULTS = {
@@ -593,3 +594,68 @@ async def update_company_info(
     _log_setting_after(current_user.username, "更新公司信息", COMPANY_INFO_KEY, config_json, created)
 
     return {"message": "公司信息已更新"}
+
+
+# ============ IP 白名单 API ============
+
+class IPWhitelistRequest(BaseModel):
+    whitelist: str  # 每行一个 IP 或 CIDR，例如：192.168.0.0/16, 10.0.0.1
+
+
+class IPWhitelistResponse(BaseModel):
+    whitelist: str
+    enabled: bool
+
+
+@router.get("/security/ip-whitelist", response_model=IPWhitelistResponse)
+async def get_ip_whitelist(
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_super_admin),
+):
+    """获取IP白名单配置（仅 super_admin）"""
+    result = await db.execute(select(Setting).filter(Setting.key == IP_WHITELIST_KEY))
+    setting = result.scalars().first()
+
+    if setting:
+        return IPWhitelistResponse(
+            whitelist=setting.value,
+            enabled=len(setting.value.strip()) > 0
+        )
+
+    return IPWhitelistResponse(whitelist="", enabled=False)
+
+
+@router.put("/security/ip-whitelist", response_model=IPWhitelistResponse)
+async def update_ip_whitelist(
+    request: IPWhitelistRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_super_admin),
+):
+    """更新IP白名单配置（仅 super_admin）"""
+    from src.utils.ip_whitelist import invalidate_cache
+
+    whitelist_text = request.whitelist.strip()
+
+    result = await db.execute(select(Setting).filter(Setting.key == IP_WHITELIST_KEY))
+    setting = result.scalars().first()
+
+    _log_setting_before(current_user.username, "更新IP白名单", IP_WHITELIST_KEY, setting)
+
+    created = setting is None
+    if setting:
+        setting.value = whitelist_text
+    else:
+        setting = Setting(key=IP_WHITELIST_KEY, value=whitelist_text)
+        db.add(setting)
+
+    await db.commit()
+    _log_setting_after(current_user.username, "更新IP白名单", IP_WHITELIST_KEY, whitelist_text, created)
+
+    # 失效缓存，下次请求重新加载
+    invalidate_cache()
+
+    return IPWhitelistResponse(
+        whitelist=whitelist_text,
+        enabled=len(whitelist_text) > 0
+    )
+

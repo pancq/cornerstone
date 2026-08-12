@@ -824,7 +824,18 @@
       "guideEmail4": "Fill in SMTP server address, port, username, password and sender email",
       "guideTest": "3. Test Notifications",
       "guideTestDesc": "After configuration, when system triggers alert rules, notifications will be automatically sent through configured channels."
-    }
+    },
+    "security": "Security",
+    "ipWhitelist": "IP Whitelist",
+    "ipWhitelistPlaceholder": "One IP or CIDR per line, e.g.:\n192.168.0.0/16\n10.0.0.0/8\n172.16.0.0/12\n127.0.0.1",
+    "ipWhitelistHelp": "After configuration, only IP addresses in the whitelist can access the system. Leave empty to allow all IPs. Recommended to enable only when strict network isolation is required.",
+    "ipWhitelistEnabled": "Enabled",
+    "ipWhitelistDisabled": "Disabled",
+    "ipWhitelistDisabledDesc": "IP whitelist is not configured, all IPs are allowed",
+    "ipWhitelistEnabledDesc": "IP whitelist is enabled, only IPs in the list can access the system",
+    "loadFailed": "Load failed",
+    "saveFailed": "Save failed",
+    "saveSuccess": "Saved successfully"
   },
   "reports": {
     "title": "Monthly Reports",

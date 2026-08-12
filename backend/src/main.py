@@ -1,15 +1,18 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer
 
 from .api import api_router
 from .config import settings
 from .utils import setup_logger
+from .utils.ip_whitelist import check_ip_allowed
 from .tasks.backup_scheduler import start_scheduler as start_backup_scheduler, reload_tasks, scheduler as backup_scheduler
 from .services.scheduler_service import start_scheduler as start_monitor_scheduler
 from .tasks.inspection_scheduler import init_inspection_scheduler, reload_inspection_tasks
 from .tasks.log_cleanup import start_log_cleanup_scheduler
 from .database import async_session
+from .database import get_db
 
 app = FastAPI(
     title=settings.app_name,
@@ -30,6 +33,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# IP白名单中间件：只允许配置的IP访问
+@app.middleware("http")
+async def ip_whitelist_middleware(request: Request, call_next):
+    # 跳过健康检查端点（让负载均衡器能检查）
+    if request.url.path in ["/", "/health", "/api/v1/settings/public/brand"]:
+        return await call_next(request)
+
+    # 检查IP是否允许
+    db = next(get_db())
+    try:
+        allowed = await check_ip_allowed(request, db)
+        if not allowed:
+            from .utils.ip_whitelist import get_client_ip_from_request
+            client_ip = get_client_ip_from_request(request)
+            logger.warning(f"[IP白名单] 拒绝访问: client_ip={client_ip} path={request.url.path}")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "访问被拒绝：您的IP地址不在白名单中"}
+            )
+        return await call_next(request)
+    finally:
+        db.close()
 
 # 包含API路由
 app.include_router(api_router, prefix="/api/v1")
