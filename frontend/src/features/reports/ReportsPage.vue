@@ -1,8 +1,7 @@
 <template>
   <div class="reports-page">
-    <div class="page-header">
-      <h2>{{ t('reports.title') }}</h2>
-      <p class="page-desc">{{ t('reports.description') }}</p>
+    <div class="page-desc" style="margin-bottom: 16px; color: var(--el-text-color-secondary); font-size: 14px;">
+      {{ t('reports.description') }}
     </div>
 
     <div class="report-toolbar">

@@ -214,11 +214,6 @@ const getDisplayValue = (channelKey: string) => {
 
 <template>
   <div class="notification-settings-page">
-    <div class="page-header">
-      <h1>通知管理</h1>
-      <p class="description">配置通知渠道，接收系统告警和运维通知</p>
-    </div>
-
     <div class="config-list-container">
       <div class="list-header">
         <span class="list-title">通知渠道配置</span>
@@ -362,26 +357,8 @@ const getDisplayValue = (channelKey: string) => {
 
 <style scoped>
 .notification-settings-page {
-  padding: 24px;
   background: #f5f5f5;
   min-height: 100vh;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #262626;
-  margin: 0 0 8px 0;
-}
-
-.page-header .description {
-  font-size: 14px;
-  color: #8c8c8c;
-  margin: 0;
 }
 
 .config-list-container {

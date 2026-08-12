@@ -145,11 +145,16 @@ def get_client_ip_from_request(request) -> str:
 
 async def check_ip_allowed(request, db: AsyncSession) -> bool:
     """检查当前请求 IP 是否允许访问"""
+    client_ip = get_client_ip_from_request(request)
+
+    # 本地回环地址默认允许（避免配置错误锁死系统）
+    if client_ip in ("127.0.0.1", "::1", "localhost"):
+        return True
+
     networks = await get_cached_whitelist(db)
 
     # 白名单为空 → 允许所有访问（向后兼容）
     if not networks:
         return True
 
-    client_ip = get_client_ip_from_request(request)
     return is_ip_in_networks(client_ip, networks)

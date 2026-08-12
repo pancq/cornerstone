@@ -32,6 +32,7 @@ const RoleManagement = () => import('../features/system/RoleManagement.vue')
 const SSOSettingsPage = () => import('../features/system/SSOSettingsPage.vue')
 const NotificationSettingsPage = () => import('../features/system/NotificationSettingsPage.vue')
 const LogsSettingsPage = () => import('../features/system/LogsSettingsPage.vue')
+const SecuritySettingsPage = () => import('../features/system/SecuritySettingsPage.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -58,10 +59,11 @@ const router = createRouter({
     { path: '/system/settings', name: 'system-settings', component: SettingsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.settings' } },
     { path: '/system/ai-settings', name: 'ai-settings', component: AISettingsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.aiSettings' } },
     { path: '/system/logs-settings', name: 'logs-settings', component: LogsSettingsPage, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.logsSettings' } },
+    { path: '/system/security', name: 'system-security', component: SecuritySettingsPage, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.security' } },
     { path: '/system/users', name: 'system-users', component: UserManagement, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.userManagement' } },
     { path: '/system/roles', name: 'system-roles', component: RoleManagement, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.roleManagement' } },
     { path: '/system/sso', name: 'system-sso', component: SSOSettingsPage, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.ssoSettings' } },
-    { path: '/system/notifications', name: 'system-notifications', component: NotificationSettingsPage, meta: { requiresAuth: true, permission: 'system:read', titleKey: 'system.notifications' } },
+    { path: '/system/notifications', name: 'system-notifications', component: NotificationSettingsPage, meta: { requiresAuth: true, permission: 'system:admin', titleKey: 'system.notifications' } },
     { path: '/profile', name: 'profile', component: ProfilePage, meta: { requiresAuth: true, permission: null, titleKey: 'system.profile' } },
     { path: '/sites', name: 'sites', component: SitesPage, meta: { requiresAuth: true, permission: 'sites:read', titleKey: 'sites.title' } },
     { path: '/topology/sites', name: 'topology-sites', component: SiteTopology, meta: { requiresAuth: true, permission: 'topology:read', titleKey: 'topology.siteTopology' } },

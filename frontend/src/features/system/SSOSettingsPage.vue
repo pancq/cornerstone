@@ -11,13 +11,6 @@ const activeTab = ref('sso')
 <template>
   <div class="sso-page">
     <el-card shadow="never">
-      <template #header>
-        <div class="card-title">
-          <el-icon><Connection /></el-icon>
-          {{ t('system.ssoSettings') }}
-        </div>
-      </template>
-
       <el-tabs v-model="activeTab">
         <el-tab-pane :label="t('system.ssoTab')" name="sso">
           <SSOSettings />
@@ -35,26 +28,9 @@ const activeTab = ref('sso')
   </div>
 </template>
 
-<script lang="ts">
-import { Connection } from '@element-plus/icons-vue'
-</script>
-
 <style scoped>
 .sso-page {
   padding: 20px;
-}
-
-.card-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #262626;
-}
-
-.card-title .el-icon {
-  color: #1890ff;
 }
 
 .coming-soon {

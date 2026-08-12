@@ -37,25 +37,36 @@ app.add_middleware(
 # IP白名单中间件：只允许配置的IP访问
 @app.middleware("http")
 async def ip_whitelist_middleware(request: Request, call_next):
-    # 跳过健康检查端点（让负载均衡器能检查）
-    if request.url.path in ["/", "/health", "/api/v1/settings/public/brand"]:
+    # 跳过公开端点（登录前可访问）
+    public_paths = [
+        "/", "/health", 
+        "/api/v1/settings/public/brand", 
+        "/api/v1/auth/captcha",
+        "/api/v1/auth/token",
+        "/api/v1/auth/login-with-captcha"
+    ]
+    if (request.url.path in public_paths or 
+        request.url.path.startswith("/api/v1/auth/sso/") or
+        request.url.path.startswith("/api/v1/auth/ldap/")):
         return await call_next(request)
 
     # 检查IP是否允许
-    db = next(get_db())
-    try:
-        allowed = await check_ip_allowed(request, db)
-        if not allowed:
-            from .utils.ip_whitelist import get_client_ip_from_request
-            client_ip = get_client_ip_from_request(request)
-            logger.warning(f"[IP白名单] 拒绝访问: client_ip={client_ip} path={request.url.path}")
-            return JSONResponse(
-                status_code=403,
-                content={"detail": "访问被拒绝：您的IP地址不在白名单中"}
-            )
-        return await call_next(request)
-    finally:
-        db.close()
+    async with async_session() as session:
+        try:
+            allowed = await check_ip_allowed(request, session)
+            if not allowed:
+                from .utils.ip_whitelist import get_client_ip_from_request
+                client_ip = get_client_ip_from_request(request)
+                logger.warning(f"[IP白名单] 拒绝访问: client_ip={client_ip} path={request.url.path}")
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "访问被拒绝：您的IP地址不在白名单中"}
+                )
+            return await call_next(request)
+        except Exception:
+            # 如果检查过程出错，默认允许访问（避免锁死系统）
+            logger.error("[IP白名单] 检查过程出错，默认允许访问")
+            return await call_next(request)
 
 # 包含API路由
 app.include_router(api_router, prefix="/api/v1")

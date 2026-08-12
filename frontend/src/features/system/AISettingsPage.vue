@@ -1,10 +1,5 @@
 <template>
   <div class="ai-settings-page">
-    <div class="page-header">
-      <h1>AI 设置</h1>
-      <p class="description">配置 AI 模型以启用智能分析、趋势预测等功能</p>
-    </div>
-
     <div class="config-list-container">
       <div class="list-header">
         <span class="list-title">LLM 配置列表</span>
@@ -353,26 +348,8 @@ onMounted(() => {
 
 <style scoped>
 .ai-settings-page {
-  padding: 24px;
   background: #f5f5f5;
   min-height: 100vh;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #262626;
-  margin: 0 0 8px 0;
-}
-
-.page-header .description {
-  font-size: 14px;
-  color: #8c8c8c;
-  margin: 0;
 }
 
 .config-list-container {

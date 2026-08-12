@@ -16,7 +16,7 @@ async function loadSettings() {
   loading.value = true
   try {
     const res = await api.get('/api/v1/settings/security/ip-whitelist')
-    whitelist.value = res.whitelist
+    whitelist.value = res.data.whitelist
   } catch (err) {
     console.error('Failed to load IP whitelist settings', err)
     ElMessage.error(t('system.loadFailed'))
@@ -93,6 +93,7 @@ onMounted(() => {
 <style scoped>
 .security-settings {
   max-width: 800px;
+  padding: 8px 0;
 }
 
 .helper-text {

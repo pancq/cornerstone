@@ -251,13 +251,6 @@ onMounted(() => {
 <template>
   <div class="role-management">
     <el-card shadow="never">
-      <template #header>
-        <div class="card-title">
-          <el-icon><InfoFilled /></el-icon>
-          {{ t('system.roleManagement') }}
-        </div>
-      </template>
-
       <div class="toolbar">
         <el-button type="primary" @click="showAddRoleModal = true" v-permission="'system:write'">
           <Plus class="el-icon" />

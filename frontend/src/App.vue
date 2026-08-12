@@ -23,6 +23,9 @@ import {
   TrendCharts,
   Search
 } from '@element-plus/icons-vue'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+
+const { Shield } = ElementPlusIconsVue
 
 const { t } = useI18n()
 const route = useRoute()
@@ -134,7 +137,7 @@ interface MenuItem {
   children?: Array<{ path: string; name: string; permission: string | null }>
 }
 
-const iconMap: Record<string, typeof DataBoard> = {
+const iconMap: Record<string, any> = {
   DataBoard,
   Location,
   Connection,
@@ -144,7 +147,11 @@ const iconMap: Record<string, typeof DataBoard> = {
   User,
   SwitchButton,
   TrendCharts,
+  Search,
 }
+
+// 从 ElementPlusIconsVue 中动态获取 Shield
+iconMap.Shield = ElementPlusIconsVue.Shield
 
 const menuItems = computed((): Array<{ group: string; items: MenuItem[] }> => {
   return menuConfig.map((group) => ({
@@ -187,6 +194,7 @@ function getIconForItem(nameKey: string): string {
     'system.settings': 'Setting',
     'system.notifications': 'Bell',
     'system.aiSettings': 'SwitchButton',
+    'system.security': 'Shield',
     'system.logsSettings': 'Files',
     'system.logs': 'Files',
   }
@@ -466,6 +474,7 @@ async function handleLogout() {
   display: flex;
   align-items: baseline;
   gap: 12px;
+  flex: 1;
 }
 
 .enterprise-eyebrow {
@@ -516,6 +525,7 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .global-search-btn {

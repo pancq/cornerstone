@@ -194,7 +194,7 @@ class AlertService:
         elif rule.condition_type == "packet_loss":
             return f"设备丢包率过高: 当前 {packet_loss}%, 阈值 {rule.threshold}%"
         elif rule.condition_type == "status":
-            return f"设备状态异常: {statusCn}"
+            return f"设备状态异常: {status_cn}"
         return f"告警触发: {rule.name}"
     
     @staticmethod

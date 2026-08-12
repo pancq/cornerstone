@@ -89,7 +89,8 @@ export const menuConfig: MenuGroup[] = [
     groupKey: 'menuGroups.systemSettings',
     items: [
       { path: '/system/settings', nameKey: 'system.settings', permission: 'system:read' },
-      { path: '/system/notifications', nameKey: 'system.notifications', permission: 'system:read' },
+      { path: '/system/security', nameKey: 'system.security', permission: 'system:admin' },
+      { path: '/system/notifications', nameKey: 'system.notifications', permission: 'system:admin' },
       { path: '/system/ai-settings', nameKey: 'system.aiSettings', permission: 'system:read' },
       { path: '/system/logs-settings', nameKey: 'system.logsSettings', permission: 'system:admin' }
     ]
