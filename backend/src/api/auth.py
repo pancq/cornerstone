@@ -14,6 +14,8 @@ from sqlalchemy import select, insert, update
 from captcha.image import ImageCaptcha
 import redis.asyncio as aioredis
 
+from ..utils.ip_whitelist import get_client_ip_from_request
+
 from ..database import get_db
 from ..models import User, AuditLog, UserSession, Role
 from ..schemas import Token, UserResponse, ChangePasswordRequest
@@ -194,7 +196,7 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    client_ip = request.client.host if request.client else None
+    client_ip = get_client_ip_from_request(request)
     user_agent = request.headers.get("User-Agent", "")
 
     if is_account_locked(form_data.username):
@@ -311,7 +313,6 @@ async def change_password(
     await db.execute(stmt)
     
     # 获取客户端 IP
-    from ..utils.ip_whitelist import get_client_ip_from_request
     client_ip = get_client_ip_from_request(request)
 
     # 记录审计日志
@@ -426,7 +427,6 @@ async def refresh_token(
     await db.execute(stmt)
 
     from datetime import timezone
-    from ..utils.ip_whitelist import get_client_ip_from_request
     client_ip = get_client_ip_from_request(request)
     session_expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7)
     new_session = UserSession(
@@ -480,7 +480,7 @@ async def login_with_captcha(
 
     await redis.delete(f"captcha:{body.captcha_id}")
 
-    client_ip = request.client.host if request.client else None
+    client_ip = get_client_ip_from_request(request)
     user_agent = request.headers.get("User-Agent", "")
 
     if is_account_locked(body.username):
