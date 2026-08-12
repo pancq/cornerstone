@@ -282,27 +282,28 @@ async def read_users_me(
 
 @router.post("/change-password")
 async def change_password(
-    request: ChangePasswordRequest,
+    request: Request,
+    body: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """修改自己的密码"""
     # 验证旧密码
-    if not verify_password(request.old_password, current_user.hashed_password):
+    if not verify_password(body.old_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="旧密码不正确"
         )
     
     # 验证新密码强度
-    if not validate_password(request.new_password):
+    if not validate_password(body.new_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="新密码至少8位，包含字母和数字"
         )
     
     # 更新密码
-    hashed_password = get_password_hash(request.new_password)
+    hashed_password = get_password_hash(body.new_password)
     stmt = update(User).where(User.id == current_user.id).values(
         hashed_password=hashed_password,
         updated_at=datetime.now(timezone.utc).replace(tzinfo=None)
@@ -310,7 +311,7 @@ async def change_password(
     await db.execute(stmt)
     
     # 获取客户端 IP
-    from ...utils.ip_whitelist import get_client_ip_from_request
+    from ..utils.ip_whitelist import get_client_ip_from_request
     client_ip = get_client_ip_from_request(request)
 
     # 记录审计日志
@@ -462,13 +463,12 @@ async def get_captcha(redis=Depends(get_redis)):
         media_type="image/png",
         headers={"X-Captcha-ID": captcha_id}
     )
-
 @router.post("/login-with-captcha")
 async def login_with_captcha(
     request: Request,
     body: CaptchaLoginRequest,
     db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis)
+    redis: Depends(get_redis),
 ):
     """带验证码的登录接口"""
     stored_code = await redis.get(f"captcha:{body.captcha_id}")
