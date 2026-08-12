@@ -426,7 +426,7 @@ async def refresh_token(
     await db.execute(stmt)
 
     from datetime import timezone
-    from ...utils.ip_whitelist import get_client_ip_from_request
+    from ..utils.ip_whitelist import get_client_ip_from_request
     client_ip = get_client_ip_from_request(request)
     session_expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7)
     new_session = UserSession(
