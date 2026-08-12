@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Shield } from '@element-plus/icons-vue'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+const { Shield } = ElementPlusIconsVue
 import api from '../../api'
 
 const { t } = useI18n()
